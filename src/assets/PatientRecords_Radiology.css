@@ -275,10 +275,10 @@
     padding: 20px;
   }
 
-  /* Container to align search bar + filters in one line */
-.search-container {
+  .search-container {
  width: 25%;  
   margin-right: 10px;  
+  margin-top: 1%;
 }
 
 /* Keep your existing search bar styles */
@@ -290,6 +290,7 @@
   border: 1px solid #ccc;
   border-radius: 30px;
 }
+
 
 .search-bar-wrapper {
   position: relative;
@@ -306,12 +307,12 @@
   font-size: 16px;
   pointer-events: none;
 }
-.filter-bar {
+.filter-barr {
   display: flex;
   justify-content: space-between;
   align-items: center;   
   gap: 1px;              
-  flex-wrap: wrap;       
+  flex-wrap: wrap;        
 }
 
 /* Filter Label */

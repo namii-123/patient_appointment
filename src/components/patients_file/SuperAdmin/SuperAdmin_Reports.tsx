@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, } from "react-icons/fa";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, } from "recharts";
-import "../assets/SuperAdmin_Reports.css";
+import "../../../assets/SuperAdmin_Reports.css";
 import logo from "/logo.png";
 
 interface ChartData {
@@ -105,34 +105,34 @@ const SuperAdmin_Reports: React.FC = () => {
       <aside className="sidebar">
         <div>
           <div
-            className="logo-box"
+            className="logo-boxs"
             onClick={() => handleNavigation("/superadmin_dashboard")}
             style={{ cursor: "pointer" }}
           >
-            <img src={logo} alt="logo" className="logo" />
-            <span className="logo-text">HealthSys</span>
+            <img src={logo} alt="logo" className="logos" />
+            <span className="logo-texts">HealthSys</span>
           </div>
 
-          <nav className="nav-links">
-            <div className="nav-item">
+          <nav className="nav-linkss">
+            <div className="nav-items">
               <FaTachometerAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_dashboard")}>
                 Dashboard
               </span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaCalendarAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_userrequests")}>
                 User Requests
               </span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaUsers className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_manageadmins")}>
                 Manage Admins
               </span>
             </div>
-            <div className="nav-item active">
+            <div className="nav-items active">
               <FaChartBar className="nav-icon" />
               <span>Reports & Analytics</span>
             </div>
@@ -208,6 +208,7 @@ const SuperAdmin_Reports: React.FC = () => {
                 <option value="dental">Dental</option>
                 <option value="clinical">Clinical</option>
                 <option value="radiology">Radiology</option>
+                <option value="medical">Medical</option>
                 <option value="dde">DDE</option>
               </select>
             </div>

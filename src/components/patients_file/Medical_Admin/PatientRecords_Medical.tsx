@@ -2,7 +2,7 @@ import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import type { ChangeEvent } from "react";
 import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock } from "react-icons/fa";
-import "../../../assets/PatientRecords_Medical.css";
+import "../../../assets/PatientRecords_Radiology.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
 

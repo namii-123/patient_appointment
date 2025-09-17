@@ -13,7 +13,7 @@ import {
   FaTimes,
   FaClock,
 } from "react-icons/fa";
-import "../../../assets/PatientRecords_Dental.css";
+import "../../../assets/PatientRecords_Radiology.css";
 import { db } from "../firebase";
 import {
   collection,

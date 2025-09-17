@@ -2,7 +2,7 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden; /* fix right-side gap */
+  overflow-x: hidden;
 }
   
   .dashboard {
@@ -28,14 +28,14 @@ html, body {
     overflow: hidden;
   }
   
-  .logo-box {
+  .logo-boxss {
     display: flex;
     align-items: center;
     padding: 20px;
     background-color: #16324f;
   }
   
-  .logo {
+  .logos {
     height: 50px;
     width: 50px;
     border-radius: 50%;
@@ -44,11 +44,11 @@ html, body {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
   
-  .logo:hover {
+  .logos:hover {
     transform: scale(1.1);
   }
   
-  .logo-text {
+  .logo-texts {
     font-size: 18px;
     font-weight: bold;
     text-transform: uppercase;
@@ -163,13 +163,13 @@ html, body {
 }
   
   /* Nav */
-  .nav-links {
+  .nav-linkss {
     display: flex;
     flex-direction: column;
     padding: 20px 0;
   }
   
-  .nav-item {
+  .nav-items {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -180,12 +180,12 @@ html, body {
     transition: background 0.3s ease;
   }
   
-  .nav-item.active {
+  .nav-items.active {
     background-color: #457b9d;
     border: solid 1px white;
   }
   
-  .nav-item:hover {
+  .nav-items:hover {
     background-color: #457b9d;
   }
   
@@ -245,16 +245,16 @@ html, body {
     flex: 1;
     height: 100vh;
     min-width: 0;
-    padding: 0;          /* remove gap */
-    margin: 0;           /* remove gap */
+    padding: 0;          
+    margin: 0;           
     background-color: #f1f0f0;
     overflow-y: auto;
     overflow-x: hidden;
   }
   
-  .top-navbar-superadmin {
-    width: 100%;         /* stretch full width */
-    padding: 10px 20px;  /* keep inner spacing */
+  .top-navbar-superadmins {
+    width: 100%;         
+    padding: 10px 20px;  
     background: #fff;
     display: flex;
     justify-content: space-between;
@@ -262,8 +262,8 @@ html, body {
     box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
     position: sticky;
     top: 0;
-    left: 0;             /* align to left edge */
-    right: 0;            /* align to right edge */
+    left: 0;            
+    right: 0;           
     z-index: 100;
   }
   
@@ -295,7 +295,8 @@ html, body {
   
   .card {
     width: calc((100% - 60px) / 3); 
-    max-width: 300px; 
+    max-width: 350px; 
+    height: 220px;
     background-color: #ffffff;
     border-radius: 12px;
     padding: 24px;
@@ -317,6 +318,7 @@ html, body {
   }
   
   .card-icon {
+    margin-top: 30px;
     font-size: 30px;
     color: #1d3557;
     margin-bottom: 10px;
@@ -399,17 +401,17 @@ html, body {
   color: white;
 }
 
-/* Container to center the button */
+
 .view-more-container {
   display: flex;
-  justify-content: center;  /* center horizontally */
-  margin-top: 10px;         /* space above button */
-  margin-bottom: 20px;      /* space below button */
+  justify-content: center; 
+  margin-top: 10px;       
+  margin-bottom: 20px;    
 }
 
-/* Button styling */
+
 .view-more-btn {
-  background-color: #4a90e2;  /* nice blue */
+  background-color: #4a90e2;  
   color: white;
   border: none;
   padding: 10px 20px;
@@ -420,22 +422,22 @@ html, body {
   transition: all 0.3s ease;
 }
 
-/* Hover effect */
+
 .view-more-btn:hover {
   background-color: #357abd;
   transform: translateY(-2px);
   box-shadow: 0px 4px 8px rgba(0,0,0,0.15);
 }
 
-/* Active (when clicked) */
+
 .view-more-btn:active {
   background-color: #2d5f91;
   transform: translateY(0px);
   box-shadow: none;
 }
 
-/* ✅ Recent Activity Log */
-.chart-activity-container {
+
+.chart-activity-containers {
   display: flex;
   justify-content: center;   
   margin: 40px auto;         
@@ -443,7 +445,7 @@ html, body {
   width: 100%;
 }
 
-.activity-wrapper {
+.activity-wrappers {
   background: #ffffff;
   border-radius: 16px;
   padding: 25px 20px;
@@ -453,7 +455,7 @@ html, body {
   text-align: center;       
 }
 
-.chart-title {
+.chart-titles {
   font-size: 20px;
   font-weight: 700;
   color: #1d3557;
@@ -462,17 +464,22 @@ html, body {
   padding-bottom: 10px;
 }
 
-.activity-list li {
-  font-size: 15px;
-  margin-bottom: 10px;
-  padding: 10px;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  transition: all 0.3s ease;
+.activity-lists {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+.activity-lists li {
+ font-size: 16px;
+    margin-bottom: 12px;
+    padding: 10px 16px;
+    background-color: #f1f5f9;
+    border-left: 5px solid #457b9d;
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
-.activity-list li:hover {
+.activity-lists li:hover {
   background-color: #eef2f7;
   transform: translateY(-2px);
 }

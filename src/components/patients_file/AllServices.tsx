@@ -38,8 +38,6 @@ interface FormData {
 
 
 
-
-// New interface for onNavigate data
 interface NavigateData extends FormData {
   patientId: string;
   controlNo: string;

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,7 +12,7 @@ import {
   FaSearch,
   FaTrash,
 } from "react-icons/fa";
-import "../assets/SuperAdmin_ManageAdmins.css";
+import "../../../assets/SuperAdmin_ManageAdmins.css";
 import logo from "/logo.png";
 
 type Notification = {
@@ -30,7 +31,14 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
-  const [showAll, setShowAll] = useState<boolean>(false); // NEW state for view more/less
+  const [showAll, setShowAll] = useState<boolean>(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedDay, setSelectedDay] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>("");
+  // State to manage dynamic list of years, starting from current year upward
+  const [availableYears, setAvailableYears] = useState<number[]>(
+    Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + i)
+  );
 
   const [notifications, setNotifications] = useState<Notification[]>([
     { text: "3 new appointment requests", unread: true },
@@ -48,7 +56,6 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
     navigate(path);
   };
 
-  // Dummy admin data
   const [admins, setAdmins] = useState<Admin[]>([
     { id: 1, name: "Dr. John Smith", department: "Dental", contact: "0917-123-4567" },
     { id: 2, name: "Nurse Maria Lopez", department: "Clinical", contact: "0917-234-5678" },
@@ -64,23 +71,25 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
     }
   };
 
-  // inside SuperAdmin_ManageAdmins
-const [selectedMonth, setSelectedMonth] = useState<string>("");
-const [selectedDay, setSelectedDay] = useState<string>("");
-const [selectedYear, setSelectedYear] = useState<string>("");
+  
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = e.target.value;
+    setSelectedYear(selected);
+  
+    if (selected && parseInt(selected) === availableYears[availableYears.length - 1]) {
+      const lastYear = availableYears[availableYears.length - 1];
+      const newYears = Array.from({ length: 20 }, (_, i) => lastYear + 1 + i);
+      setAvailableYears((prev) => [...prev, ...newYears]);
+    }
+  };
 
-
-  // Filtered admins based on search term
   const filteredAdmins = admins.filter(
     (admin) =>
       admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       admin.contact.includes(searchTerm)
   );
 
-  // Show only 5 by default, more if showAll is true
-  const displayedAdmins = showAll
-    ? filteredAdmins
-    : filteredAdmins.slice(0, 5);
+  const displayedAdmins = showAll ? filteredAdmins : filteredAdmins.slice(0, 5);
 
   return (
     <div className="dashboard">
@@ -88,33 +97,32 @@ const [selectedYear, setSelectedYear] = useState<string>("");
       <aside className="sidebar">
         <div>
           <div
-            className="logo-box"
+            className="logo-boxs"
             onClick={() => handleNavigation("/superadmin_dashboard")}
             style={{ cursor: "pointer" }}
           >
-            <img src={logo} alt="logo" className="logo" />
-            <span className="logo-text">HealthSys</span>
+            <img src={logo} alt="logo" className="logos" />
+            <span className="logo-texts">HealthSys</span>
           </div>
 
-          {/* Nav Links */}
-          <nav className="nav-links">
-            <div className="nav-item">
+          <nav className="nav-linkss">
+            <div className="nav-items">
               <FaTachometerAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_dashboard")}>
                 Dashboard
               </span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaCalendarAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_userrequests")}>
                 User Requests
               </span>
             </div>
-            <div className="nav-item active">
+            <div className="nav-items active">
               <FaUsers className="nav-icon" />
               <span>Manage Admins</span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_reports")}>
                 Reports & Analytics
@@ -123,13 +131,11 @@ const [selectedYear, setSelectedYear] = useState<string>("");
           </nav>
         </div>
 
-        {/* User Info and Sign Out */}
         <div className="sidebar-bottom">
           <div className="user-box">
             <FaUser className="user-icon" />
             <span className="user-label">Super Admin</span>
           </div>
-
           <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
             <span
@@ -144,7 +150,6 @@ const [selectedYear, setSelectedYear] = useState<string>("");
 
       {/* Main Content */}
       <main className="main-content">
-        {/* Top Navbar */}
         <div className="top-navbar-dental">
           <h2 className="navbar-title">Manage Admins</h2>
           <div className="notification-wrapper">
@@ -155,7 +160,6 @@ const [selectedYear, setSelectedYear] = useState<string>("");
             {unreadCount > 0 && (
               <span className="notification-count">{unreadCount}</span>
             )}
-
             {showNotifications && (
               <div className="notification-dropdown">
                 <div className="notification-header">
@@ -166,14 +170,11 @@ const [selectedYear, setSelectedYear] = useState<string>("");
                     </button>
                   )}
                 </div>
-
                 {notifications.length > 0 ? (
                   notifications.map((notif, index) => (
                     <div
                       key={index}
-                      className={`notification-item ${
-                        notif.unread ? "unread" : ""
-                      }`}
+                      className={`notification-item ${notif.unread ? "unread" : ""}`}
                     >
                       <span>{notif.text}</span>
                       {notif.unread && (
@@ -191,80 +192,77 @@ const [selectedYear, setSelectedYear] = useState<string>("");
           </div>
         </div>
 
-        {/* Date Filter */}
-<div className="filters-container-manage">
-  <div className="filter-manage">
-    <label>Date:</label>
-    <select
-      id="month"
-      value={selectedMonth}
-      onChange={(e) => setSelectedMonth(e.target.value)}>
-      <option value="">Month</option>
-      <option value="01">January</option>
-      <option value="02">February</option>
-      <option value="03">March</option>
-      <option value="04">April</option>
-      <option value="05">May</option>
-      <option value="06">June</option>
-      <option value="07">July</option>
-      <option value="08">August</option>
-      <option value="09">September</option>
-      <option value="10">October</option>
-      <option value="11">November</option>
-      <option value="12">December</option>
-    </select>
-  </div>
-
-  <div className="filter-manage">
-    <select
-      id="day"
-      value={selectedDay}
-      onChange={(e) => setSelectedDay(e.target.value)}
-    >
-      <option value="">Day</option>
-      {Array.from({ length: 31 }, (_, i) => (
-        <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-          {i + 1}
-        </option>
-      ))}
-    </select>
-  </div>
-
-  <div className="filter-manage">
-    <select
-      id="year"
-      value={selectedYear}
-      onChange={(e) => setSelectedYear(e.target.value)}
-    >
-      <option value="">Year</option>
-      {Array.from({ length: 6 }, (_, i) => {
-        const year = new Date().getFullYear() - i;
-        return (
-          <option key={year} value={year.toString()}>
-            {year}
-          </option>
-        );
-      })}
-    </select>
-  </div>
-</div>
-
-        {/* Search Bar */}
         <div className="content-wrapper">
-          <div className="search-container">
-            <div className="search-bar-wrapper">
-              <FaSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search by Name..."
-                className="search-bar"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          {/* Filter and Search Row */}
+          <div className="filter-search-row">
+            <div className="search-section">
+              <div className="search-container">
+                <div className="search-bar-wrapper">
+                  <FaSearch className="search-icons" />
+                  <input
+                    type="text"
+                    placeholder="Search by Name or ID..."
+                    className="search-bar"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="filters-container-manage">
+              <div className="filter-manage">
+                <label>Date:</label>
+                <select
+                  id="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  <option value="">Month</option>
+                  <option value="01">January</option>
+                  <option value="02">February</option>
+                  <option value="03">March</option>
+                  <option value="04">April</option>
+                  <option value="05">May</option>
+                  <option value="06">June</option>
+                  <option value="07">July</option>
+                  <option value="08">August</option>
+                  <option value="09">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </div>
+              <div className="filter-manage">
+                <select
+                  id="day"
+                  value={selectedDay}
+                  onChange={(e) => setSelectedDay(e.target.value)}
+                >
+                  <option value="">Day</option>
+                  {Array.from({ length: 31 }, (_, i) => (
+                    <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-manage">
+                <select
+                  id="year"
+                  value={selectedYear}
+                  onChange={handleYearChange}
+                >
+                  <option value="">Year</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year.toString()}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Admins Table */}
           <h2 className="admins-table-title">Manage Admins</h2>
           <table className="admins-table">
             <thead>
@@ -304,7 +302,6 @@ const [selectedYear, setSelectedYear] = useState<string>("");
             </tbody>
           </table>
 
-          {/* View More / View Less Button */}
           {filteredAdmins.length > 5 && (
             <div className="view-more-container">
               <button

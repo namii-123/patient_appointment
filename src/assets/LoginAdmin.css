@@ -2,7 +2,7 @@
   box-sizing: border-box;
 }
 
-.login-wrapper {
+.login-wrappers {
   height: 100vh;
   width: 100vw;
   background: linear-gradient(rgba(28, 41, 56, 0.85), rgba(28, 41, 56, 0.85)), url('/pattern.jpg');
@@ -16,7 +16,7 @@
   padding: 20px;
 }
 
-.login-card {
+.login-cards {
   background: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -34,8 +34,6 @@
 .login-header {
   text-align: center;
   margin-bottom: 30px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .login-logo-centered {
@@ -57,13 +55,13 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
-.login-form {
+.login-forms {
   width: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.login-label {
+.login-labels {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 6px;
@@ -72,17 +70,23 @@
 }
 
 .login-input {
-  padding: 6px 10px;
+  padding: 6px 42px 6px 10px;
   font-size: 13.5px;
   border: 1.2px solid #ccc;
   border-radius: 5px;
   margin-bottom: 12px;
-  box-sizing: border-box;
-  background-color: rgb(255, 255, 255);
+  background-color: #fff;
   color: black;
+  width: 100%;
+  height: 36px; /* Lock height */
+  display: block;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.5;
+  appearance: none; /* Normalize browser styling */
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
-
-
 
 .login-input::placeholder {
   color: #4d4949;
@@ -121,7 +125,7 @@
 
 .forgot-link,
 .signup-link {
-  color: #ffffff; 
+  color: #ffffff;
   text-decoration: none;
   font-weight: 500;
 }
@@ -129,26 +133,35 @@
 .forgot-link:hover,
 .signup-link:hover {
   text-decoration: underline;
-  color: #cce6ff; 
+  color: #cce6ff;
 }
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
 .password-wrapper {
   position: relative;
   width: 100%;
+  display: flex;
+  align-items: center;
 }
 
-.password-wrapper .login-input {
-  width: 100%;
-  padding-right: 40px; /* space for the eye button */
-}
-
-.eye-toggle {
+.eye-toggles {
   position: absolute;
-  right: 10px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  background: none;
+  background: transparent;
   border: none;
   cursor: pointer;
   color: #555;
   padding: 0;
+  height: 20px;
+  width: 20px;
+  pointer-events: auto;
+  z-index: 10;
 }

@@ -59,6 +59,13 @@ import PatientRecords_Medical from './components/patients_file/Medical_Admin/Pat
 import ReportsAnalytics_Medical from './components/patients_file/Medical_Admin/ReportsAnalytics_Medical';
 import ManageSlots_Medical from './components/patients_file/Medical_Admin/ManageSlots_Medical';
 
+//Super Admin
+import SuperAdmin_Dashboard from './components/patients_file/SuperAdmin/SuperAdmin_Dashboard';
+import SuperAdmin_UserRequests from './components/patients_file/SuperAdmin/SuperAdmin_UserRequests';
+import SuperAdmin_ManageAdmins from './components/patients_file/SuperAdmin/SuperAdmin_ManageAdmins';
+import SuperAdmin_Reports from './components/patients_file/SuperAdmin/SuperAdmin_Reports';
+
+
 import { ToastContainer } from "react-toastify";
 import RequireAuth from "./components/patients_file/RequireAuth";
 
@@ -79,30 +86,39 @@ const App: React.FC = () => {
             {/* Admin dashboards also protected */}
             <Route path="/loginadmin" element={<LoginAdmin />} />
             <Route path="/register" element={<Register />} />
-
+            
+           {/*dental*/}
             <Route path="/dashboard_dental" element={<Dashboard_Dental />} />
             <Route path="/appointments_dental" element={<Appointments_Dental />} />
             <Route path="/patientrecords_dental" element={<PatientRecords_Dental />} />
             <Route path="/reports&analytics_dental" element={<ReportsAnalytics_Dental />} />
             <Route path="/manageslots_dental" element={<ManageSlots_Dental />} />
 
+
+            {/*radiology*/}
             <Route path="/dashboard_radiology" element={<Dashboard_Radiology />} />
             <Route path="/appointments_radiology" element={<Appointments_Radiology />} />
             <Route path="/patientrecords_radiology" element={<PatientRecords_Radiology />} />
             <Route path="/reports&analytics_radiology" element={<ReportsAnalytics_Radiology />} />
             <Route path="/manageslots_radiology" element={<ManageSlots_Radiology />} />
 
+
+            {/*clinical*/}
             <Route path="/dashboard_clinical" element={<Dashboard_Clinical />} />
             <Route path="/appointments_clinical" element={<Appointments_Clinical />} />
             <Route path="/patientrecords_clinical" element={<PatientRecords_Clinical />} />
             <Route path="/reports&analytics_clinical" element={<ReportsAnalytics_Clinical />} />
             <Route path="/manageslots_clinical" element={<ManageSlots_Clinical />} />
 
+
+            {/*dde*/}
             <Route path="/dashboard_dde" element={<Dashboard_DDE />} />
             <Route path="/appointments_dde" element={<Appointments_DDE />} />
             <Route path="/patientrecords_dde" element={<PatientRecords_DDE />} />
             <Route path="/reports&analytics_dde" element={<ReportsAnalytics_DDE />} />
 
+
+            {/*medical*/}
             <Route path="/dashboard_medical" element={<Dashboard_Medical />} />
             <Route path="/appointments_medical" element={<Appointments_Medical />} />
             <Route path="/patientrecords_medical" element={<PatientRecords_Medical />} />
@@ -110,7 +126,14 @@ const App: React.FC = () => {
             <Route path="/manageslots_medical" element={<ManageSlots_Medical />} />
 
 
-         
+
+            {/*superadmin*/}
+            <Route path="/superadmin_dashboard" element={<SuperAdmin_Dashboard/>} />
+            <Route path="/superadmin_userrequests" element={<SuperAdmin_UserRequests/>} />
+            <Route path="/superadmin_manageadmins" element={<SuperAdmin_ManageAdmins/>} />
+            <Route path="/superadmin_reports" element={<SuperAdmin_Reports/>} />
+
+
 
           {/* Protected routes */}
           <Route element={<RequireAuth />}>
@@ -129,9 +152,6 @@ const App: React.FC = () => {
             <Route path="/calendardental" element={<CalendarDental />} />
             <Route path="/calendarmedical" element={<CalendarMedical />} />
             <Route path="/review" element={<ReviewPage />} />
-
-
-
             
           
           </Route>

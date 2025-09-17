@@ -473,7 +473,7 @@ useEffect(() => {
   {filteredAppointments.length > 0 ? (
     filteredAppointments.map((appt) => (
       <tr key={appt.id}>
-        <td>{appt.UserId}</td> 
+        <td>{appt.UserId}</td> {/* Display UserId */}
         <td>{appt.patientCode}</td>
         <td>{appt.lastName}</td>
         <td>{appt.firstName}</td>

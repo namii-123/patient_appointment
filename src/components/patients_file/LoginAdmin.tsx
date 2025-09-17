@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { FormEvent } from "react";
 import "../../assets/LoginAdmin.css";
 import logo from "/logo.png";
-import { Eye, EyeOff } from "lucide-react"; // 👈 icons
+import { Eye, EyeOff } from "lucide-react";
 
 const LoginAdmin: React.FC = () => {
   const navigate = useNavigate();
@@ -19,47 +19,48 @@ const LoginAdmin: React.FC = () => {
   };
 
   return (
-    <div className="login-wrapper">
-      <div className="login-card">
+    <div className="login-wrappers">
+      <div className="login-cards">
         <div className="login-header">
           <img src={logo} alt="Logo" className="login-logo-centered" />
           <h2 className="login-app-title">DOH-TRC Argao</h2>
           <h3 className="login-subtitle">Welcome, Admin</h3>
         </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label htmlFor="username" className="login-label">
+        <form className="login-forms" onSubmit={handleSubmit}>
+          <label htmlFor="username" className="login-labels">
             Username
           </label>
-          <input
-            type="text"
-            id="username"
-            className="login-inputs"
-            placeholder="Enter your username"
-            required
-          />
+          <div className="input-wrapper">
+            <input
+              type="text"
+              id="username"
+              className="login-input"
+              placeholder="Enter your username"
+              required
+            />
+          </div>
 
-          <label htmlFor="password" className="login-label">
+          <label htmlFor="password" className="login-labels">
             Password
           </label>
           <div className="password-wrapper">
-  <input
-    type={showPassword ? "text" : "password"}
-    id="password"
-    className="login-input"
-    placeholder="Enter your password"
-    required
-  />
-  <button
-    type="button"
-    className="eye-toggle"
-    onClick={() => setShowPassword(!showPassword)}
-    tabIndex={-1} // 👈 dili maka focus para dili mawala cursor
-  >
-    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-  </button>
-</div>
-
+            <input
+              type={showPassword ? "text" : "password"}
+              id="password"
+              className="login-input"
+              placeholder="Enter your password"
+              required
+            />
+            <button
+              type="button"
+              className="eye-toggles"
+              onClick={() => setShowPassword(!showPassword)}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
 
           <button type="submit" className="login-button">
             Sign In

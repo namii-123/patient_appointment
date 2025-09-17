@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaClock, } from "react-icons/fa";
-import "../../../assets/Appointments_Medical.css";
+import "../../../assets/Appointments_Dental.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
 import { sendEmail } from "../emailService";

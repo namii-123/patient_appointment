@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock, FaTimesCircle, FaCheckCircle,  } from "react-icons/fa";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, } from "recharts";
-import "../../../assets/Dashboard_Medical.css";
+import "../../../assets/Dashboard_Clinical.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
 import {
@@ -382,7 +382,7 @@ useEffect(() => {
         <div className="chart-activity-container">
           <div className="chart-wrapper">
             <h3 className="chart-title">Appointment Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
                   data={data}

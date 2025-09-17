@@ -380,7 +380,7 @@ useEffect(() => {
          <div className="chart-activity-container">
                   <div className="chart-wrapper">
                     <h3 className="chart-title">Appointment Distribution</h3>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={400}>
                       <PieChart>
                         <Pie
                           data={data}

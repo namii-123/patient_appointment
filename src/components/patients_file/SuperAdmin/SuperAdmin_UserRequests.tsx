@@ -11,7 +11,7 @@ import {
   FaSignOutAlt,
   FaSearch,
 } from "react-icons/fa";
-import "../assets/SuperAdmin_UserRequests.css";
+import "../../../assets/SuperAdmin_UserRequests.css";
 import logo from "/logo.png";
 
 interface Notification {
@@ -113,10 +113,34 @@ const SuperAdmin_UserRequests: React.FC = () => {
     );
   };
 
-    // inside SuperAdmin_ManageAdmins
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [selectedDay, setSelectedDay] = useState<string>("");
-  const [selectedYear, setSelectedYear] = useState<string>("");
+   const availableMonths = [
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  // Generate available days (1-31)
+  const availableDays = Array.from({ length: 31 }, (_, index) => index + 1);
+
+
+  const [availableYears, setAvailableYears] = useState(() => {
+            const currentYear = new Date().getFullYear();
+            return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
+          });
+        
+          const handleYearClick = () => {
+            const maxYear = Math.max(...availableYears);
+            const currentYear = new Date().getFullYear();
+            if (maxYear < currentYear + 50) {
+             
+              const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
+              setAvailableYears((prev) => [...prev, ...newYears]);
+            }
+          };
+  
+
+   const [yearFilter, setYearFilter] = useState("All");
+    const [monthFilter, setMonthFilter] = useState("All");
+    const [dayFilter, setDayFilter] = useState("All");
 
   // Filter + Search
   const filteredRequests = userRequests.filter((req) => {
@@ -139,27 +163,27 @@ const SuperAdmin_UserRequests: React.FC = () => {
       <aside className="sidebar">
         <div>
           <div
-            className="logo-box"
+            className="logo-boxs"
             onClick={() => handleNavigation("/superadmin_dashboard")}
             style={{ cursor: "pointer" }}
           >
-            <img src={logo} alt="logo" className="logo" />
-            <span className="logo-text">HealthSys</span>
+            <img src={logo} alt="logos" className="logos" />
+            <span className="logo-texts">HealthSys</span>
           </div>
 
           {/* Nav Links */}
-          <nav className="nav-links">
-            <div className="nav-item">
+          <nav className="nav-linkss">
+            <div className="nav-items">
               <FaTachometerAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_dashboard")}>
                 Dashboard
               </span>
             </div>
-            <div className="nav-item active">
+            <div className="nav-items active">
               <FaCalendarAlt className="nav-icon" />
               <span>User Requests</span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaUsers className="nav-icon" />
               <span
                 onClick={() => handleNavigation("/superadmin_manageadmins")}
@@ -167,7 +191,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
                 Manage Admins
               </span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_reports")}>
                 Reports & Analytics
@@ -196,9 +220,9 @@ const SuperAdmin_UserRequests: React.FC = () => {
       </aside>
 
       {/* Main content */}
-      <main className="main-content">
+      <main className="main-contents">
         {/* Top Navbar */}
-        <div className="top-navbar-dental">
+        <div className="top-navbar-dentals">
           <h2 className="navbar-title">User Access Requests</h2>
           <div className="notification-wrapper">
             <FaBell
@@ -245,91 +269,80 @@ const SuperAdmin_UserRequests: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="content-wrapper-request">
-          <div className="filter-bar">
-            <div className="searchbar-container">
-              <FaSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search by Name or Email..."
-                className="search-input"
-                value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setSearchTerm(e.target.value)
-                }
-              />
-            </div>
-            <div className="filter-request">
-              <label>Status:</label>
-              <select
-                className="status-dropdown"
-                value={statusFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                  setStatusFilter(e.target.value)
-                }
-              >
-                <option value="All">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
+        <div className="content-wrapper-requests">
+            <div className="filter-barss">
+                                <div className="searchbar-containers">
+                                  <div className="searchsss">
+                                    <FaSearch className="search-iconss" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search by Name or Number..."
+                                      className="search-inputs"
+                                      value={searchTerm}
+                                      onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+           <div className="filterss">
+                                   <label>Status:</label>
+                                   <select
+                                     className="status-dropdown"
+                                     value={statusFilter}
+                                     onChange={(e: ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+                                   >
+                                     <option value="All">All</option>
+                                     <option value="Pending">Pending</option>
+                                     <option value="Cancelled">Cancelled</option>
+                                   </select>
+                                 </div>
 
-  <div className="filter-request">
-    <label>Date:</label>
-    <select className="date-dropdown"
-      id="month"
-      value={selectedMonth}
-      onChange={(e) => setSelectedMonth(e.target.value)}>
-      <option value="">Month</option>
-      <option value="01">January</option>
-      <option value="02">February</option>
-      <option value="03">March</option>
-      <option value="04">April</option>
-      <option value="05">May</option>
-      <option value="06">June</option>
-      <option value="07">July</option>
-      <option value="08">August</option>
-      <option value="09">September</option>
-      <option value="10">October</option>
-      <option value="11">November</option>
-      <option value="12">December</option>
-    </select>
-  </div>
-
-  <div className="filter-request">
-    <select className="date-dropdown"
-      id="day"
-      value={selectedDay}
-      onChange={(e) => setSelectedDay(e.target.value)}
-    >
-      <option value="">Day</option>
-      {Array.from({ length: 31 }, (_, i) => (
-        <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-          {i + 1}
-        </option>
-      ))}
-    </select>
-  </div>
-
-  <div className="filter-request">
-    <select className="date-dropdown"
-      id="year"
-      value={selectedYear}
-      onChange={(e) => setSelectedYear(e.target.value)}
-    >
-      <option value="">Year</option>
-      {Array.from({ length: 6 }, (_, i) => {
-        const year = new Date().getFullYear() - i;
-        return (
-          <option key={year} value={year.toString()}>
-            {year}
-          </option>
-        );
-      })}
-    </select>
-</div>
-          </div>
+   <div className="filterss">
+        <label>Year:</label>
+        <select
+          className="status-dropdown"
+          value={yearFilter}
+          onChange={(e) => setYearFilter(e.target.value)}
+          onClick={handleYearClick} 
+        >
+          <option value="All">All</option>
+          {availableYears.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </div>
+                        <div className="filterss">
+                          <label>Month:</label>
+                          <select
+                            className="status-dropdown"
+                            value={monthFilter}
+                            onChange={(e: ChangeEvent<HTMLSelectElement>) => setMonthFilter(e.target.value)}
+                          >
+                            <option value="All">All</option>
+                            {availableMonths.map((month) => (
+                              <option key={month} value={month}>
+                                {month}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="filterss">
+                          <label>Day:</label>
+                          <select
+                            className="status-dropdown"
+                            value={dayFilter}
+                            onChange={(e: ChangeEvent<HTMLSelectElement>) => setDayFilter(e.target.value)}
+                          >
+                            <option value="All">All</option>
+                            {availableDays.map((day) => (
+                              <option key={day} value={day}>
+                                {day}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
 
           <p className="user-request-header">All User Access Requests</p>
 

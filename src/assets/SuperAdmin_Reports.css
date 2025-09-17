@@ -28,14 +28,14 @@ html, body {
   overflow: hidden;
 }
 
-.logo-box {
+.logo-boxs {
   display: flex;
   align-items: center;
   padding: 20px;
   background-color: #16324f;
 }
 
-.logo {
+.logos {
   height: 50px;
   width: 50px;
   border-radius: 50%;
@@ -44,11 +44,11 @@ html, body {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.logo:hover {
+.logos:hover {
   transform: scale(1.1);
 }
 
-.logo-text {
+.logo-texts {
   font-size: 18px;
   font-weight: bold;
   text-transform: uppercase;
@@ -155,13 +155,13 @@ html, body {
 }
 
 /* Nav */
-.nav-links {
+.nav-linkss {
   display: flex;
   flex-direction: column;
   padding: 20px 0;
 }
 
-.nav-item {
+.nav-items {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -172,12 +172,12 @@ html, body {
   transition: background 0.3s ease;
 }
 
-.nav-item.active {
+.nav-items.active {
   background-color: #457b9d;
   border: solid 1px white;
 }
 
-.nav-item:hover {
+.nav-items:hover {
   background-color: #457b9d;
 }
 
@@ -288,11 +288,12 @@ html, body {
 }
 
 .filter-reports select {
-  padding: 5px 8px;
+  padding: 10px 8px;
   border-radius: 6px;
   border: 1px solid #ccc;
   width: 140px; 
   font-size: 14px;
+  
 }
 
 .filter-reports label {
@@ -308,7 +309,7 @@ html, body {
 }
 
 .date-select-group select {
-  padding: 5px 8px;
+  padding: 10px 10px;
   border-radius: 6px;
   border: 1px solid #ccc;
   width: 100px; 

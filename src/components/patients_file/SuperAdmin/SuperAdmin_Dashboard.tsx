@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaTooth, FaStethoscope, FaXRay, FaClinicMedical, } from "react-icons/fa";
-import "../assets/SuperAdmin_Dashboard.css";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaTooth,
+   FaStethoscope, FaXRay, FaClinicMedical,  FaUserMd} from "react-icons/fa";
+import "../../../assets/SuperAdmin_Dashboard.css";
 import logo from "/logo.png";
 
 const SuperAdmin_Dashboard: React.FC = () => {
@@ -38,24 +39,24 @@ const SuperAdmin_Dashboard: React.FC = () => {
       {/* Sidebar */}
       <aside className="sidebar">
         <div>
-          <div className="logo-box" onClick={() => handleNavigation("/superadmin_dashboard")}
+          <div className="logo-boxss" onClick={() => handleNavigation("/superadmin_dashboard")}
             style={{ cursor: "pointer" }}>
-            <img src={logo} alt="logo" className="logo" />
-            <span className="logo-text">HealthSys</span>
+            <img src={logo} alt="logos" className="logos" />
+            <span className="logo-texts">HealthSys</span>
           </div>
-          <div className="nav-links">
-            <div className="nav-item active">
+          <div className="nav-linkss">
+            <div className="nav-items active">
               <FaTachometerAlt className="nav-icon" /> Dashboard
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaUsers className="nav-icon" /> 
               <span onClick={() => handleNavigation("/superadmin_userrequests")}>User Requests</span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaCalendarAlt className="nav-icon" /> 
               <span onClick={() => handleNavigation("/superadmin_manageadmins")}>Manage Admins</span>
             </div>
-            <div className="nav-item">
+            <div className="nav-items">
               <FaChartBar className="nav-icon" /> 
               <span onClick={() => handleNavigation("/superadmin_reports")}>Reports & Analytics</span>
             </div>
@@ -76,7 +77,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
       {/* Main Content */}
       <main className="main-content-superadmin">
         {/* Top Navbar */}
-        <div className="top-navbar-superadmin">
+        <div className="top-navbar-superadmins">
           <h2 className="navbar-title">Dashboard</h2>
           <div className="notification-wrapper">
             <FaBell
@@ -125,29 +126,41 @@ const SuperAdmin_Dashboard: React.FC = () => {
         <div className="summary-cards-content-wrapper">
           <div className="summary-cards-container">
             <div className="summary-cards-row">
-              <div className="card" onClick={() => handleNavigation("/superadmin_dental")}>
-                <FaTooth className="card-icon" />
-                <h3>120</h3>
-                <p>Total Dental Patients</p>
-              </div>
-              <div className="card" onClick={() => handleNavigation("/superadmin_dde")}>
-                <FaStethoscope className="card-icon" />
-                  <h3>95</h3>
-                  <p>Total DDE Patients</p>
-              </div>
-              <div className="card" onClick={() => handleNavigation("/superadmin_radiology")}>
-                <FaXRay className="card-icon" />
-                <h3>60</h3>
-                <p>Total Radiology Patients</p>
-              </div>
-            </div>
-
-          <div className="summary-cards-row single">
+              <div className="summary-cards-row single">
             <div className="card" onClick={() => handleNavigation("/superadmin_clinical")}>
               <FaClinicMedical className="card-icon" />
               <h3>150</h3>
               <p>Total Clinical Patients</p>
             </div>
+
+
+              <div className="card" onClick={() => handleNavigation("/superadmin_dental")}>
+                <FaTooth className="card-icon" />
+                <h3>120</h3>
+                <p>Total Dental Patients</p>
+              </div>
+               <div className="card" onClick={() => handleNavigation("/superadmin_radiology")}>
+                <FaXRay className="card-icon" />
+                <h3>60</h3>
+                <p>Total Radiology Patients</p>
+              </div>
+
+
+              <div className="card" onClick={() => handleNavigation("/superadmin_medical")}>
+                <FaUserMd className="card-icon" />
+               <h3>150</h3>
+               <p>Total Medical Patients</p>
+                </div>
+
+              <div className="card" onClick={() => handleNavigation("/superadmin_dde")}>
+                <FaStethoscope className="card-icon" />
+                  <h3>95</h3>
+                  <p>Total DDE Patients</p>
+              </div>
+             
+            </div>
+
+          
           </div>
         </div>
       </div>
@@ -198,10 +211,10 @@ const SuperAdmin_Dashboard: React.FC = () => {
         )}
 
         {/* Activity Section */}
-        <div className="chart-activity-container">
-          <div className="activity-wrapper">
-            <h3 className="chart-title">Recent Activities</h3>
-            <ul className="activity-list">
+        <div className="chart-activity-containers">
+          <div className="activity-wrappers">
+            <h3 className="chart-titles">Recent Activities</h3>
+            <ul className="activity-lists">
               <li>Dentist added new patient record</li>
               <li>Radiology uploaded scan results</li>
               <li>Clinical updated prescriptions</li>
