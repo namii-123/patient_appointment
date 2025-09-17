@@ -1,0 +1,315 @@
+/* General Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* 📌 Login Page */
+.login-page {
+    display: flex;
+    height: 75vh;
+    justify-content: center;
+    align-items: center;
+    background: #f4f4f4;
+    padding: 20px;
+}
+
+/* 📌 Login Container */
+.login-container {
+    display: flex;
+    width: 1000px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    transition: 0.3s ease-in-out;
+}
+
+/* 📌 Left Panel */
+.login-left {
+    flex: 1;
+    background: midnightblue;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 60px;
+    text-align: center;
+}
+
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.logo-img {
+    width: 60px;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.login-left h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+     color: white;
+}
+
+.login-left p {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* 📌 Right Panel */
+.login-right {
+    flex: 1;
+    padding: 40px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.login-right h2 {
+    font-size: 24px;
+    color:white;
+    margin-bottom: 15px;
+}
+
+/* 📌 Input Group */
+.input-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.input-group label {
+    font-size: 14px;
+    color: #555;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.3s;
+}
+
+.input-group input:focus {
+    border-color: #4b76b6;
+}
+
+/* 📌 Login Button */
+.login-btn {
+    width: 100%;
+    padding: 12px;
+    background: midnightblue;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s ease-in-out;
+}
+
+.login-btn:hover {
+    background: #174488;
+}
+
+/* 📌 Forgot Password */
+.forgot-password {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #052659;
+    cursor: pointer;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+.signup-text {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #333;
+    text-align: center;
+}
+
+.signup-pill {
+    color: #052659;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.signup-pill:hover {
+    color: #174488;
+    text-decoration: underline;
+}
+
+/* 📌 "or" Separator */
+.or-separator {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.separator-line {
+    flex: 1;
+    height: 1px;
+    background: #ccc;
+    margin: 0 10px;
+}
+
+.or-text {
+    color: #666;
+    font-size: 14px;
+    padding: 0 10px;
+}
+
+/* 📌 Google Login Button */
+.google-login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* Increased gap for better spacing */
+    width: 100%;
+    padding: 12px;
+    background-color: #ffffff;
+    color: #444;
+    border: 1px solid #dfe1e5; /* Light gray border like Google's design */
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.google-login-btn:hover {
+    background-color: #f1f3f4; /* Light gray hover background */
+    border-color: #c6c6c6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.google-icon {
+    font-size: 20px; /* Slightly larger icon for prominence */
+    color: #4285f4; /* Google blue */
+}
+
+/* 📌 Signup Modal Overlay */
+.signup-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* 📌 Modal Content Box */
+.signup-modal-content {
+    background: white;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 1000px;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* 📌 Close Button */
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    z-index: 1001;
+}
+
+/* Hover effect for close button */
+.close-btn:hover {
+    color: crimson;
+}
+
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-input-wrapper input {
+  padding-right: 40px;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #888;
+  font-size: 18px;
+}
+
+/* 📱 Responsive Design */
+@media (max-width: 768px) {
+    .login-container {
+        flex-direction: column;
+        width: 90%;
+    }
+
+    .login-left {
+        padding: 30px 40px;
+    }
+
+    .login-right {
+        padding: 30px 40px;
+    }
+
+    .google-login-btn {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .google-icon {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-right h2 {
+        font-size: 20px;
+    }
+
+    .input-group input {
+        font-size: 13px;
+    }
+
+    .login-btn {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .google-login-btn {
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .google-icon {
+        font-size: 16px;
+    }
+}

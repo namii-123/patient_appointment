@@ -1,0 +1,202 @@
+* {
+  box-sizing: border-box;
+}
+
+.register-wrapper {
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(rgba(28, 41, 56, 0.85), rgba(28, 41, 56, 0.85)), url('/pattern.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 20px;
+}
+
+.register-card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 30px 40px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 20px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.register-logo-centered {
+  max-width: 70px;
+  margin-bottom: 10px;
+}
+
+.register-app-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.register-subtitle {
+  font-size: 15px;
+  color: #ffffff;
+  margin-top: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* Form Styling */
+.register-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.register-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 3px;
+  color: #f0f0f0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.register-input {
+  padding: 6px 10px;
+  font-size: 13.5px;
+  border: 1.2px solid #ccc;
+  border-radius: 5px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+  background-color: rgba(29, 16, 16, 0.1);
+  color: black;
+}
+
+.register-input:focus {
+  outline: none;
+  border-color: #8aa8c8;
+  box-shadow: 0 0 6px rgba(138, 168, 200, 0.4);
+}
+
+.register-input::placeholder {
+  color: #555353;
+}
+
+.register-button {
+  padding: 12px;
+  background-color: #1e5286;
+  color: white;
+  font-weight: bold;
+  font-size: 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 6px;
+}
+
+.register-button:hover {
+  background-color: #1e4161;
+}
+
+.register-links {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 13.5px;
+  text-decoration: none;
+  color: #e0e0e0;
+}
+
+.signup-link {
+  color: #ffffff;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+  color: #ffffff;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal-box {
+  background-color: #ffffff;
+  padding: 25px 30px;
+  border-radius: 10px;
+  text-align: center;
+  width: 90%;
+  max-width: 350px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-box h3 {
+  margin-bottom: 10px;
+  font-size: 18px;
+  color: #1e5286;
+}
+
+.modal-box p {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.modal-button {
+  padding: 10px 20px;
+  background-color: #1e5286;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.modal-button:hover {
+  background-color: #1e4161;
+}
+ 
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrapper .login-input {
+  width: 100%;
+  padding-right: 40px; /* space for the eye button */
+}
+
+.eye-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  padding: 0;
+}

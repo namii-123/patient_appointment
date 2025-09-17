@@ -1,0 +1,339 @@
+/* General Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    scroll-behavior: smooth;
+}
+
+.landing-container {
+    min-height: 100vh;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 40px;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Logo & Text Container */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.landing-logo {
+    width: 40px;
+    height: auto;
+    transition: transform 0.3s ease-in-out;
+}
+
+.landing-logo:hover {
+    transform: scale(1.05);
+}
+
+.logo-text {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #052659;
+}
+
+/* Navigation Links */
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 40px;
+    margin-left: auto;
+}
+
+.nav-links li {
+    cursor: pointer;
+    color: #333;
+    font-size: small;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.nav-links li:hover {
+    text-decoration: underline;
+    font-weight: bold;
+    color: #052659;
+}
+
+.nav-links li.active {
+    color: #052659;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Hero Section */
+.hero {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    padding: 100px 10%;
+    background: url('../landinglogo.jpg') no-repeat center center / cover;
+    color: white;
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+    margin-bottom: -2%;
+}
+
+/* Dark Overlay */
+.hero::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(189, 187, 187, 0.295);
+    z-index: 1;
+}
+
+/* Hero Content */
+.hero-content {
+    max-width: 45%;
+    position: relative;
+    z-index: 2;
+    color: rgb(59, 58, 58);
+    animation: fadeIn 0.6s ease-in-out;
+}
+
+.hero h1 {
+    font-size: 3rem;
+    line-height: 1.2;
+}
+
+.highlight {
+    color: rgb(22, 22, 199);
+}
+
+.hero p {
+    margin: 15px 0;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: rgb(77, 75, 75);
+}
+
+/* Button Styling */
+.appointment-btn {
+    background: rgb(22, 22, 199);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s, transform 0.2s;
+    margin-top: 20px;
+}
+
+.appointment-btn:hover {
+    background: #022e5e;
+    transform: scale(1.05);
+}
+
+/* Services, About, Contact Sections (Placeholders) */
+.services, .about, .contact {
+    padding: 50px 10%;
+}
+
+.services h2, .about h2, .contact h2 {
+    font-size: 2rem;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.services p, .about p, .contact p {
+    color: #666;
+    line-height: 1.7;
+}
+
+/* Footer */
+.footer {
+    background: midnightblue;
+    color: white;
+    text-align: center;
+    padding: 20px 10px;
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Modal Content */
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 800px;
+    position: relative;
+    transform: translateY(-20px);
+    transition: transform 0.3s ease, box-shadow 0.3s;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.modal-overlay .modal-content {
+    transform: translateY(0);
+}
+
+/* Close Button */
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #333;
+}
+
+/* Keyframes */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+
+/* Medium Screens */
+@media (max-width: 992px) {
+    .hero {
+        padding: 80px 10%;
+    }
+
+    .hero-content {
+        max-width: 60%;
+    }
+
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+}
+
+/* Tablet Screens */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .nav-links {
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-left: 0;
+    }
+
+    .hero {
+        justify-content: center;
+        text-align: center;
+        background-position: center;
+    }
+
+    .hero-content {
+        max-width: 80%;
+    }
+
+    .hero h1 {
+        font-size: 2rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+}
+
+/* Mobile Screens */
+@media (max-width: 576px) {
+    .navbar {
+        padding: 10px 20px;
+    }
+
+    .landing-logo {
+        width: 28px;
+    }
+
+    .hero {
+        padding: 50px 5%;
+    }
+
+    .hero-content {
+        max-width: 90%;
+    }
+
+    .hero h1 {
+        font-size: 1.8rem;
+    }
+
+    .hero p {
+        font-size: 0.9rem;
+    }
+
+    .appointment-btn {
+        padding: 10px 20px;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+        width: 100%;
+    }
+
+    .modal-content {
+        width: 90%;
+        max-width: 350px;
+    }
+}

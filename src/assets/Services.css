@@ -1,0 +1,106 @@
+
+
+    /* Services Section */
+    .services-home {
+        margin-top: -5%;
+        padding: 4rem 2rem;
+        text-align: center;
+      }
+      
+      .services-home h2 {
+        font-size: 2.75rem;
+        margin-bottom: 2.5rem;
+        color: #052659;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      
+      .services-cards-home {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      
+      .service-card-home {
+        background: #ffffff;
+        padding: 2.5rem;
+        border-radius: 12px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e0e0e0;
+      }
+      
+      .service-card-home:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      }
+      
+      .service-icon {
+        font-size: 3rem;
+      margin-bottom: 1rem;
+      color: #00509e;
+      background: #e0f0ff;
+      padding: 20px;
+      border-radius: 50%;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      }
+      
+      .service-card-home h3 {
+        font-size: 1.25rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+        color: #052659;
+      }
+      
+      .service-card-home p {
+        margin-bottom: 1.5rem;
+        color: #666;
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+  
+  /* Footer */
+  .footer {
+    background: midnightblue;
+    color: white;
+    text-align: center;
+    padding: 20px 10px;
+    margin-top: 30px;
+  }
+  
+  .footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  @media (max-width: 768px) {
+    .nav-links {
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    .nav-links {
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+    }
+  
+    .footer {
+      padding: 15px;
+    }
+  }
+  
+ 
+  

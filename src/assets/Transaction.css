@@ -1,0 +1,284 @@
+/* Appointment Table */
+.appointment-container {
+  padding: 40px 20px;
+}
+
+.section-title {
+  font-size: 1.8rem;
+   text-align: center;
+  font-weight: 600;
+  margin-bottom: 30px;
+  color: #052659;
+  
+}
+
+.appointment-table {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  border: 1px solid #dcdcdc;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  background-color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.appointment-table:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+}
+
+.appointment-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px 140px; /* gi-expand ang Status column */
+  border-bottom: 1px solid #ececec;
+  align-items: center;
+  transition: background 0.2s ease;
+  padding: 16px;
+  min-height: 100px;
+}
+
+.appointment-row.header {
+  background-color: #052659;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 16px;
+  font-size: 14px;
+  grid-template-columns: 200px 1fr 200px 140px; /* same layout sa header */
+  border-bottom: 1px solid #ddd;
+}
+
+
+/* Para di magdugo ang long text */
+.col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px;
+  border-right: 1px solid #eee;
+  word-break: break-all;   /* long IDs wrap */
+  white-space: normal;     /* allow wrapping */
+  font-size: 0.95rem;
+}
+
+.col.no {
+  font-weight: bold;
+  color: white;
+  font-size: 0.9rem;
+}
+.col.nos {
+  font-weight: bold;
+  color: black;
+  font-size: 0.9rem;
+}
+
+/* Optional: kung gusto nimo ma-scroll nalang instead of wrap */
+.col.no {
+  overflow-x: auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+
+
+.col:last-child {
+  border-right: none;
+}
+
+.col.details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  text-align: left;
+  padding: 12px 10px;
+  font-size: 0.95rem;
+  
+}
+
+.detail-line {
+  margin-bottom: 4px;
+  color: #444;
+}
+
+.col .status {
+  display: inline-block;
+  padding: 8px 20px; 
+  border-radius: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  white-space: nowrap;     
+  overflow: hidden;
+  text-overflow: ellipsis; 
+  max-width: 100%;         
+  text-align: center;
+}
+
+
+/* Pending = yellow */
+.status.pending {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
+/* Approved = blue */
+.status.approved {
+  background-color: #cce5ff;
+  color: #004085;
+  border: 1px solid #b8daff;
+}
+
+/* Completed = green */
+.status.completed {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* Rejected = red */
+.status.rejected {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status.cancelled {
+  background-color: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #d6d8db;
+}
+
+.cancel-btn {
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background-color: #c9302c;
+  transform: scale(1.05);
+}
+
+.appointment-note {
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 20px 24px;
+  background-color: #fff9e6;
+  border: 1px solid #ffe58f;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #8c6d1f;
+}
+
+/* Footer — Keep as-is */
+
+.footer {
+  background: midnightblue;
+  color: white;
+  text-align: center;
+  padding: 20px 10px;
+  margin-top: 30px;
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .nav-links {
+      flex-wrap: wrap;
+      gap: 15px;
+  }
+
+  .appointment-row,
+  .appointment-row.header {
+      grid-template-columns: 50px 1fr 100px 100px;
+      font-size: 13px;
+  }
+}
+
+
+
+.filters {
+  display: flex;
+  justify-content: center;  
+  align-items: center;      
+  gap: 15px;               
+  flex-wrap: wrap;          
+  margin: 20px 0;          
+}
+
+.filters label {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: midnightblue;
+}
+
+.filters select {
+  padding: 10px 15px;
+  margin-left: 5px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+  color: midnightblue;
+}
+
+.filters select:hover {
+  border-color: #4cafef;
+  box-shadow: 0 0 5px rgba(76, 175, 239, 0.3);
+}
+
+.filters select:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 6px rgba(33, 150, 243, 0.4);
+}
+
+
+
+@media (max-width: 576px) {
+  .nav-links {
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+  }
+
+  .footer {
+      padding: 15px;
+  }
+
+  .appointment-row,
+  .appointment-row.header {
+      grid-template-columns: 40px 1fr 80px 80px;
+  }
+}
+.service-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px; /* space between badges */
+}
+
+.service-badge {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  display: inline-block;
+}
