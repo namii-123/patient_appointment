@@ -312,9 +312,17 @@ const [dayFilter, setDayFilter] = useState<string>("All");
             <FaUser className="user-icon" />
             <span className="user-label">Admin</span>
           </div>
-          <div className="signout-box">
+           <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
-            <span onClick={() => handleNavigation("/")} className="signout-label">
+            <span
+              onClick={() => {
+                const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                if (isConfirmed) {
+                  navigate("/loginadmin"); 
+                }
+              }}
+              className="signout-label"
+            >
               Sign Out
             </span>
           </div>

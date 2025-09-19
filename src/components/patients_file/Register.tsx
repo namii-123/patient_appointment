@@ -1,22 +1,115 @@
 import React, { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { getFirestore, doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import "../../assets/Register.css";
 import logo from "/logo.png";
 import { Eye, EyeOff } from "lucide-react";
+import ShortUniqueId from "short-unique-id";
+
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+
+  
+  const auth = getAuth();
+  const db = getFirestore();
 
   const handleNavigation = (path: string) => {
     navigate(path);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setShowModal(true);
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const lastname = formData.get("lastname") as string;
+    const firstname = formData.get("firstname") as string;
+    const username = formData.get("username") as string;
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+   
+    if (!lastname || !firstname || !username || !email || !password) {
+      alert("Please fill in all fields.");
+      setLoading(false);
+      return;
+    }
+
+    
+    const emailQuery = query(collection(db, "UserAdmin"), where("email", "==", email));
+    const emailSnapshot = await getDocs(emailQuery);
+    if (!emailSnapshot.empty) {
+      alert("This email is already taken.");
+      setLoading(false);
+      return;
+    }
+
+  
+    const usernameQuery = query(collection(db, "UserAdmin"), where("username", "==", username));
+    const usernameSnapshot = await getDocs(usernameQuery);
+    if (!usernameSnapshot.empty) {
+      alert("This username is already taken.");
+      setLoading(false);
+      return;
+    }
+
+   
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
+    
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      alert("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.");
+      setLoading(false);
+      return;
+    }
+
+
+   const uid = new ShortUniqueId({ length: 6 });
+
+  const generateAdminId = () => {
+  return `ADMIN-${uid.rnd()}`;
+};
+
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const adminId = generateAdminId();
+
+      
+      
+
+      await setDoc(doc(db, "UserAdmin", user.uid), {
+        uid: user.uid,
+        adminId, 
+        lastname,
+        firstname,
+        username,
+        email: user.email,
+        status: "pending",
+        role: " ",
+        createdAt: new Date().toISOString(),
+      });
+
+      setShowModal(true);
+    } catch (err: any) {
+      alert(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const closeModal = () => {
@@ -39,6 +132,7 @@ const Register: React.FC = () => {
             <input
               type="text"
               id="lastname"
+              name="lastname"
               className="register-input"
               placeholder="Last Name"
               required
@@ -50,6 +144,7 @@ const Register: React.FC = () => {
             <input
               type="text"
               id="firstname"
+              name="firstname"
               className="register-input"
               placeholder="First Name"
               required
@@ -61,6 +156,7 @@ const Register: React.FC = () => {
             <input
               type="text"
               id="username"
+              name="username"
               className="register-input"
               placeholder="Username"
               required
@@ -72,6 +168,7 @@ const Register: React.FC = () => {
             <input
               type="email"
               id="email"
+              name="email"
               className="register-input"
               placeholder="Email"
               required
@@ -83,6 +180,7 @@ const Register: React.FC = () => {
             <input
               type={showPassword ? "text" : "password"}
               id="password"
+              name="password"
               className="register-input"
               placeholder="Enter your password"
               required
@@ -97,7 +195,9 @@ const Register: React.FC = () => {
             </button>
           </div>
 
-          <button type="submit" className="register-button">Register</button>
+          <button type="submit" className="register-button" disabled={loading}>
+            {loading ? "Registering..." : "Register"}
+          </button>
         </form>
 
         <div className="register-links">

@@ -299,10 +299,15 @@ const ManageSlots_Medical: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
 
-          <div className="signout-box">
+           <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
             <span
-              onClick={() => handleNavigation("/")}
+              onClick={() => {
+                const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                if (isConfirmed) {
+                  navigate("/loginadmin"); 
+                }
+              }}
               className="signout-label"
             >
               Sign Out

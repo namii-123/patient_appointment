@@ -35,7 +35,7 @@ html, body {
     background-color: #16324f;
   }
   
-  .logos {
+  .logosss {
     height: 50px;
     width: 50px;
     border-radius: 50%;
@@ -44,11 +44,11 @@ html, body {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
   
-  .logos:hover {
+  .logosss:hover {
     transform: scale(1.1);
   }
   
-  .logo-texts {
+  .logo-textss {
     font-size: 18px;
     font-weight: bold;
     text-transform: uppercase;

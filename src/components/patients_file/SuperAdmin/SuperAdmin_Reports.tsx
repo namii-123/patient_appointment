@@ -105,12 +105,12 @@ const SuperAdmin_Reports: React.FC = () => {
       <aside className="sidebar">
         <div>
           <div
-            className="logo-boxs"
+            className="logo-boxss"
             onClick={() => handleNavigation("/superadmin_dashboard")}
             style={{ cursor: "pointer" }}
           >
-            <img src={logo} alt="logo" className="logos" />
-            <span className="logo-texts">HealthSys</span>
+            <img src={logo} alt="logo" className="logosss" />
+            <span className="logo-textss">HealthSys</span>
           </div>
 
           <nav className="nav-linkss">
@@ -143,12 +143,20 @@ const SuperAdmin_Reports: React.FC = () => {
             <FaUser className="user-icon" />
             <span className="user-label">Super Admin</span>
           </div>
-          <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span onClick={() => handleNavigation("/")} className="signout-label">
-              Sign Out
-            </span>
-          </div>
+         <div className="signout-box">
+                     <FaSignOutAlt className="signout-icon" />
+                     <span
+                       onClick={() => {
+                         const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                         if (isConfirmed) {
+                           navigate("/loginadmin"); 
+                         }
+                       }}
+                       className="signout-label"
+                     >
+                       Sign Out
+                     </span>
+                   </div>
         </div>
       </aside>
 

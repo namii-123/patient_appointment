@@ -91,11 +91,11 @@ const PatientRecords_Dental: React.FC = () => {
     const fetchPatientRecords = async () => {
       setLoading(true);
       try {
-        // Modified query to include "Completed" status
+        
         const transQuery = query(
           collection(db, "Transactions"),
           where("purpose", "==", "Dental"),
-          where("status", "in", ["Approved", "Rejected", "Completed"]) // Include "Completed"
+          where("status", "in", ["Approved", "Rejected", "Completed"]) 
         );
         const transSnap = await getDocs(transQuery);
         const loaded: PatientRecord[] = [];
@@ -203,7 +203,7 @@ const PatientRecords_Dental: React.FC = () => {
         const ref = doc(db, "Transactions", selectedPatientRecord.id);
         await updateDoc(ref, { status: "Completed" });
 
-        // Update the local state to reflect the "Completed" status
+       
         setPatientRecords((prev) =>
           prev.map((rec) =>
             rec.id === selectedPatientRecord.id
@@ -302,9 +302,17 @@ const PatientRecords_Dental: React.FC = () => {
             <FaUser className="user-icon" />
             <span className="user-label">Admin</span>
           </div>
-          <div className="signout-box">
+           <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
-            <span onClick={() => navigate("/")} className="signout-label">
+            <span
+              onClick={() => {
+                const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                if (isConfirmed) {
+                  navigate("/loginadmin"); 
+                }
+              }}
+              className="signout-label"
+            >
               Sign Out
             </span>
           </div>

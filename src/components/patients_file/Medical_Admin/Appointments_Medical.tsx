@@ -190,7 +190,7 @@ const Appointments_Medical: React.FC = () => {
   
 
 
-// inside Appointments_Dental.tsx
+
 
   const handleStatusUpdate = async (
     id: string,
@@ -203,7 +203,7 @@ const Appointments_Medical: React.FC = () => {
       const ref = doc(db, "Transactions", id);
       await updateDoc(ref, { status: newStatus });
 
-      // Remove from local state since only Pending and Cancelled are shown here
+    
       setAppointments((prev) => prev.filter((appt) => appt.id !== id));
 
       if (!appointment.email) {
@@ -260,13 +260,13 @@ const Appointments_Medical: React.FC = () => {
     };
 
 
-  // Months as names
+ 
   const availableMonths = [
     "January", "February", "March", "April", "May", "June", 
     "July", "August", "September", "October", "November", "December"
   ];
 
-  // Generate available days (1-31)
+ 
   const availableDays = Array.from({ length: 31 }, (_, index) => index + 1);
 
 
@@ -355,10 +355,15 @@ const Appointments_Medical: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
 
-          <div className="signout-box">
+           <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
             <span
-              onClick={() => handleNavigation("/")}
+              onClick={() => {
+                const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                if (isConfirmed) {
+                  navigate("/loginadmin"); 
+                }
+              }}
               className="signout-label"
             >
               Sign Out
