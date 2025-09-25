@@ -383,7 +383,7 @@ const [availableYears, setAvailableYears] = useState(() => {
         {/* Search Bar */}
       <div className="content-wrapper">
           <div className="filter-bar">
-                <div className="search-container">
+                <div className="search-containerrr">
                     <div className="search-bar-wrapper">
                       <FaSearch className="search-icon" />
                       <input
@@ -500,14 +500,14 @@ const [availableYears, setAvailableYears] = useState(() => {
                         {rec.status === "Approved" && (
                           <button
                             onClick={() => handleAction("Completed", rec)}
-                            className="action-btn completed"
+                            className="action-btns completed"
                           >
                             Completed
                           </button>
                         )}
                         <button
                           onClick={() => handleAction("View Record", rec)}
-                          className="action-btn view"
+                          className="action-btns view"
                         >
                           View Record
                         </button>

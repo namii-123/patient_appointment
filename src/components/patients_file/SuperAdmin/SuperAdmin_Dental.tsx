@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBell,
@@ -10,19 +11,51 @@ import {
   FaSignOutAlt,
   FaArrowLeft,
 } from "react-icons/fa";
-import "../assets/SuperAdmin_Dental.css";
+import "../../../assets/SuperAdmin_Clinical.css";
 import logo from "/logo.png";
+import { db } from "../firebase";
+import { collection, query, onSnapshot, where, doc, getDoc } from "firebase/firestore";
+
+// Types
+interface Appointment {
+  id: string;
+  UserId: string;
+  patientId: string;
+  patientCode: string;
+  lastname: string;
+  firstname: string;
+  middleInitial?: string;
+  age: number;
+  gender: string;
+  services: string[];
+  appointmentDate: string;
+  slot: string;
+  status: "Pending" | "Approved" | "Rejected" | "Completed" | "Canceled";
+  controlNo?: string;
+  birthdate?: string;
+  citizenship?: string;
+  houseNo?: string;
+  street?: string;
+  barangay?: string;
+  municipality?: string;
+  province?: string;
+  email?: string;
+  contact?: string;
+  purpose?: string;
+  slotID?: string;
+}
 
 const SuperAdmin_Dental: React.FC = () => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
-
-  // Filter state
   const [filter, setFilter] = useState<string>("all");
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-  };
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedDay, setSelectedDay] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>("");
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedPatientRecord, setSelectedPatientRecord] = useState<Appointment | null>(null);
 
   const notifications = [
     { id: 1, text: "New patient registered in Dental", unread: true },
@@ -31,85 +64,173 @@ const SuperAdmin_Dental: React.FC = () => {
     { id: 4, text: "Clinical department updated patient records", unread: false },
   ];
 
-    // inside SuperAdmin_ManageAdmins
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [selectedDay, setSelectedDay] = useState<string>("");
-  const [selectedYear, setSelectedYear] = useState<string>("");
+  // Reset modal state on mount
+  useEffect(() => {
+    setShowModal(false);
+    setSelectedPatientRecord(null);
+  }, []);
 
-  // Example dental appointments (replace with backend data later)
-  const dentalAppointments = [
-    {
-      id: 1,
-      patient: "John Doe",
-      email: "john.doe@gmail.com",
-      address: "Cebu City",
-      contact: "09123456789",
-      status: "pending",
-    },
-    {
-      id: 2,
-      patient: "Jane Smith",
-      email: "jane.smith@gmail.com",
-      address: "Mandaue",
-      contact: "09987654321",
-      status: "approved",
-    },
-    {
-      id: 3,
-      patient: "Michael Lee",
-      email: "michael.lee@gmail.com",
-      address: "Talisay",
-      contact: "09223334444",
-      status: "rejected",
-    },
-    {
-      id: 4,
-      patient: "Sarah Cruz",
-      email: "sarah.cruz@gmail.com",
-      address: "Lapu-Lapu",
-      contact: "09334445566",
-      status: "pending",
-    },
-    {
-      id: 5,
-      patient: "David Tan",
-      email: "david.tan@gmail.com",
-      address: "Consolacion",
-      contact: "09445556677",
-      status: "approved",
-    },
-    {
-      id: 6,
-      patient: "Maria Lopez",
-      email: "maria.lopez@gmail.com",
-      address: "Cebu City",
-      contact: "09556667788",
-      status: "completed",
-    },
-  ];
+  // Debug state changes
+  useEffect(() => {
+    console.log("showModal:", showModal, "selectedPatientRecord:", selectedPatientRecord);
+  }, [showModal, selectedPatientRecord]);
+
+  // Year options
+  const [yearOptions, setYearOptions] = useState<number[]>(() => {
+    return Array.from({ length: 11 }, (_, i) => 2025 + i);
+  });
+
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelectedYear(value);
+
+    const lastYear = yearOptions[yearOptions.length - 1];
+    if (value === lastYear.toString()) {
+      const newYears = Array.from({ length: 10 }, (_, i) => lastYear + i + 1);
+      setYearOptions((prev) => [...prev, ...newYears]);
+    }
+  };
+
+  // Fetch appointments from Firestore
+  useEffect(() => {
+    setLoading(true);
+    const transQuery = query(
+      collection(db, "Transactions"),
+      where("purpose", "==", "Dental")
+    );
+
+    const unsubscribe = onSnapshot(transQuery, async (transSnap) => {
+      const loaded: Appointment[] = [];
+
+      for (const t of transSnap.docs) {
+        const tData = t.data();
+
+        let patientData: any = {
+          UserId: "",
+          lastname: "Unknown",
+          firstname: "Unknown",
+          middleInitial: "",
+          age: 0,
+          gender: "",
+          patientCode: "",
+          controlNo: "",
+          birthdate: "",
+          citizenship: "",
+          houseNo: "",
+          street: "",
+          barangay: "",
+          municipality: "",
+          province: "",
+          email: "",
+          contact: "",
+        };
+
+        let userId = "";
+        if (tData.uid) {
+          const userRef = doc(db, "Users", tData.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            userId = userSnap.data().UserId || "";
+          }
+        }
+
+        if (tData.patientId) {
+          const pRef = doc(db, "Patients", tData.patientId);
+          const pSnap = await getDoc(pRef);
+          if (pSnap.exists()) {
+            patientData = pSnap.data();
+          } else {
+            console.warn(`No patient document found for patientId: ${tData.patientId}`);
+          }
+        } else {
+          console.warn(`No patientId in transaction: ${t.id}`);
+        }
+
+        loaded.push({
+          id: t.id,
+          UserId: userId,
+          patientId: tData.patientId || "",
+          patientCode: patientData.patientCode || "",
+          lastname: patientData.lastName || "Unknown",
+          firstname: patientData.firstName || "Unknown",
+          middleInitial: patientData.middleInitial || "",
+          age: patientData.age || 0,
+          gender: patientData.gender || "",
+          services: Array.isArray(tData.services) ? tData.services : [],
+          appointmentDate: tData.date || "",
+          slot: tData.slotTime || "",
+          status: tData.status || "Pending",
+          controlNo: patientData.controlNo || "",
+          birthdate: patientData.birthdate || "",
+          citizenship: patientData.citizenship || "",
+          houseNo: patientData.houseNo || "",
+          street: patientData.street || "",
+          barangay: patientData.barangay || "",
+          municipality: patientData.municipality || "",
+          province: patientData.province || "",
+          email: patientData.email || "",
+          contact: patientData.contact || "",
+          purpose: tData.purpose || "",
+          slotID: tData.slotID || "",
+        });
+      }
+
+      console.log("Loaded appointments:", loaded);
+      setAppointments(loaded);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching appointments:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Count totals
-  const pendingCount = dentalAppointments.filter((a) => a.status === "pending").length;
-  const approvedCount = dentalAppointments.filter((a) => a.status === "approved").length;
-  const completedCount = dentalAppointments.filter((a) => a.status === "completed").length;
-  const rejectedCount = dentalAppointments.filter((a) => a.status === "rejected").length;
+  const pendingCount = appointments.filter((a) => a.status.toLowerCase() === "pending").length;
+  const approvedCount = appointments.filter((a) => a.status.toLowerCase() === "approved").length;
+  const completedCount = appointments.filter((a) => a.status.toLowerCase() === "completed").length;
+  const rejectedCount = appointments.filter((a) => a.status.toLowerCase() === "rejected").length;
+  const canceledCount = appointments.filter((a) => a.status.toLowerCase() === "cancelled").length;
 
-  // Apply filter
-  const filteredAppointments =
-    filter === "all"
-      ? dentalAppointments
-      : dentalAppointments.filter((a) => a.status === filter);
+  // Filter appointments
+  const filteredAppointments = appointments.filter((a) => {
+    if (filter !== "all" && a.status.toLowerCase() !== filter) return false;
+
+    const [year, month, day] = a.appointmentDate.split("-");
+
+    if (selectedYear && year !== selectedYear) return false;
+    if (selectedMonth && month !== selectedMonth) return false;
+    if (selectedDay && day !== selectedDay) return false;
+
+    return true;
+  });
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
+  const handleViewMore = (record: Appointment) => {
+    console.log("handleViewMore called with record:", record);
+    setSelectedPatientRecord(record);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedPatientRecord(null);
+  };
 
   return (
     <div className="dashboard">
       {/* Sidebar */}
       <aside className="sidebar">
         <div>
-          <div className="logo-box">
-            <img src={logo} alt="logo" className="logo" />
-            <span className="logo-text">HealthSys</span>
+          <div className="logo-boxss">
+            <img src={logo} alt="logo" className="logosss" />
+            <span className="logo-textss">HealthSys</span>
           </div>
-          <div className="nav-links">
+          <div className="nav-linkss">
             <div className="nav-item active">
               <FaTachometerAlt className="nav-icon" /> Dashboard
             </div>
@@ -166,9 +287,7 @@ const SuperAdmin_Dental: React.FC = () => {
                   <span>Notifications</span>
                   <button
                     className="mark-read-btn"
-                    onClick={() =>
-                      notifications.forEach((n) => (n.unread = false))
-                    }
+                    onClick={() => notifications.forEach((n) => (n.unread = false))}
                   >
                     Mark all as read
                   </button>
@@ -196,66 +315,67 @@ const SuperAdmin_Dental: React.FC = () => {
           <FaArrowLeft /> Back
         </button>
 
-                {/* Date Filter */}
-<div className="filters-container-dental">
-  <div className="filter-dental">
-    <label>Date:</label>
-    <select
-      id="month"
-      value={selectedMonth}
-      onChange={(e) => setSelectedMonth(e.target.value)}>
-      <option value="">Month</option>
-      <option value="01">January</option>
-      <option value="02">February</option>
-      <option value="03">March</option>
-      <option value="04">April</option>
-      <option value="05">May</option>
-      <option value="06">June</option>
-      <option value="07">July</option>
-      <option value="08">August</option>
-      <option value="09">September</option>
-      <option value="10">October</option>
-      <option value="11">November</option>
-      <option value="12">December</option>
-    </select>
-  </div>
+        {/* Date Filter */}
+        <div className="filters-container-clinical">
+          <div className="filter-clinical">
+            <label>Date:</label>
+            <select
+              id="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            >
+              <option value="">Month</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
 
-  <div className="filter-dental">
-    <select
-      id="day"
-      value={selectedDay}
-      onChange={(e) => setSelectedDay(e.target.value)}
-    >
-      <option value="">Day</option>
-      {Array.from({ length: 31 }, (_, i) => (
-        <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-          {i + 1}
-        </option>
-      ))}
-    </select>
-  </div>
+          <div className="filter-clinical">
+            <select
+              id="day"
+              value={selectedDay}
+              onChange={(e) => setSelectedDay(e.target.value)}
+            >
+              <option value="">Day</option>
+              {Array.from({ length: 31 }, (_, i) => (
+                <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
+                  {i + 1}
+                </option>
+              ))}
+            </select>
+          </div>
 
-  <div className="filter-dental">
-    <select
-      id="year"
-      value={selectedYear}
-      onChange={(e) => setSelectedYear(e.target.value)}
-    >
-      <option value="">Year</option>
-      {Array.from({ length: 6 }, (_, i) => {
-        const year = new Date().getFullYear() - i;
-        return (
-          <option key={year} value={year.toString()}>
-            {year}
-          </option>
-        );
-      })}
-    </select>
-  </div>
-</div>
+          <div className="filter-clinical">
+            <select id="year" value={selectedYear} onChange={handleYearChange}>
+              <option value="">Year</option>
+              {yearOptions.map((year) => (
+                <option key={year} value={year.toString()}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         {/* Summary Cards */}
         <div className="summary-cards">
+          <div
+            className={`summary-card all ${filter === "all" ? "active" : ""}`}
+            onClick={() => setFilter("all")}
+          >
+            <h3>{appointments.length}</h3>
+            <p>All</p>
+          </div>
           <div
             className={`summary-card pending ${filter === "pending" ? "active" : ""}`}
             onClick={() => setFilter("pending")}
@@ -285,11 +405,11 @@ const SuperAdmin_Dental: React.FC = () => {
             <p>Rejected</p>
           </div>
           <div
-            className={`summary-card all ${filter === "all" ? "active" : ""}`}
-            onClick={() => setFilter("all")}
+            className={`summary-card canceled ${filter === "cancelled" ? "active" : ""}`}
+            onClick={() => setFilter("cancelled")}
           >
-            <h3>{dentalAppointments.length}</h3>
-            <p>All</p>
+            <h3>{canceledCount}</h3>
+            <p>Canceled</p>
           </div>
         </div>
 
@@ -304,38 +424,105 @@ const SuperAdmin_Dental: React.FC = () => {
           <table className="appointments-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Address</th>
-                <th>Contact</th>
+                <th>User ID</th>
+                <th>Patient ID</th>
+                <th>Lastname</th>
+                <th>Firstname</th>
+                <th>Middle Initial</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Services</th>
+                <th>Appointment Date</th>
+                <th>Slot</th>
                 <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredAppointments.length > 0 ? (
                 filteredAppointments.map((a) => (
                   <tr key={a.id}>
-                    <td>{a.patient}</td>
-                    <td>{a.email}</td>
-                    <td>{a.address}</td>
-                    <td>{a.contact}</td>
+                    <td>{a.UserId}</td>
+                    <td>{a.patientCode}</td>
+                    <td>{a.lastname}</td>
+                    <td>{a.firstname}</td>
+                    <td>{a.middleInitial || "N/A"}</td>
+                    <td>{a.age}</td>
+                    <td>{a.gender}</td>
+                    <td>{a.services.join(", ")}</td>
+                    <td>{a.appointmentDate}</td>
+                    <td>{a.slot}</td>
                     <td>
-                      <span className={`status-badge ${a.status}`}>
+                      <span className={`status-badge ${a.status.toLowerCase()}`}>
                         {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                       </span>
+                    </td>
+                    <td>
+                      <button
+                        className="action-button view-mores"
+                        onClick={() => handleViewMore(a)}
+                      >
+                        View More
+                      </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "12px" }}>
-                    No appointments found.
+                  <td colSpan={12} style={{ textAlign: "center", padding: "12px" }}>
+                    {loading ? "Loading..." : "No appointments found."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* View More Modal */}
+        {showModal && selectedPatientRecord !== null && (
+          <div className="modal-overlayd">
+            <div className="modal-contentd">
+              <div className="modal-inner">
+                <div className="modal-headerd">
+                  <h3>Patient Information</h3>
+                  <button className="close-btnd" onClick={closeModal}>×</button>
+                </div>
+                <div className="modal-bodyd">
+                  <table className="patient-info-tabled">
+                    <tbody>
+                      <tr><th>User ID</th><td>{selectedPatientRecord.UserId}</td></tr>
+                      <tr><th>Patient ID</th><td>{selectedPatientRecord.patientCode}</td></tr>
+                      <tr><th>Control No.</th><td>{selectedPatientRecord.controlNo || "N/A"}</td></tr>
+                      <tr><th>Last Name</th><td>{selectedPatientRecord.lastname}</td></tr>
+                      <tr><th>First Name</th><td>{selectedPatientRecord.firstname}</td></tr>
+                      <tr><th>Middle Initial</th><td>{selectedPatientRecord.middleInitial || "N/A"}</td></tr>
+                      <tr><th>Birthdate</th><td>{selectedPatientRecord.birthdate || "N/A"}</td></tr>
+                      <tr><th>Age</th><td>{selectedPatientRecord.age}</td></tr>
+                      <tr><th>Gender</th><td>{selectedPatientRecord.gender}</td></tr>
+                      <tr><th>Citizenship</th><td>{selectedPatientRecord.citizenship || "N/A"}</td></tr>
+                      <tr className="section-headerd">
+                        <th colSpan={2}>Address</th>
+                      </tr>
+                      <tr><th>House No.</th><td>{selectedPatientRecord.houseNo || "N/A"}</td></tr>
+                      <tr><th>Street</th><td>{selectedPatientRecord.street || "N/A"}</td></tr>
+                      <tr><th>Barangay</th><td>{selectedPatientRecord.barangay || "N/A"}</td></tr>
+                      <tr><th>Municipality</th><td>{selectedPatientRecord.municipality || "N/A"}</td></tr>
+                      <tr><th>Province</th><td>{selectedPatientRecord.province || "N/A"}</td></tr>
+                      <tr><th>Email</th><td>{selectedPatientRecord.email || "N/A"}</td></tr>
+                      <tr><th>Contact</th><td>{selectedPatientRecord.contact || "N/A"}</td></tr>
+                      <tr><th>Department</th><td>{selectedPatientRecord.purpose || "N/A"}</td></tr>
+                      <tr><th>Services</th><td>{selectedPatientRecord.services.join(", ") || "N/A"}</td></tr>
+                      <tr><th>Request Date</th><td>{selectedPatientRecord.appointmentDate || "N/A"}</td></tr>
+                      <tr><th>Slot ID</th><td>{selectedPatientRecord.slotID || "N/A"}</td></tr>
+                      <tr><th>Slot</th><td>{selectedPatientRecord.slot || "N/A"}</td></tr>
+                      <tr><th>Status</th><td>{selectedPatientRecord.status}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

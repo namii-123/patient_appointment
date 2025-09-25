@@ -318,7 +318,7 @@ html, body {
   box-shadow: 0 0 6px rgba(138, 168, 200, 0.4);
 }
 
-.search-container {
+.search-container{
   display: flex;
   align-items: center;
   width: 100%;
@@ -413,36 +413,8 @@ html, body {
   color: white;
 }
 
-.view-more-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 10px;
-  margin-bottom: 20px;
-}
 
-.view-more-btn {
-  background-color: #4a90e2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
 
-.view-more-btn:hover {
-  background-color: #357abd;
-  transform: translateY(-2px);
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.view-more-btn:active {
-  background-color: #2d5f91;
-  transform: translateY(0px);
-  box-shadow: none;
-}
 
 
 

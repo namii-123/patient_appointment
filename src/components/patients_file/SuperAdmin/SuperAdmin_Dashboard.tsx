@@ -4,6 +4,15 @@ import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, Fa
    FaStethoscope, FaXRay, FaClinicMedical,  FaUserMd} from "react-icons/fa";
 import "../../../assets/SuperAdmin_Dashboard.css";
 import logo from "/logo.png";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
+
 
 const SuperAdmin_Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -12,7 +21,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
   const handleNavigation = (path: string) => {
     navigate(path);
   };
-  const [showAllRequests, setShowAllRequests] = useState(false);
+  
 
   const notifications = [
     { id: 1, text: "New patient registered in Dental", unread: true },
@@ -21,17 +30,47 @@ const SuperAdmin_Dashboard: React.FC = () => {
     { id: 4, text: "Clinical department updated patient records", unread: false },
   ];
 
-  const requests = [
-    { id: 1, name: "John Doe", department: "Dental", status: "pending" },
-    { id: 2, name: "Jane Smith", department: "Radiology", status: "pending" },
-    { id: 3, name: "Michael Lee", department: "Clinical", status: "approved" },
-    { id: 4, name: "Sarah Cruz", department: "Dental", status: "pending" },
-    { id: 5, name: "David Tan", department: "DDE", status: "pending" },
-    { id: 6, name: "Emily Wong", department: "Radiology", status: "pending" },
-    { id: 7, name: "Carlos Reyes", department: "Clinical", status: "approved" },
-  ];
 
-  const displayedRequests = showAllRequests ? requests : requests.slice(0, 5);
+const patientUserData = [
+  { name: "Clinical Patients", value: 150 },
+  { name: "Dental Patients", value: 120 },
+  { name: "Radiology Patients", value: 60 },
+  { name: "Medical Patients", value: 150 },
+  { name: "DDE Patients", value: 95 },
+  { name: "Registered Users", value: 250 }
+];
+ 
+
+const adminDeptData = [
+  { name: "Clinical Admins", value: 10 },
+  { name: "Dental Admins", value: 5 },
+  { name: "Radiology Admins", value: 10 },
+  { name: "Medical Admins", value: 11 },
+  { name: "DDE Admins", value: 6 }
+];
+
+
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
+
+  const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const { name, value, percent } = payload[0] as any; // percent is available here
+    return (
+      <div
+        style={{
+          background: "#fff",
+          padding: "8px",
+          border: "1px solid #ccc",
+          borderRadius: "4px",
+        }}
+      >
+        <p>{`${name}: ${value} (${percent ? (percent * 100).toFixed(0) : 0}%)`}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 
 
   return (
@@ -168,6 +207,42 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   <p>Total DDE Patients</p>
               </div>
              
+
+             <div className="card" onClick={() => handleNavigation("/superadmin_users")}>
+  <FaUsers className="card-icon" />
+  <h3>250</h3>
+  <p>Total Registered Users</p>
+</div>
+
+ <div className="card" onClick={() => handleNavigation("/superadmin_clinicaladmin")}>
+  <FaClinicMedical className="card-icon" />
+  <h3>10</h3>
+  <p>Clinical Admins</p>
+</div>
+
+<div className="card">
+  <FaTooth className="card-icon" />
+  <h3>5</h3>
+  <p>Dental Admins</p>
+</div>
+
+<div className="card">
+  <FaXRay className="card-icon" />
+  <h3>10</h3>
+  <p>Radiology Admins</p>
+</div>
+
+<div className="card">
+  <FaUserMd className="card-icon" />
+  <h3>11</h3>
+  <p>Medical Admins</p>
+</div>
+
+<div className="card">
+  <FaStethoscope className="card-icon" />
+  <h3>6</h3>
+  <p>DDE Admins</p>
+</div>
             </div>
 
           
@@ -175,63 +250,70 @@ const SuperAdmin_Dashboard: React.FC = () => {
         </div>
       </div>
 
-        {/* User Access Requests Table */}
-        <h2 className="table-title">User Access Requests</h2>
-        <table className="appointment-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>User</th>
-              <th>Department</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-              {displayedRequests.map((req) => ( 
-              <tr key={req.id}>
-                <td>{req.id}</td>
-                <td>{req.name}</td>
-                <td>{req.department}</td>
-                <td>
-                  <span className={`status-text ${req.status}`}>
-                    {req.status}
-                  </span>
-                </td>
-                <td>
-                  {req.status === "pending" ? (
-                    <>
-                      <button className="action-btn approve">Approve</button>
-                      <button className="action-btn reject">Reject</button>
-                    </>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+       
 
-        {requests.length > 5 && (
-          <div className="view-more-container">
-            <button className="view-more-btn" onClick={() => setShowAllRequests(!showAllRequests)}>
-              {showAllRequests ? "Show Less" : "View More"}</button>
-          </div>
-        )}
+        {/* Charts Section */}
+<div className="chart-activity-containers">
+  <div className="chart-row">
+  
+<div className="chart-box">
+  <h3 className="chart-titles">Patients per Department</h3>
+  <ResponsiveContainer width="100%" height={400}>
+    <PieChart width={400} height={400}>
+ <Pie
+  data={patientUserData}
+  dataKey="value"
+  nameKey="name"
+  cx="50%"
+  cy="50%"
+  outerRadius={100}
+  label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
 
-        {/* Activity Section */}
-        <div className="chart-activity-containers">
-          <div className="activity-wrappers">
-            <h3 className="chart-titles">Recent Activities</h3>
-            <ul className="activity-lists">
-              <li>Dentist added new patient record</li>
-              <li>Radiology uploaded scan results</li>
-              <li>Clinical updated prescriptions</li>
-              <li>DDE scheduled new appointments</li>
-            </ul>
-          </div>
-        </div>
+>
+  {adminDeptData.map((entry, index) => (
+    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+  ))}
+</Pie>
+<Tooltip content={<CustomTooltip />} />
+<Legend />
+
+ 
+</PieChart>
+  </ResponsiveContainer>
+</div>
+
+
+    {/* Pie Chart for Admins per Department */}
+    <div className="chart-box">
+      <h3 className="chart-titles">Admins per Department</h3>
+      <ResponsiveContainer width="100%" height={400}>
+      <PieChart width={400} height={400}>
+ <Pie
+  data={adminDeptData}
+  dataKey="value"
+  nameKey="name"
+  cx="50%"
+  cy="50%"
+  outerRadius={100}
+  label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
+
+>
+  {adminDeptData.map((entry, index) => (
+    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+  ))}
+</Pie>
+<Tooltip content={<CustomTooltip />} />
+<Legend />
+
+ 
+</PieChart>
+
+
+      </ResponsiveContainer>
+    </div>
+  </div>
+</div>
+
       </main>
     </div>
   );

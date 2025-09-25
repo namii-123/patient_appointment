@@ -308,13 +308,13 @@
   border-radius: 30px;
 }
 
-.search-icons {
+.search-iconss {
   position: absolute;
-  top: 50%;
   left: 12px;
   transform: translateY(-50%);
   font-size: 14px;
   pointer-events: none;
+  margin-top: 5%;
 }
 
 

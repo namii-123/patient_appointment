@@ -382,7 +382,7 @@ const handleStatusUpdate = async (
           <div className="filter-bars">
                       <div className="searchbar-containerss">
                         <div className="searchss">
-                          <FaSearch className="search-icons" />
+                          <FaSearch className="search-iconss" />
                           <input
                             type="text"
                             placeholder="Search by Name or Number..."

@@ -45,7 +45,7 @@ interface Appointment {
   slotID?: string;
 }
 
-const SuperAdmin_Radiology: React.FC = () => {
+const SuperAdmin_Medical: React.FC = () => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [filter, setFilter] = useState<string>("all");
@@ -58,7 +58,7 @@ const SuperAdmin_Radiology: React.FC = () => {
   const [selectedPatientRecord, setSelectedPatientRecord] = useState<Appointment | null>(null);
 
   const notifications = [
-    { id: 1, text: "New patient registered in Radiology", unread: true },
+    { id: 1, text: "New patient registered in Medical", unread: true },
     { id: 2, text: "3 Appointment requests pending approval", unread: true },
     { id: 3, text: "Radiology report uploaded by Dr. Smith", unread: false },
     { id: 4, text: "Clinical department updated patient records", unread: false },
@@ -96,7 +96,7 @@ const SuperAdmin_Radiology: React.FC = () => {
     setLoading(true);
     const transQuery = query(
       collection(db, "Transactions"),
-      where("purpose", "==", "Radiographic")
+      where("purpose", "==", "Medical")
     );
 
     const unsubscribe = onSnapshot(transQuery, async (transSnap) => {
@@ -270,7 +270,7 @@ const SuperAdmin_Radiology: React.FC = () => {
       <main className="main-content-superadmin">
         {/* Top Navbar */}
         <div className="top-navbar-superadmin">
-          <h2 className="navbar-title">Radiology Appointments</h2>
+          <h2 className="navbar-title">Medical Appointments</h2>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -528,4 +528,4 @@ const SuperAdmin_Radiology: React.FC = () => {
   );
 };
 
-export default SuperAdmin_Radiology;
+export default SuperAdmin_Medical;

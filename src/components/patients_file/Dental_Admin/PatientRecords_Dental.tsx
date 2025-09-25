@@ -358,7 +358,7 @@ const PatientRecords_Dental: React.FC = () => {
 
         <div className="content-wrapper">
           <div className="filter-barr">
-            <div className="search-container">
+            <div className="search-containerrr">
               <div className="search-bar-wrapper">
                 <FaSearch className="search-icon" />
                 <input
@@ -481,14 +481,14 @@ const PatientRecords_Dental: React.FC = () => {
                         {rec.status === "Approved" && (
                           <button
                             onClick={() => handleAction("Completed", rec)}
-                            className="action-btn completed"
+                            className="action-btns completed"
                           >
                             Complete
                           </button>
                         )}
                         <button
                           onClick={() => handleAction("View Record", rec)}
-                          className="action-btn view"
+                          className="action-btns view"
                         >
                           View Record
                         </button>

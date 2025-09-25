@@ -10,7 +10,7 @@ import {
   FaSignOutAlt,
   FaArrowLeft,
 } from "react-icons/fa";
-import "../assets/SuperAdmin_DDE.css";
+import "../../../assets/SuperAdmin_Clinical.css";
 import logo from "/logo.png";
 
 const SuperAdmin_DDE: React.FC = () => {
@@ -38,78 +38,103 @@ const SuperAdmin_DDE: React.FC = () => {
 
   // Example dental appointments (replace with backend data later)
   const ddeAppointments = [
-    {
-      id: 1,
-      patient: "John Doe",
-      email: "john.doe@gmail.com",
-      address: "Cebu City",
-      contact: "09123456789",
-      status: "pending",
-    },
-    {
-      id: 2,
-      patient: "Jane Smith",
-      email: "jane.smith@gmail.com",
-      address: "Mandaue",
-      contact: "09987654321",
-      status: "approved",
-    },
-    {
-      id: 3,
-      patient: "Michael Lee",
-      email: "michael.lee@gmail.com",
-      address: "Talisay",
-      contact: "09223334444",
-      status: "rejected",
-    },
-    {
-      id: 4,
-      patient: "Sarah Cruz",
-      email: "sarah.cruz@gmail.com",
-      address: "Lapu-Lapu",
-      contact: "09334445566",
-      status: "pending",
-    },
-    {
-      id: 5,
-      patient: "David Tan",
-      email: "david.tan@gmail.com",
-      address: "Consolacion",
-      contact: "09445556677",
-      status: "approved",
-    },
-    {
-      id: 6,
-      patient: "Maria Lopez",
-      email: "maria.lopez@gmail.com",
-      address: "Cebu City",
-      contact: "09556667788",
-      status: "completed",
-    },
-  ];
+  {
+    id: 1,
+    userId: "U-001",
+    patientId: "P-001",
+    lastname: "Doe",
+    firstname: "John",
+    middleInitial: "A",
+    age: 25,
+    gender: "Male",
+    services: "Dental",
+    appointmentDate: "2025-09-25",
+    slot: "9:00 AM",
+    status: "pending",
+  },
+  {
+    id: 2,
+    userId: "U-002",
+    patientId: "P-002",
+    lastname: "Smith",
+    firstname: "Jane",
+    middleInitial: "B",
+    age: 30,
+    gender: "Female",
+    services: "Radiology",
+    appointmentDate: "2025-09-26",
+    slot: "10:00 AM",
+    status: "approved",
+  },
+  {
+    id: 3,
+    userId: "U-003",
+    patientId: "P-003",
+    lastname: "Lee",
+    firstname: "Michael",
+    middleInitial: "C",
+    age: 40,
+    gender: "Male",
+    services: "Check-up",
+    appointmentDate: "2025-09-27",
+    slot: "11:00 AM",
+    status: "rejected",
+  },
+];
+
+
 
   // Count totals
   const pendingCount = ddeAppointments.filter((a) => a.status === "pending").length;
   const approvedCount = ddeAppointments.filter((a) => a.status === "approved").length;
   const completedCount = ddeAppointments.filter((a) => a.status === "completed").length;
   const rejectedCount = ddeAppointments.filter((a) => a.status === "rejected").length;
+   const canceledCount = ddeAppointments.filter((a) => a.status === "canceled").length;
 
-  // Apply filter
-  const filteredAppointments =
-    filter === "all"
-      ? ddeAppointments
-      : ddeAppointments.filter((a) => a.status === filter);
+
+  const filteredAppointments = ddeAppointments.filter((a) => {
+  
+   if (filter !== "all" && a.status !== filter) return false;
+ 
+   
+   const [year, month, day] = a.appointmentDate.split("-");
+ 
+   if (selectedYear && year !== selectedYear) return false;
+   if (selectedMonth && month !== selectedMonth) return false;
+   if (selectedDay && day !== selectedDay) return false;
+ 
+   return true;
+ });
+ 
+ 
+ 
+ const [yearOptions, setYearOptions] = useState<number[]>(() => {
+   
+   return Array.from({ length: 11 }, (_, i) => 2025 + i);
+ });
+ 
+ const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+   const value = e.target.value;
+   setSelectedYear(value);
+ 
+ 
+   const lastYear = yearOptions[yearOptions.length - 1];
+   if (value === lastYear.toString()) {
+     const newYears = Array.from({ length: 10 }, (_, i) => lastYear + i + 1);
+     setYearOptions((prev) => [...prev, ...newYears]);
+   }
+ };
 
   return (
     <div className="dashboard">
       {/* Sidebar */}
       <aside className="sidebar">
         <div>
-          <div className="logo-box">
-            <img src={logo} alt="logo" className="logo" />
+          <div className="logo-boxss">
+            <img src={logo} alt="logo" className="logosss" />
             <span className="logo-text">HealthSys</span>
           </div>
-          <div className="nav-links">
+          <div className="nav-linkss">
             <div className="nav-item active">
               <FaTachometerAlt className="nav-icon" /> Dashboard
             </div>
@@ -197,8 +222,8 @@ const SuperAdmin_DDE: React.FC = () => {
         </button>
 
                       {/* Date Filter */}
-<div className="filters-container-dde">
-  <div className="filter-dde">
+<div className="filters-container-clinical">
+  <div className="filter-clinical">
     <label>Date:</label>
     <select
       id="month"
@@ -220,7 +245,7 @@ const SuperAdmin_DDE: React.FC = () => {
     </select>
   </div>
 
-  <div className="filter-dde">
+  <div className="filter-clinical">
     <select
       id="day"
       value={selectedDay}
@@ -235,27 +260,27 @@ const SuperAdmin_DDE: React.FC = () => {
     </select>
   </div>
 
-  <div className="filter-dde">
-    <select
-      id="year"
-      value={selectedYear}
-      onChange={(e) => setSelectedYear(e.target.value)}
-    >
-      <option value="">Year</option>
-      {Array.from({ length: 6 }, (_, i) => {
-        const year = new Date().getFullYear() - i;
-        return (
-          <option key={year} value={year.toString()}>
-            {year}
-          </option>
-        );
-      })}
-    </select>
-  </div>
+ <div className="filter-clinical">
+  <select id="year" value={selectedYear} onChange={handleYearChange}>
+    <option value="">Year</option>
+    {yearOptions.map((year) => (
+      <option key={year} value={year.toString()}>
+        {year}
+      </option>
+    ))}
+  </select>
+</div>
 </div>
 
         {/* Summary Cards */}
         <div className="summary-cards">
+           <div
+            className={`summary-card all ${filter === "all" ? "active" : ""}`}
+            onClick={() => setFilter("all")}
+          >
+            <h3>{ddeAppointments.length}</h3>
+            <p>All</p>
+          </div>
           <div
             className={`summary-card pending ${filter === "pending" ? "active" : ""}`}
             onClick={() => setFilter("pending")}
@@ -284,58 +309,79 @@ const SuperAdmin_DDE: React.FC = () => {
             <h3>{rejectedCount}</h3>
             <p>Rejected</p>
           </div>
-          <div
-            className={`summary-card all ${filter === "all" ? "active" : ""}`}
-            onClick={() => setFilter("all")}
-          >
-            <h3>{ddeAppointments.length}</h3>
-            <p>All</p>
-          </div>
+         
+
+           <div
+  className={`summary-card canceled ${filter === "canceled" ? "active" : ""}`}
+  onClick={() => setFilter("canceled")}
+>
+  <h3>{canceledCount}</h3>
+  <p>Canceled</p>
+</div>
         </div>
 
         {/* Table for appointments */}
         <div className="appointments-section">
-          <h3 className="section-title">
-            {filter === "all"
-              ? "All"
-              : filter.charAt(0).toUpperCase() + filter.slice(1)}{" "}
-            Appointments
-          </h3>
-          <table className="appointments-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Address</th>
-                <th>Contact</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAppointments.length > 0 ? (
-                filteredAppointments.map((a) => (
-                  <tr key={a.id}>
-                    <td>{a.patient}</td>
-                    <td>{a.email}</td>
-                    <td>{a.address}</td>
-                    <td>{a.contact}</td>
-                    <td>
-                      <span className={`status-badge ${a.status}`}>
-                        {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "12px" }}>
-                    No appointments found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+  <h3 className="section-title">
+    {filter === "all"
+      ? "All"
+      : filter.charAt(0).toUpperCase() + filter.slice(1)}{" "}
+    Appointments
+  </h3>
+  <table className="appointments-table">
+    <thead>
+      <tr>
+        <th>User ID</th>
+        <th>Patient ID</th>
+        <th>Lastname</th>
+        <th>Firstname</th>
+        <th>Middle Initial</th>
+        <th>Age</th>
+        <th>Gender</th>
+        <th>Services</th>
+        <th>Appointment Date</th>
+        <th>Slot</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+  {filteredAppointments.length > 0 ? (
+    filteredAppointments.map((a) => (
+      <tr key={a.id}>
+        <td>{a.userId}</td>
+        <td>{a.patientId}</td>
+        <td>{a.lastname}</td>
+        <td>{a.firstname}</td>
+        <td>{a.middleInitial}</td>
+        <td>{a.age}</td>
+        <td>{a.gender}</td>
+        <td>{a.services}</td>
+        <td>{a.appointmentDate}</td>
+        <td>{a.slot}</td>
+        <td>
+          <span className={`status-badge ${a.status}`}>
+            {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+          </span>
+        </td>
+        <td>
+          <button className="action-button view-mores">View More</button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={12} style={{ textAlign: "center", padding: "12px" }}>
+        No appointments found.
+      </td>
+    </tr>
+  )}
+</tbody>
+
+  </table>
+</div>
+
+
       </main>
     </div>
   );

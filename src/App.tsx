@@ -64,6 +64,12 @@ import SuperAdmin_Dashboard from './components/patients_file/SuperAdmin/SuperAdm
 import SuperAdmin_UserRequests from './components/patients_file/SuperAdmin/SuperAdmin_UserRequests';
 import SuperAdmin_ManageAdmins from './components/patients_file/SuperAdmin/SuperAdmin_ManageAdmins';
 import SuperAdmin_Reports from './components/patients_file/SuperAdmin/SuperAdmin_Reports';
+import SuperAdmin_Clinical from './components/patients_file/SuperAdmin/SuperAdmin_Clinical';
+import SuperAdmin_Dental from './components/patients_file/SuperAdmin/SuperAdmin_Dental';
+import SuperAdmin_Radiology from './components/patients_file/SuperAdmin/SuperAdmin_Radiology';
+import SuperAdmin_Medical from './components/patients_file/SuperAdmin/SuperAdmin_Medical';
+import SuperAdmin_DDE from './components/patients_file/SuperAdmin/SuperAdmin_DDE';
+import SuperAdmin_ClinicalAdmin from './components/patients_file/SuperAdmin/SuperAdmin_ClinicalAdmin';
 
 
 import { ToastContainer } from "react-toastify";
@@ -132,7 +138,12 @@ const App: React.FC = () => {
             <Route path="/superadmin_userrequests" element={<SuperAdmin_UserRequests/>} />
             <Route path="/superadmin_manageadmins" element={<SuperAdmin_ManageAdmins/>} />
             <Route path="/superadmin_reports" element={<SuperAdmin_Reports/>} />
-
+            <Route path="/superadmin_clinical" element={<SuperAdmin_Clinical/>} />
+            <Route path="/superadmin_dental" element={<SuperAdmin_Dental/>} />
+            <Route path="/superadmin_radiology" element={<SuperAdmin_Radiology/>} />
+            <Route path="/superadmin_medical" element={<SuperAdmin_Medical/>} />
+            <Route path="/superadmin_dde" element={<SuperAdmin_DDE/>} />
+            <Route path="/superadmin_clinicaladmin" element={<SuperAdmin_ClinicalAdmin/>} />
 
 
           {/* Protected routes */}

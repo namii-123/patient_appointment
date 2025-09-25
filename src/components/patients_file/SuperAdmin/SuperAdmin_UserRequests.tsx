@@ -129,9 +129,9 @@ const SuperAdmin_UserRequests: React.FC = () => {
         default: role = "Staff";
       }
 
-      // Move to ManageAdmins and remove from UserAdmin
+      
       await setDoc(doc(manageAdminsCollection, selectedUserId), {
-        uid: userRequest?.id, // Use the Firestore document ID as UID
+        uid: userRequest?.id, 
         adminId: userRequest?.adminId || "",
         firstname: userRequest?.firstname || "",
         lastname: userRequest?.lastname || "",
@@ -139,7 +139,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
         email: userRequest?.email || "",
         department: selectedDept,
         role: role,
-        status: "approved", // Use lowercase for consistency with login check
+        status: "approved", 
         createdAt: userRequest?.createdAt || Timestamp.now(),
       });
       await deleteDoc(userDoc);
@@ -376,77 +376,67 @@ const SuperAdmin_UserRequests: React.FC = () => {
 
         <div className="content-wrapper-requests">
           <div className="filter-barss">
-            <div className="searchbar-containers">
-              <div className="searchsss">
-                <FaSearch className="search-iconss" />
-                <input
-                  type="text"
-                  placeholder="Search by Name or ID..."
-                  className="search-inputs"
-                  value={searchTerm}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="filterss">
-              <label>Status:</label>
-              <select
-                className="status-dropdown"
-                value={statusFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
-              >
-                <option value="All">All</option>
-                <option value="Pending">Pending</option>
-              </select>
-            </div>
-
-            <div className="filterss">
-              <label>Year:</label>
-              <select
-                className="status-dropdown"
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                onClick={handleYearClick}
-              >
-                <option value="All">All</option>
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filterss">
-              <label>Month:</label>
-              <select
-                className="status-dropdown"
-                value={monthFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setMonthFilter(e.target.value)}
-              >
-                <option value="All">All</option>
-                {availableMonths.map((month) => (
-                  <option key={month} value={month}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filterss">
-              <label>Day:</label>
-              <select
-                className="status-dropdown"
-                value={dayFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setDayFilter(e.target.value)}
-              >
-                <option value="All">All</option>
-                {availableDays.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+                               <div className="searchbar-containerss">
+                                 <div className="searchss">
+                                   <FaSearch className="search-iconss" />
+                                   <input
+                                     type="text"
+                                     placeholder="Search by Name or ID..."
+                                     className="search-input"
+                                     value={searchTerm}
+                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                                   />
+                                 </div>
+                               </div>
+                             
+                               <div className="filtersss">
+               <label>Year:</label>
+               <select
+                 className="status-dropdowns"
+                 value={yearFilter}
+                 onChange={(e) => setYearFilter(e.target.value)}
+                 onClick={handleYearClick} 
+               >
+                 <option value="All">All</option>
+                 {availableYears.map((year) => (
+                   <option key={year} value={year}>
+                     {year}
+                   </option>
+                 ))}
+               </select>
+             </div>
+                               <div className="filtersss">
+                                 <label>Month:</label>
+                                 <select
+                                   className="status-dropdowns"
+                                   value={monthFilter}
+                                   onChange={(e: ChangeEvent<HTMLSelectElement>) => setMonthFilter(e.target.value)}
+                                 >
+                                   <option value="All">All</option>
+                                   {availableMonths.map((month) => (
+                                     <option key={month} value={month}>
+                                       {month}
+                                     </option>
+                                   ))}
+                                 </select>
+                               </div>
+                               <div className="filtersss">
+                                 <label>Day:</label>
+                                 <select
+                                   className="status-dropdowns"
+                                   value={dayFilter}
+                                   onChange={(e: ChangeEvent<HTMLSelectElement>) => setDayFilter(e.target.value)}
+                                 >
+                                   <option value="All">All</option>
+                                   {availableDays.map((day) => (
+                                     <option key={day} value={day}>
+                                       {day}
+                                     </option>
+                                   ))}
+                                 </select>
+                               </div>
+                             </div>
+         
 
           <p className="user-request-header">All User Access Requests</p>
 

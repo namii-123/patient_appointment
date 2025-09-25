@@ -275,14 +275,14 @@
     padding: 20px;
   }
 
-  .search-container {
+  .search-containerrr {
  width: 25%;  
   margin-right: 10px;  
   margin-top: 1%;
 }
 
 /* Keep your existing search bar styles */
-.search-container .search-bar {
+.search-containerrr .search-bar {
   padding: 8px 18px 8px 36px; 
   font-size: 14px;
   height: 36px;
@@ -383,9 +383,9 @@
     font-weight: bold;
   }
   
-  .action-btn {
+  .action-btns {
     margin: 0 5px;
-    padding: 6px 12px;
+    padding: 6px 5px;
     border: none;
     border-radius: 5px;
     font-size: 13px;
@@ -393,11 +393,11 @@
     color: white;
   }
   
-  .action-btn.completed {
+  .action-btns.completed {
     background-color: #2ecc71;
   }
   
-  .action-btn.view {
+  .action-btns.view {
     background-color: #3498db;
   }
 
