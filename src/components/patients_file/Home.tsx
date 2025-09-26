@@ -57,13 +57,14 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState<boolean>(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"ALL" | "UNREAD">("ALL");
   const [currentView, setCurrentView] = useState<"home" | "contacts" | "dde" | "allservices" | "profile" | "editprofile" | "transaction" | "calendar" | "confirm" 
   | "labservices" | "radioservices" | "dental" | "medical" | "calendarlab" | "calendardental"
   | "calendarmedical" | "review">("home");
 
-  const notifRef = useRef<HTMLLIElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLLIElement>(null);
   const [formData, setFormData] = useState<any>(null);
 
@@ -181,14 +182,10 @@ const Home: React.FC = () => {
               style={{ cursor: "pointer" }}
             />
           </Link>
-          <div className="logo-text">DOH-Treatment and Rehabilitation Center Argao</div>
+          <div className="logo-text">DOH-TRC Argao</div>
         </div>
 
-        <ul className="nav-links-homes">
-          <li className={`home-link ${currentView === "home" ? "active" : ""}`} onClick={() => setCurrentView("home")}>Home</li>
-          <li className={`home-link ${currentView === "contacts" ? "active" : ""}`} onClick={() => setCurrentView("contacts")}>Contact Us</li>
-
-          <li className="notification-bell-wrapper" ref={notifRef}>
+          <div className="notification-bell-wrapper" ref={notifRef}>
             {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
             <FaBell className="notification-bell" onClick={toggleNotifDropdown} />
             {notifDropdownOpen && (
@@ -230,16 +227,31 @@ const Home: React.FC = () => {
                 </div>
               </div>
             )}
-          </li>
+          </div>
 
+          {/* Hamburger button (uses React state) */}
+  <div className={`hamburger ${menuOpen ? "open" : ""}`}
+    onClick={() => setMenuOpen(!menuOpen)}>
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+
+  <ul className={`nav-links-homes ${menuOpen ? "active" : ""}`}>
+          <li className={`home-link ${currentView === "home" ? "active" : ""}`} onClick={() => { setCurrentView("home"); setMenuOpen(false);}}>Home</li>
+          <li className={`home-link ${currentView === "contacts" ? "active" : ""}`} onClick={() => { setCurrentView("contacts"); setMenuOpen(false);}}>Contact Us</li>
           <li className="profile-avatar-wrapper" ref={profileRef}>
-            <FaUserCircle className="profile-icon" onClick={toggleProfileDropdown} />
+            <span className="nav-icon-profile">
+            <FaUserCircle className="profile-icon" onClick={ toggleProfileDropdown} />
+            </span>
+            <span className="nav-text-profile" onClick={ toggleProfileDropdown}>User</span>
             {profileDropdownOpen && (
               <div className="profile-dropdown">
                 <ul>
                   <li
                     onClick={() => {
                       setCurrentView("profile");
+                      setMenuOpen(false);
                       setProfileDropdownOpen(false);
                     }}
                   >
@@ -248,6 +260,7 @@ const Home: React.FC = () => {
                   <li
                     onClick={() => {
                       setCurrentView("transaction");
+                      setMenuOpen(false)
                       setProfileDropdownOpen(false);
                     }}
                   >
@@ -256,6 +269,7 @@ const Home: React.FC = () => {
                   <li
                     onClick={() => {
                        handleLogout();
+                       setMenuOpen(false);
                       setProfileDropdownOpen(false);
                     }}
                   >

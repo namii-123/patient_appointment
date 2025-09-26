@@ -70,14 +70,12 @@
   
   .about-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, auto));
     gap: 40px;
-    
-    
+    justify-content: center;
   } 
 
   .about-card {
-    
     background: #fff;
     padding: 30px 60px;
     border-radius: 10px;

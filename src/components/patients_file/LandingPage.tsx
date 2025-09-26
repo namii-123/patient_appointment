@@ -17,6 +17,7 @@ const LandingPage: React.FC = () => {
   >("home");
 
   const [modalView, setModalView] = useState<"login" | "signup" | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false); 
 
   const handleViewChange = (
     view: "home" | "services" | "about" | "contact"
@@ -24,10 +25,12 @@ const LandingPage: React.FC = () => {
     setCurrentView(view);
     setActiveView(view);
     setModalView(null); // Close the modal when switching views
+    setMenuOpen(false);
   };
 
   const handleModalOpen = (modal: "login" | "signup") => {
     setModalView(modal);
+    setMenuOpen(false);
   };
 
   const handleModalClose = () => {
@@ -47,9 +50,20 @@ const LandingPage: React.FC = () => {
               style={{ cursor: "pointer" }}
             />
           </Link>
-          <div className="logo-text">DOH-Treatment and Rehabilitation Center Argao</div>
+          <div className="logo-text">DOH-TRCArgao</div>
         </div>
-        <ul className="nav-links">
+
+        {/* Hamburger Button */}
+        <button
+          className={`hamburger ${menuOpen ? "active" : ""}`}
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <ul className={`nav-links ${menuOpen ? "open" : ""}`}>
           <li
             className={activeView === "home" ? "active" : ""}
             onClick={() => handleViewChange("home")}

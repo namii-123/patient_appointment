@@ -1,173 +1,170 @@
-/* General Styles */
+/* ========================= GENERAL STYLES ========================= */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  }
-  
-  /* 📌 Sign Up Page */
-  .signup-page {
-    display: flex;
-    height: 90vh;
-    justify-content: center;
-    align-items: center;
-    background: #f4f4f4;
-    padding: 20px;
-  }
-  
-  /* 📌 Sign Up Container */
-  .signup-container {
-    display: flex;
-    width: 1000px;
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-    height: 650px;
-  }
-  
-  /* 📌 Left Panel */
-  .signup-left {
-    flex: 1;
-    background: midnightblue;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 40px 60px;
-    text-align: center;
-  }
-  
-  .logo-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .logo-img {
-    width: 60px;
-    height: auto;
-    margin-bottom: 10px;
-  }
-  
-  .signup-left h2 {
-    font-size: 24px;
-    margin-bottom: 10px;
-    color:white;
-  }
-  
-  .signup-left p {
-    font-size: 14px;
-    opacity: 0.8;
-  }
-  
-  /* 📌 Right Panel */
-  .signup-right {
-    flex: 1;
-    padding: 40px 60px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    text-align: center;
-   
-  }
-  
-  .signup-right h2 {
-    font-size: 24px;
-    color: #333;
-    margin-bottom: 20px;
-  }
-  
-  /* 📌 Input Group */
-  .input-group {
-    margin-bottom: 15px;
-    text-align: left;
-     
-    margin-left: -10%;
-    margin-right: -10%;
-    
-  }
-  
-  .input-group label {
-    font-size: 14px;
-    color: #555;
-    display: block;
-    margin-bottom: 5px;
-  }
-  
-  .input-group input,
-  .input-group select {
-    width: 100%;
-    padding: 10px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    outline: none;
-    transition: border 0.3s;
-  }
-  
-  .input-group input:focus,
-  .input-group select:focus {
-    border-color: #4b76b6;
-  }
-  
-  /* 📌 Name Row (First & Last Name) */
-  .name-rows {
-    display: flex;
-    gap: 60px;
-  }
-  
-  .name-rows .input-group {
-    flex: 1;
-  }
-  
-  /* 📌 Sign Up Button */
-  .signup-btn {
-    width: 100%;
-    padding: 12px;
-    background: midnightblue;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: 0.3s ease-in-out;
-  }
-  
-  .signup-btn:hover {
-    background: #174488;
-  }
-  
-  /* 📌 Login Redirect */
-  .login-redirect {
-    margin-top: 15px;
-    font-size: 14px;
-    color: #333;
-  }
-  
-  .login-pill {
-    color: midnightblue;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  
-  .login-pill:hover {
-    text-decoration: underline;
-  }
-  
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+}
 
-  .row-group {
+/* ========================= PAGE LAYOUT ========================= */
+.signup-page {
   display: flex;
-  gap: 60px; /* space between Age and Gender */
+  justify-content: center;
+  align-items: center;
+  background: #f4f4f4;
+  min-height: 70vh;
+  padding: 20px;
+  overflow-y: auto;
 }
 
+/* ========================= CONTAINER ========================= */
+.signup-container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 850px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  min-height: 520px;
+  position: relative;
+}
+
+/* ✅ White circular background for a modern look */
+.signup-container::before {
+  content: "";
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: white;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  opacity: 0.8;
+}
+
+/* ========================= LEFT PANEL ========================= */
+.signup-left {
+  flex: 0.9;
+  background: midnightblue;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+  text-align: center;
+  z-index: 1;
+}
+
+.logo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo-img {
+  width: 55px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.signup-left h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.signup-left p {
+  font-size: 14px;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+/* ========================= RIGHT PANEL ========================= */
+.signup-right {
+  flex: 1.1;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: center;
+  overflow-y: auto;
+  max-height: 90vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ✅ Scrollbar always visible */
+.signup-right::-webkit-scrollbar {
+  width: 8px;
+}
+
+.signup-right::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.signup-right::-webkit-scrollbar-thumb {
+  background-color: #bbb;
+  border-radius: 10px;
+}
+
+.signup-right::-webkit-scrollbar-thumb:hover {
+  background-color: #888;
+}
+
+/* ========================= FORM STYLING ========================= */
+.signup-right h2 {
+  font-size: 24px;
+  color: midnightblue;
+  margin-bottom: 18px;
+}
+
+.input-group {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.input-group label {
+  font-size: 14px;
+  color: #555;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.input-group input,
+.input-group select {
+  width: 100%;
+  padding: 9px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+  transition: border 0.3s;
+}
+
+.input-group input:focus,
+.input-group select:focus {
+  border-color: #4b76b6;
+}
+
+/* ========================= GROUPED FIELDS ========================= */
+.name-rows,
+.row-group {
+  display: flex;
+  gap: 15px;
+}
+
+.name-rows .input-group,
 .row-group .input-group {
-  flex: 1; /* make both fields take equal space */
+  flex: 1;
 }
 
-
+/* ========================= PASSWORD FIELD ========================= */
 .password-input-wrapper {
   position: relative;
 }
@@ -186,22 +183,144 @@
   font-size: 18px;
 }
 
+/* ========================= BUTTONS & LINKS ========================= */
+.signup-btn {
+  width: 100%;
+  padding: 11px;
+  background: midnightblue;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.3s ease-in-out;
+}
 
-  /* 📱 Responsive Design */
-  @media (max-width: 768px) {
-    .signup-container {
-      flex-direction: column;
-      width: 90%;
-    }
-  
-    .signup-left,
-    .signup-right {
-      padding: 30px 40px;
-    }
-  
-    .name-row {
-      flex-direction: column;
-      gap: 0;
-    }
+.signup-btn:hover {
+  background: #174488;
+}
+
+.login-redirect {
+  margin-top: 12px;
+  font-size: 13.5px;
+  color: #333;
+  text-align: center;
+}
+
+.login-pill {
+  color: midnightblue;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-pill:hover {
+  text-decoration: underline;
+}
+
+/* ========================= RESPONSIVE BREAKPOINTS ========================= */
+
+/* 💻 Laptops (1024px and below) */
+@media (max-width: 1024px) {
+  .signup-page {
+    min-height: 50vh;
   }
-  
+
+  .signup-container {
+    max-width: 750px;
+    min-height: 480px;
+  }
+
+  .signup-left {
+    padding: 25px;
+  }
+
+  .signup-right {
+    padding: 25px;
+    max-height: 85vh;
+  }
+
+  .signup-left h2,
+  .signup-right h2 {
+    font-size: 22px;
+  }
+}
+
+/* 📱 Tablets (768px and below) */
+@media (max-width: 768px) {
+  .signup-container {
+    flex-direction: column;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 15px;
+  }
+
+  .signup-left {
+    padding: 20px;
+    border-bottom: 3px solid white;
+  }
+
+  .signup-right {
+    padding: 20px;
+    max-height: 80vh;
+  }
+
+  .name-rows,
+  .row-group {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .signup-left h2 {
+    font-size: 21px;
+  }
+
+  .signup-right h2 {
+    font-size: 19px;
+  }
+
+  .signup-btn {
+    font-size: 14px;
+  }
+}
+
+/* 📱 Small Phones (480px and below) */
+@media (max-width: 480px) {
+  .signup-container {
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .signup-left {
+    display: none; /* ✅ hide left panel */
+  }
+
+  .signup-right {
+    padding: 20px;
+    max-height: 85vh;
+  }
+
+  .signup-right h2 {
+    font-size: 18px;
+  }
+
+  .input-group label {
+    font-size: 13px;
+  }
+
+  .input-group input,
+  .input-group select {
+    font-size: 13px;
+    padding: 8px;
+  }
+
+  .signup-btn {
+    font-size: 14px;
+    padding: 9px;
+  }
+
+  .login-redirect {
+    font-size: 13px;
+  }
+}
