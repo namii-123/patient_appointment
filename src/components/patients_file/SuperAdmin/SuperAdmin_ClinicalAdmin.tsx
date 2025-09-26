@@ -88,7 +88,14 @@ const SuperAdmin_ClinicalAdmin: React.FC = () => {
           middleInitial: data.middleInitial || "",
           email: data.email || "",
           role: data.role || "Admin",
-          status: data.status === "approved" ? "Approved" : data.status === "rejected" ? "Rejected" : "Pending",
+         status:
+  data.status?.toLowerCase() === "approved"
+    ? "Approved"
+    : data.status?.toLowerCase() === "rejected"
+    ? "Rejected"
+    : data.status?.toLowerCase() === "not active"
+    ? "Not Active"
+    : "Pending",
           contact: data.contact || "",
           department: data.department || "",
           username: data.username || "",
@@ -115,7 +122,14 @@ const SuperAdmin_ClinicalAdmin: React.FC = () => {
           middleInitial: data.middleInitial || "",
           email: data.email || "",
           role: data.role || "Admin",
-          status: data.status === "pending" ? "Pending" : data.status === "approved" ? "Approved" : data.status === "rejected" ? "Rejected" : "Pending",
+          status:
+  data.status?.toLowerCase() === "approved"
+    ? "Approved"
+    : data.status?.toLowerCase() === "rejected"
+    ? "Rejected"
+    : data.status?.toLowerCase() === "not active"
+    ? "Not Active"
+    : "Pending",
           contact: data.contact || "",
           department: data.department || "",
           username: data.username || "",
@@ -144,8 +158,8 @@ const SuperAdmin_ClinicalAdmin: React.FC = () => {
     };
   }, []);
 
-  const approvedCount = admins.filter((a) => a.status.toLowerCase() === "approved").length;
-  const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "rejected").length;
+ const approvedCount = admins.filter((a) => a.status.toLowerCase() === "approved").length;
+const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not active").length;
 
 
   const filteredAdmins = admins.filter((a) => {
@@ -331,12 +345,13 @@ const SuperAdmin_ClinicalAdmin: React.FC = () => {
     <p>Approved</p>
   </div>
   <div
-    className={`summary-card rejected ${filter === "rejected" ? "active" : ""}`}
-    onClick={() => setFilter("rejected")}
-  >
-    <h3>{notActiveCount}</h3>
-    <p>Not Active</p>
-  </div>
+  className={`summary-card not-active ${filter === "not active" ? "active" : ""}`}
+  onClick={() => setFilter("not active")}
+>
+  <h3>{notActiveCount}</h3>
+  <p>Not Active</p>
+</div>
+
 </div>
 
 

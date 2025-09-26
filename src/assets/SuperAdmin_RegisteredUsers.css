@@ -275,7 +275,7 @@ html, body {
     }
 
 /* Back button */
-.back-btn {
+.back-btns {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -292,10 +292,10 @@ html, body {
     position: sticky;   
     top: 0;         
     left: 20px;         
-    z-index: 99;       
+    z-index: 99;  
   }
   
-  .back-btn:hover {
+  .back-btns:hover {
     background: #357abd;
   }
 
@@ -487,18 +487,21 @@ html, body {
   }
   
   /* Table */
-  .appointments-section {
+  .appointments-sections {
     padding: 20px;
     margin: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   }
   
-  .section-title {
+  .section-titles {
+    display: flex;
     font-size: 18px;
     font-weight: 600;
-    margin-bottom: 12px;
+    margin-top: -40px;
     color: #1d3557;
+    align-items: center;
+    justify-content: center;
   }
   
   .appointments-table {

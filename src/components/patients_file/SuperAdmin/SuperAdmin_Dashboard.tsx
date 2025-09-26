@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaTooth,
-   FaStethoscope, FaXRay, FaClinicMedical,  FaUserMd} from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaTooth, FaStethoscope, FaXRay, FaClinicMedical, FaUserMd } from "react-icons/fa";
 import "../../../assets/SuperAdmin_Dashboard.css";
 import logo from "/logo.png";
 import {
@@ -12,16 +12,39 @@ import {
   Legend,
   ResponsiveContainer
 } from "recharts";
+import { db } from "../firebase";
+import { collection, query, onSnapshot, where } from "firebase/firestore";
 
+const departmentQueries = {
+  Clinical: { collection: "ManageAdmins", department: "Clinical Laboratory", patientPurpose: "Clinical Laboratory" },
+  Dental: { collection: "ManageAdmins", department: "Dental", patientPurpose: "Dental" },
+  Radiology: { collection: "ManageAdmins", department: "Radiographic", patientPurpose: "Radiographic" },
+  Medical: { collection: "ManageAdmins", department: "Medical", patientPurpose: "Medical" },
+  DDE: { collection: "ManageAdmins", department: "DDE", patientPurpose: "DDE" }
+};
 
 const SuperAdmin_Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [adminCounts, setAdminCounts] = useState({
+    Clinical: 0,
+    Dental: 0,
+    Radiology: 0,
+    Medical: 0,
+    DDE: 0
+  });
+  const [patientCounts, setPatientCounts] = useState({
+    Clinical: 0,
+    Dental: 0,
+    Radiology: 0,
+    Medical: 0,
+    DDE: 0
+  });
+  const [totalRegisteredUsers, setTotalRegisteredUsers] = useState(0); 
 
   const handleNavigation = (path: string) => {
     navigate(path);
   };
-  
 
   const notifications = [
     { id: 1, text: "New patient registered in Dental", unread: true },
@@ -30,48 +53,90 @@ const SuperAdmin_Dashboard: React.FC = () => {
     { id: 4, text: "Clinical department updated patient records", unread: false },
   ];
 
-
-const patientUserData = [
-  { name: "Clinical Patients", value: 150 },
-  { name: "Dental Patients", value: 120 },
-  { name: "Radiology Patients", value: 60 },
-  { name: "Medical Patients", value: 150 },
-  { name: "DDE Patients", value: 95 },
-  { name: "Registered Users", value: 250 }
-];
- 
-
-const adminDeptData = [
-  { name: "Clinical Admins", value: 10 },
-  { name: "Dental Admins", value: 5 },
-  { name: "Radiology Admins", value: 10 },
-  { name: "Medical Admins", value: 11 },
-  { name: "DDE Admins", value: 6 }
-];
-
-
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
+  const REGISTERED_USER_COLOR = "#FF4560";
 
   const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const { name, value, percent } = payload[0] as any; // percent is available here
-    return (
-      <div
-        style={{
-          background: "#fff",
-          padding: "8px",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-        }}
-      >
-        <p>{`${name}: ${value} (${percent ? (percent * 100).toFixed(0) : 0}%)`}</p>
-      </div>
-    );
-  }
-  return null;
-};
+    if (active && payload && payload.length) {
+      const { name, value, percent } = payload[0] as any;
+      return (
+        <div
+          style={{
+            background: "#fff",
+            padding: "8px",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+          }}
+        >
+          <p>{`${name}: ${value} (${percent ? (percent * 100).toFixed(0) : 0}%)`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
 
+  
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "Users"), (snapshot) => {
+      setTotalRegisteredUsers(snapshot.docs.length);
+    }, (error) => {
+      console.error("Error fetching total registered users:", error);
+    });
 
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribers: (() => void)[] = [];
+
+    Object.entries(departmentQueries).forEach(([dept, { collection: coll, department: deptFilter }]) => {
+      const adminQuery = query(collection(db, coll), where("department", "==", deptFilter));
+      const unsubscribe = onSnapshot(adminQuery, (snap) => {
+        const count = snap.docs.length;
+        setAdminCounts((prev) => ({ ...prev, [dept]: count }));
+      });
+      unsubscribers.push(unsubscribe);
+    });
+
+    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+  }, []);
+
+  useEffect(() => {
+    const unsubscribers: (() => void)[] = [];
+
+    Object.entries(departmentQueries).forEach(([dept, { patientPurpose }]) => {
+      const transQuery = query(collection(db, "Transactions"), where("purpose", "==", patientPurpose));
+      const unsubscribe = onSnapshot(transQuery, (snap) => {
+        const patientIds = new Set<string>();
+        snap.forEach((doc) => {
+          const data = doc.data();
+          if (data.patientId) patientIds.add(data.patientId);
+        });
+        const count = patientIds.size;
+        setPatientCounts((prev) => ({ ...prev, [dept]: count }));
+      });
+      unsubscribers.push(unsubscribe);
+    });
+
+    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+  }, []);
+
+  const patientUserData = [
+    { name: "Clinical Patients", value: patientCounts.Clinical },
+    { name: "Dental Patients", value: patientCounts.Dental },
+    { name: "Radiology Patients", value: patientCounts.Radiology },
+    { name: "Medical Patients", value: patientCounts.Medical },
+    { name: "DDE Patients", value: patientCounts.DDE },
+    { name: "Registered Users", value: totalRegisteredUsers } 
+  ];
+
+  const adminDeptData = [
+    { name: "Dental Admins", value: adminCounts.Dental },
+    { name: "Radiology Admins", value: adminCounts.Radiology },
+    { name: "Medical Admins", value: adminCounts.Medical },
+    { name: "DDE Admins", value: adminCounts.DDE },
+    { name: "Clinical Admins", value: adminCounts.Clinical }
+  ];
 
   return (
     <div className="dashboard">
@@ -107,19 +172,19 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-                      <FaSignOutAlt className="signout-icon" />
-                      <span
-                        onClick={() => {
-                          const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                          if (isConfirmed) {
-                            navigate("/loginadmin"); 
-                          }
-                        }}
-                        className="signout-label"
-                      >
-                        Sign Out
-                      </span>
-                    </div>
+            <FaSignOutAlt className="signout-icon" />
+            <span
+              onClick={() => {
+                const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                if (isConfirmed) {
+                  navigate("/loginadmin"); 
+                }
+              }}
+              className="signout-label"
+            >
+              Sign Out
+            </span>
+          </div>
         </div>
       </aside>
 
@@ -144,9 +209,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
                   <span>Notifications</span>
                   <button
                     className="mark-read-btn"
-                    onClick={() =>
-                      notifications.forEach((n) => (n.unread = false))
-                    }
+                    onClick={() => notifications.forEach((n) => (n.unread = false))}
                   >
                     Mark all as read
                   </button>
@@ -155,9 +218,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`notification-item ${
-                        n.unread ? "unread" : ""
-                      }`}
+                      className={`notification-item ${n.unread ? "unread" : ""}`}
                     >
                       <span>{n.text}</span>
                       {n.unread && <span className="notification-badge">New</span>}
@@ -176,91 +237,74 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
           <div className="summary-cards-container">
             <div className="summary-cards-row">
               <div className="summary-cards-row single">
-            <div className="card" onClick={() => handleNavigation("/superadmin_clinical")}>
-              <FaClinicMedical className="card-icon" />
-              <h3>150</h3>
-              <p>Total Clinical Patients</p>
-            </div>
-
-
-              <div className="card" onClick={() => handleNavigation("/superadmin_dental")}>
-                <FaTooth className="card-icon" />
-                <h3>120</h3>
-                <p>Total Dental Patients</p>
-              </div>
-               <div className="card" onClick={() => handleNavigation("/superadmin_radiology")}>
-                <FaXRay className="card-icon" />
-                <h3>60</h3>
-                <p>Total Radiology Patients</p>
-              </div>
-
-
-              <div className="card" onClick={() => handleNavigation("/superadmin_medical")}>
-                <FaUserMd className="card-icon" />
-               <h3>150</h3>
-               <p>Total Medical Patients</p>
+                <div className="card" onClick={() => handleNavigation("/superadmin_clinical")}>
+                  <FaClinicMedical className="card-icon" />
+                  <h3>{patientCounts.Clinical}</h3> 
+                  <p>Total Clinical Patients</p>
                 </div>
-
-              <div className="card" onClick={() => handleNavigation("/superadmin_dde")}>
-                <FaStethoscope className="card-icon" />
-                  <h3>95</h3>
+                <div className="card" onClick={() => handleNavigation("/superadmin_dental")}>
+                  <FaTooth className="card-icon" />
+                  <h3>{patientCounts.Dental}</h3> 
+                  <p>Total Dental Patients</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_radiology")}>
+                  <FaXRay className="card-icon" />
+                  <h3>{patientCounts.Radiology}</h3> 
+                  <p>Total Radiology Patients</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_medical")}>
+                  <FaUserMd className="card-icon" />
+                  <h3>{patientCounts.Medical}</h3> 
+                  <p>Total Medical Patients</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_dde")}>
+                  <FaStethoscope className="card-icon" />
+                  <h3>{patientCounts.DDE}</h3> 
                   <p>Total DDE Patients</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_registeredusers")}>
+                  <FaUsers className="card-icon" />
+                  <h3>{totalRegisteredUsers}</h3> 
+                  <p>Total Registered Users</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_clinicaladmin")}>
+                  <FaClinicMedical className="card-icon" />
+                  <h3>{adminCounts.Clinical}</h3> 
+                  <p>Clinical Admins</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_dentaladmin")}>
+                  <FaTooth className="card-icon" />
+                  <h3>{adminCounts.Dental}</h3> 
+                  <p>Dental Admins</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_radiologyadmin")}>
+                  <FaXRay className="card-icon" />
+                  <h3>{adminCounts.Radiology}</h3> 
+                  <p>Radiology Admins</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_medicaladmin")}>
+                  <FaUserMd className="card-icon" />
+                  <h3>{adminCounts.Medical}</h3> 
+                  <p>Medical Admins</p>
+                </div>
+                <div className="card" onClick={() => handleNavigation("/superadmin_ddeadmin")}>
+                  <FaStethoscope className="card-icon" />
+                  <h3>{adminCounts.DDE}</h3> 
+                  <p>DDE Admins</p>
+                </div>
               </div>
-             
-
-             <div className="card" onClick={() => handleNavigation("/superadmin_users")}>
-  <FaUsers className="card-icon" />
-  <h3>250</h3>
-  <p>Total Registered Users</p>
-</div>
-
- <div className="card" onClick={() => handleNavigation("/superadmin_clinicaladmin")}>
-  <FaClinicMedical className="card-icon" />
-  <h3>10</h3>
-  <p>Clinical Admins</p>
-</div>
-
-<div className="card">
-  <FaTooth className="card-icon" />
-  <h3>5</h3>
-  <p>Dental Admins</p>
-</div>
-
-<div className="card">
-  <FaXRay className="card-icon" />
-  <h3>10</h3>
-  <p>Radiology Admins</p>
-</div>
-
-<div className="card">
-  <FaUserMd className="card-icon" />
-  <h3>11</h3>
-  <p>Medical Admins</p>
-</div>
-
-<div className="card">
-  <FaStethoscope className="card-icon" />
-  <h3>6</h3>
-  <p>DDE Admins</p>
-</div>
             </div>
-
-          
           </div>
         </div>
-      </div>
-
-       
 
         {/* Charts Section */}
-<div className="chart-activity-containers">
-  <div className="chart-row">
-  
-<div className="chart-box">
-  <h3 className="chart-titles">Patients per Department</h3>
-  <ResponsiveContainer width="100%" height={400}>
-    <PieChart width={400} height={400}>
- <Pie
+        <div className="chart-activity-containers">
+          <div className="chart-row">
+            <div className="chart-box">
+              <h3 className="chart-titles">Patients per Department</h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <PieChart width={400} height={400}>
+<Pie
   data={patientUserData}
   dataKey="value"
   nameKey="name"
@@ -268,55 +312,52 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
   cy="50%"
   outerRadius={100}
   label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
-
 >
-  {adminDeptData.map((entry, index) => (
-    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-  ))}
+  {patientUserData.map((entry, index) => {
+  
+    const fillColor =
+      entry.name === "Registered Users"
+        ? REGISTERED_USER_COLOR
+        : COLORS[index % COLORS.length];
+    return <Cell key={`cell-${index}`} fill={fillColor} />;
+  })}
 </Pie>
-<Tooltip content={<CustomTooltip />} />
-<Legend />
 
- 
-</PieChart>
-  </ResponsiveContainer>
-</div>
-
-
-    {/* Pie Chart for Admins per Department */}
-    <div className="chart-box">
-      <h3 className="chart-titles">Admins per Department</h3>
-      <ResponsiveContainer width="100%" height={400}>
-      <PieChart width={400} height={400}>
- <Pie
-  data={adminDeptData}
-  dataKey="value"
-  nameKey="name"
-  cx="50%"
-  cy="50%"
-  outerRadius={100}
-  label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
-
->
-  {adminDeptData.map((entry, index) => (
-    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-  ))}
-</Pie>
-<Tooltip content={<CustomTooltip />} />
-<Legend />
-
- 
-</PieChart>
-
-
-      </ResponsiveContainer>
-    </div>
-  </div>
-</div>
-
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Pie Chart for Admins per Department */}
+            <div className="chart-box">
+              <h3 className="chart-titles">Admins per Department</h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <PieChart width={400} height={400}>
+                  <Pie
+                    data={adminDeptData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
+                  >
+                    {adminDeptData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
 };
 
 export default SuperAdmin_Dashboard;
+
+

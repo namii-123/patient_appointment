@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,7 +14,7 @@ import {
 } from "react-icons/fa";
 import "../../../assets/SuperAdmin_ManageAdmins.css";
 import logo from "/logo.png";
-import { getFirestore, collection, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, updateDoc, doc } from "firebase/firestore";
 
 type Notification = {
   text: string;
@@ -30,9 +31,10 @@ type Admin = {
   email: string;
   department: string;
   role: string;
-  status: "Approved" | "Rejected";
+  status: "Approved" | "Rejected" | "Not Active";
   createdAt?: string | Date;
   reason?: string;
+  isActive?: boolean; // New field to control login
 };
 
 const SuperAdmin_ManageAdmins: React.FC = () => {
@@ -49,10 +51,7 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
   );
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-const [selectedDept, setSelectedDept] = useState<string>("");
-
-
-
+  const [selectedDept, setSelectedDept] = useState<string>("");
 
   const [notifications, setNotifications] = useState<Notification[]>([
     { text: "3 new appointment requests", unread: true },
@@ -71,8 +70,12 @@ const [selectedDept, setSelectedDept] = useState<string>("");
   };
 
   const handleRemove = async (id: string) => {
-    if (window.confirm("Are you sure you want to remove this admin?")) {
-      await deleteDoc(doc(db, "ManageAdmins", id));
+    if (window.confirm("Are you sure you want to deactivate this admin?")) {
+      const adminRef = doc(db, "ManageAdmins", id);
+      await updateDoc(adminRef, {
+        status: "Not Active",
+        isActive: false, 
+      });
     }
   };
 
@@ -88,71 +91,68 @@ const [selectedDept, setSelectedDept] = useState<string>("");
   };
 
   useEffect(() => {
-  const unsubscribe = onSnapshot(collection(db, "ManageAdmins"), (snapshot) => {
-    const adminsList = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-         uid: data.uid || "",
-        adminId: data.adminId || "",
-        firstname: data.firstname || "",
-        lastname: data.lastname || "",
-        username: data.username || "",
-        email: data.email || "",
-        department: data.department || "",
-        role: data.role || "",
-        status: data.status || "Approved",
-        createdAt: data.createdAt
-          ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt))
-          : null,
-        reason: data.reason || "",
-      } as Admin;
+    const unsubscribe = onSnapshot(collection(db, "ManageAdmins"), (snapshot) => {
+      const adminsList = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          uid: data.uid || "",
+          adminId: data.adminId || "",
+          firstname: data.firstname || "",
+          lastname: data.lastname || "",
+          username: data.username || "",
+          email: data.email || "",
+          department: data.department || "",
+          role: data.role || "",
+          status: data.status || "Approved",
+          createdAt: data.createdAt
+            ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt))
+            : null,
+          reason: data.reason || "",
+          isActive: data.isActive !== undefined ? data.isActive : true, // Default to true if not set
+        } as Admin;
+      });
+      setAdmins(adminsList);
     });
-    setAdmins(adminsList);
-  });
-  return () => unsubscribe();
-}, []);
-
-
+    return () => unsubscribe();
+  }, []);
 
   const filteredAdmins = admins.filter((admin) => {
-  const matchesSearch =
-    admin.lastname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.adminId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      admin.lastname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      admin.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      admin.adminId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      admin.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      admin.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-  let matchesDate = true;
-  if (admin.createdAt) {
-    const dateObj =
-      admin.createdAt instanceof Date
-        ? admin.createdAt
-        : new Date(admin.createdAt);
-    const year = dateObj.getFullYear().toString();
-    const month = dateObj.toLocaleString("default", { month: "long" });
-    const day = dateObj.getDate().toString().padStart(2, "0");
+    let matchesDate = true;
+    if (admin.createdAt) {
+      const dateObj =
+        admin.createdAt instanceof Date
+          ? admin.createdAt
+          : new Date(admin.createdAt);
+      const year = dateObj.getFullYear().toString();
+      const month = dateObj.toLocaleString("default", { month: "long" });
+      const day = dateObj.getDate().toString().padStart(2, "0");
 
-    if (selectedYear && year !== selectedYear) matchesDate = false;
-    if (selectedMonth && month !== selectedMonth) matchesDate = false;
-    if (selectedDay && day !== selectedDay) matchesDate = false;
-  }
+      if (selectedYear && year !== selectedYear) matchesDate = false;
+      if (selectedMonth && month !== selectedMonth) matchesDate = false;
+      if (selectedDay && day !== selectedDay) matchesDate = false;
+    }
 
-  const matchesStatus =
-    !selectedStatus || admin.status.toLowerCase() === selectedStatus.toLowerCase();
+    const matchesStatus =
+      !selectedStatus || admin.status.toLowerCase() === selectedStatus.toLowerCase();
 
-  const matchesDept =
-    !selectedDept || admin.department.toLowerCase() === selectedDept.toLowerCase();
+    const matchesDept =
+      !selectedDept || admin.department.toLowerCase() === selectedDept.toLowerCase();
 
-  return matchesSearch && matchesDate && matchesStatus && matchesDept;
-});
-
+    return matchesSearch && matchesDate && matchesStatus && matchesDept;
+  });
 
   const [rowsPerPage, setRowsPerPage] = useState<number>(100);
 
-const displayedAdmins =
-  rowsPerPage === -1 ? filteredAdmins : filteredAdmins.slice(0, rowsPerPage);
-
+  const displayedAdmins =
+    rowsPerPage === -1 ? filteredAdmins : filteredAdmins.slice(0, rowsPerPage);
 
   return (
     <div className="dashboard">
@@ -276,31 +276,32 @@ const displayedAdmins =
             </div>
             <div className="filters-container-manage">
               <div className="filter-manage">
-  <label>Status:</label>
-  <select
-    value={selectedStatus}
-    onChange={(e) => setSelectedStatus(e.target.value)}
-  >
-    <option value="">All</option>
-    <option value="Approved">Approved</option>
-    <option value="Rejected">Rejected</option>
-  </select>
-</div>
+                <label>Status:</label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Not Active">Not Active</option> {/* Added new status */}
+                </select>
+              </div>
 
-<div className="filter-manage">
-  <label>Department:</label>
-  <select
-    value={selectedDept}
-    onChange={(e) => setSelectedDept(e.target.value)}
-  >
-    <option value="">All</option>
-    <option value="Dental">Dental</option>
-    <option value="Medical">Medical</option>
-    <option value="Clinical Laboratory">Clinical</option>
-    <option value="Radiographic">Radiographic</option>
-    <option value="DDE">DDE</option>
-  </select>
-</div>
+              <div className="filter-manage">
+                <label>Department:</label>
+                <select
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="Dental">Dental</option>
+                  <option value="Medical">Medical</option>
+                  <option value="Clinical Laboratory">Clinical</option>
+                  <option value="Radiographic">Radiographic</option>
+                  <option value="DDE">DDE</option>
+                </select>
+              </div>
 
               <div className="filter-manage">
                 <label>Date:</label>
@@ -362,7 +363,7 @@ const displayedAdmins =
                 <th>Admin ID</th>
                 <th>Last Name</th>
                 <th>First Name</th>
-                 <th>Department</th>
+                <th>Department</th>
                 <th>Username</th>
                 <th>Email</th>
                 <th>Created At</th>
@@ -391,13 +392,19 @@ const displayedAdmins =
                       {admin.status}
                     </td>
                     <td className="actions-cell">
-                      <button
-                        className="remove-btn"
-                        onClick={() => handleRemove(admin.id)}
-                      >
-                        <FaTrash /> Remove
-                      </button>
-                    </td>
+  <button
+    className="remove-btn"
+    onClick={() => handleRemove(admin.id)}
+    disabled={admin.status === "Not Active"} 
+    style={{
+      opacity: admin.status === "Not Active" ? 0.5 : 1,
+      cursor: admin.status === "Not Active" ? "not-allowed" : "pointer",
+    }}
+  >
+    <FaTrash /> Remove
+  </button>
+</td>
+
                   </tr>
                 ))
               ) : (
@@ -410,28 +417,24 @@ const displayedAdmins =
             </tbody>
           </table>
 
-       <div className="table-controls">
-  <div className="rows-per-page-container">
-  <label htmlFor="rowsPerPage">SHOW</label>
-  <select
-    id="rowsPerPage"
-    value={rowsPerPage}
-    onChange={(e) => setRowsPerPage(Number(e.target.value))}
-  >
-    <option value={1}>1</option>
-    <option value={5}>5</option>
-    <option value={10}>10</option>
-    <option value={25}>25</option>
-    <option value={50}>50</option>
-    <option value={100}>100</option>
-    <option value={-1}>All</option>
-  </select>
-</div>
-
-</div>
-
-
-
+          <div className="table-controls">
+            <div className="rows-per-page-container">
+              <label htmlFor="rowsPerPage">SHOW</label>
+              <select
+                id="rowsPerPage"
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+              >
+                <option value={1}>1</option>
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={-1}>All</option>
+              </select>
+            </div>
+          </div>
         </div>
       </main>
     </div>

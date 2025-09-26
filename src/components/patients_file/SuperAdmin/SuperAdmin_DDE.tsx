@@ -132,7 +132,7 @@ const SuperAdmin_DDE: React.FC = () => {
         <div>
           <div className="logo-boxss">
             <img src={logo} alt="logo" className="logosss" />
-            <span className="logo-text">HealthSys</span>
+            <span className="logo-textss">HealthSys</span>
           </div>
           <div className="nav-linkss">
             <div className="nav-item active">

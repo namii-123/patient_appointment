@@ -24,7 +24,7 @@ interface Admin {
   createdAt?: string | Date;
 }
 
-const SuperAdmin_DentalAdmin: React.FC = () => {
+const SuperAdmin_RadiologyAdmin: React.FC = () => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [filter, setFilter] = useState<string>("all");
@@ -33,13 +33,24 @@ const SuperAdmin_DentalAdmin: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedAdminRecord, setSelectedAdminRecord] = useState<Admin | null>(null);
 
   const notifications = [
-    { id: 1, text: "New admin registered in Dental", unread: true },
+    { id: 1, text: "New admin registered in Radiology", unread: true },
     { id: 2, text: "2 Admin requests pending approval", unread: true },
-    { id: 3, text: "Report submitted by Dental Admin", unread: false },
+    { id: 3, text: "Report submitted by Radiology Admin", unread: false },
     { id: 4, text: "Admin status updated", unread: false },
   ];
+
+  useEffect(() => {
+    setShowModal(false);
+    setSelectedAdminRecord(null);
+  }, []);
+
+  useEffect(() => {
+    console.log("showModal:", showModal, "selectedAdminRecord:", selectedAdminRecord);
+  }, [showModal, selectedAdminRecord]);
 
   const [yearOptions, setYearOptions] = useState<number[]>(() => {
     return Array.from({ length: 11 }, (_, i) => 2025 + i);
@@ -58,8 +69,8 @@ const SuperAdmin_DentalAdmin: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    const manageAdminsQuery = query(collection(db, "ManageAdmins"), where("department", "==", "Dental"));
-    const userAdminQuery = query(collection(db, "UserAdmin"), where("department", "==", "Dental"));
+    const manageAdminsQuery = query(collection(db, "ManageAdmins"), where("department", "==", "Radiographic"));
+    const userAdminQuery = query(collection(db, "UserAdmin"), where("department", "==", "Radiographic"));
 
     const unsubscribeManage = onSnapshot(manageAdminsQuery, (manageSnap) => {
       const manageAdmins = manageSnap.docs.map((a) => {
@@ -84,7 +95,6 @@ const SuperAdmin_DentalAdmin: React.FC = () => {
     : data.status?.toLowerCase() === "not active"
     ? "Not Active"
     : "Pending",
-
           contact: data.contact || "",
           department: data.department || "",
           username: data.username || "",
@@ -119,7 +129,6 @@ const SuperAdmin_DentalAdmin: React.FC = () => {
     : data.status?.toLowerCase() === "not active"
     ? "Not Active"
     : "Pending",
-
           contact: data.contact || "",
           department: data.department || "",
           username: data.username || "",
@@ -148,9 +157,9 @@ const SuperAdmin_DentalAdmin: React.FC = () => {
     };
   }, []);
 
+ 
 const approvedCount = admins.filter((a) => a.status.toLowerCase() === "approved").length;
 const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not active").length;
-
 
   const filteredAdmins = admins.filter((a) => {
     if (filter !== "all" && a.status.toLowerCase() !== filter.toLowerCase()) return false;
@@ -221,7 +230,7 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
       <main className="main-content-superadmin">
         {/* Top Navbar */}
         <div className="top-navbar-superadmin">
-          <h2 className="navbar-title">Dental Admins</h2>
+          <h2 className="navbar-title">Radiology Admins</h2>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -231,6 +240,32 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
               <span className="notification-count">
                 {notifications.filter((n) => n.unread).length}
               </span>
+            )}
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <div className="notification-header">
+                  <span>Notifications</span>
+                  <button
+                    className="mark-read-btn"
+                    onClick={() => notifications.forEach((n) => (n.unread = false))}
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+                {notifications.length > 0 ? (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`notification-item ${n.unread ? "unread" : ""}`}
+                    >
+                      <span>{n.text}</span>
+                      {n.unread && <span className="notification-badge">New</span>}
+                    </div>
+                  ))
+                ) : (
+                  <div className="notification-empty">No notifications</div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -248,13 +283,21 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
               onChange={(e) => setSelectedMonth(e.target.value)}
             >
               <option value="">Month</option>
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-                  {new Date(0, i).toLocaleString("default", { month: "long" })}
-                </option>
-              ))}
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
             </select>
           </div>
+
           <div className="filter-clinical">
             <select
               id="day"
@@ -269,6 +312,7 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
               ))}
             </select>
           </div>
+
           <div className="filter-clinical">
             <select id="year" value={selectedYear} onChange={handleYearChange}>
               <option value="">Year</option>
@@ -296,8 +340,6 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
             <h3>{approvedCount}</h3>
             <p>Approved</p>
           </div>
-
-
 <div
   className={`summary-card not-active ${filter === "not active" ? "active" : ""}`}
   onClick={() => setFilter("not active")}
@@ -305,15 +347,15 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
   <h3>{notActiveCount}</h3>
   <p>Not Active</p>
 </div>
-
         </div>
 
+        {/* Table for admins */}
         <div className="appointments-section">
           <h3 className="section-title">
             {filter === "all"
               ? "All"
               : filter.charAt(0).toUpperCase() + filter.slice(1)}{" "}
-            Dental Admins
+            Radiology Admins
           </h3>
           <table className="appointments-table">
             <thead>
@@ -353,7 +395,7 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
               ) : (
                 <tr>
                   <td colSpan={8} style={{ textAlign: "center", padding: "12px" }}>
-                    {loading ? "Loading..." : "No Dental admins found."}
+                    {loading ? "Loading..." : "No Radiology admins found."}
                   </td>
                 </tr>
               )}
@@ -365,4 +407,4 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
   );
 };
 
-export default SuperAdmin_DentalAdmin;
+export default SuperAdmin_RadiologyAdmin;
