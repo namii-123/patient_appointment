@@ -131,10 +131,26 @@ const Dashboard_Radiology: React.FC = () => {
       };
   
       // Count Patients
-      const fetchPatients = async () => {
-        const snap = await getDocs(collection(db, "Patients"));
-        setTotalPatients(snap.size);
-      };
+  // Count Patients based on Transactions (unique patient IDs)
+const fetchPatients = async () => {
+  const q = query(
+    collection(db, "Transactions"),
+    where("purpose", "==", "Radiographic")
+  );
+  const snap = await getDocs(q);
+
+  const uniquePatients = new Set<string>();
+  snap.forEach((doc) => {
+    const data = doc.data();
+    if (data.patientId) {
+      uniquePatients.add(data.patientId);
+    }
+  });
+
+  setTotalPatients(uniquePatients.size);
+};
+
+
   
       // Real-time Appointments (Total, Pending, Cancelled)
       const transQuery = query(

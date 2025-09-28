@@ -1,17 +1,16 @@
-
 import React, { useState, useEffect } from "react";
 import "../../assets/AppointmentCalendar.css";
 import { X } from "lucide-react";
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, runTransaction, setDoc } from "firebase/firestore";
 
-interface CalendarMedicalProps {
+interface AppointmentCalendarProps {
   formData?: any;
   onNavigate?: (
-    targetView: "medical" | "dental" | "labservices" | "review",
+    targetView: "allservices" | "calendar" | "labservices" | "radioservices" | "review",
     data?: any
   ) => void;
-  onConfirm?: (date: string, slotId: string) => void;
+  onConfirm?: (date: string, slot: string) => void;
 }
 
 interface Slot {
@@ -29,7 +28,7 @@ const predefinedSlots: { time: string; capacity: number }[] = [
   { time: "14:00 PM - 15:00 PM", capacity: 2 },
 ];
 
-const CalendarMedical: React.FC<CalendarMedicalProps> = ({
+const CalendarMedical: React.FC<AppointmentCalendarProps> = ({
   formData,
   onConfirm,
   onNavigate,
@@ -40,18 +39,22 @@ const CalendarMedical: React.FC<CalendarMedicalProps> = ({
   const [daysInfo, setDaysInfo] = useState<{ day: number; weekday: string }[]>([]);
   const [slots, setSlots] = useState<{ [key: number]: number }>({});
   const [isClosed, setIsClosed] = useState<{ [key: number]: boolean }>({});
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(formData?.selectedDate || null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<{ slotID: string; time: string } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ slotID: string; time: string } | null>(
+    formData?.selectedSlotId
+      ? { slotID: formData.selectedSlotId, time: formData.selectedSlotTime }
+      : null
+  );
   const [showModal, setShowModal] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmed, setConfirmed] = useState(!!formData?.selectedDate && !!formData?.selectedSlotId);
   const [maxYear, setMaxYear] = useState(today.getFullYear() + 20);
 
   const department = "Medical";
 
   useEffect(() => {
-    console.log("CalendarMedical: selectedSlot:", selectedSlot, "showModal:", showModal);
-  }, [selectedSlot, showModal]);
+    console.log("CalendarMedical: selectedSlot:", selectedSlot, "showModal:", showModal, "formData:", formData);
+  }, [selectedSlot, showModal, formData]);
 
   useEffect(() => {
     const totalDays = new Date(year, month, 0).getDate();
@@ -129,7 +132,6 @@ const CalendarMedical: React.FC<CalendarMedicalProps> = ({
         return;
       }
     } else {
-      // Initialize default slots and save to Firestore
       slotsData = predefinedSlots.map((s) => ({
         slotID: `${selected}-${s.time}`,
         time: s.time,
@@ -333,7 +335,16 @@ const CalendarMedical: React.FC<CalendarMedicalProps> = ({
                   transition: "background-color 0.2s ease-in-out",
                 }}
                 disabled={!selectedSlot}
-                onClick={() => selectedSlot && handleSelectSlot(selectedSlot.time)}
+                onClick={() => {
+  if (selectedSlot) {
+    const confirmBooking = window.confirm(
+      `Are you sure you want to book this slot?\n${selectedSlot.time} - This cannot be changed once booked.`
+    );
+    if (confirmBooking) {
+      handleSelectSlot(selectedSlot.time);
+    }
+  }
+}}
               >
                 OK
               </button>
@@ -344,22 +355,23 @@ const CalendarMedical: React.FC<CalendarMedicalProps> = ({
 
       <div className="calendar-navigation">
         <div className="nav-right">
-          <button
-            className="next-btn"
-            onClick={() => {
-              if (!confirmed) return alert("Please select a time slot before proceeding.");
-              if (selectedDate && selectedSlot) {
-                onNavigate?.("review", {
-                  ...formData,
-                  selectedDate,
-                  selectedSlotId: selectedSlot.slotID,
-                  selectedSlotTime: selectedSlot.time,
-                });
-              }
-            }}
-          >
-            Next ➡
-          </button>
+       
+<button
+  className="next-btn"
+  onClick={() => {
+    if (!confirmed) return alert("Please select a time slot before proceeding.");
+    if (selectedDate && selectedSlot) {
+      onNavigate?.("review", {
+        ...formData,
+        selectedDate,
+        selectedSlotId: selectedSlot.slotID,
+        selectedSlotTime: selectedSlot.time, // Ensure time is passed
+      });
+    }
+  }}
+>
+  Next ➡
+</button>
         </div>
       </div>
     </div>

@@ -333,7 +333,16 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
                   transition: "background-color 0.2s ease-in-out",
                 }}
                 disabled={!selectedSlot}
-                onClick={() => selectedSlot && handleSelectSlot(selectedSlot.time)}
+                 onClick={() => {
+  if (selectedSlot) {
+    const confirmBooking = window.confirm(
+      `Are you sure you want to book this slot?\n${selectedSlot.time} - This cannot be changed once booked.`
+    );
+    if (confirmBooking) {
+      handleSelectSlot(selectedSlot.time);
+    }
+  }
+}}
               >
                 OK
               </button>
