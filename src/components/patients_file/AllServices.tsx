@@ -304,12 +304,26 @@ useEffect(() => {
 const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   const { name, value } = e.target;
 
+
+  if (name === "contact") {
+  
+    const numericValue = value.replace(/\D/g, ""); 
+    
+    if (numericValue.length <= 11) {
+      setFormData((prev) => ({
+        ...prev,
+        contact: numericValue,
+      }));
+    }
+    return;
+  }
+
   if (name === "province") {
     const selected = provinces.find((p) => p.code === value);
     setFormData((prev) => ({
       ...prev,
       province: selected ? selected.name : "",
-      provinceCode: value, // optional: keep code too
+      provinceCode: value, 
       municipality: "",
       barangay: "",
     }));
@@ -360,6 +374,11 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   if (!isFormComplete()) {
     alert("⚠️ Please fill out all required fields before proceeding.");
     return;
+  }
+
+  const confirmSave = window.confirm("Do you want to proceed and save this patient information?");
+  if (!confirmSave) {
+    return; 
   }
 
   const auth = getAuth();

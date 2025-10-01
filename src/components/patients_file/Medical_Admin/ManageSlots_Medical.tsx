@@ -76,7 +76,7 @@ const ManageSlots_Medical: React.FC = () => {
   const [maxYear, setMaxYear] = useState(currentDate.getFullYear() + 20);
 
   useEffect(() => {
-    console.log("ManageSlots_Radiology: slots:", slots, "slotCounts:", slotCounts);
+    console.log("ManageSlots_Medical: slots:", slots, "slotCounts:", slotCounts);
   }, [slots, slotCounts]);
 
   useEffect(() => {
@@ -218,38 +218,38 @@ const ManageSlots_Medical: React.FC = () => {
         <div>
           <div
             className="logo-boxs"
-            onClick={() => handleNavigation("/dashboard_radiology")}
+            onClick={() => handleNavigation("/dashboard_medical")}
             style={{ cursor: "pointer" }}
           >
             <img src="logo.png" alt="logo" className="logoss" />
-            <span className="logo-texts">RADIOLOGY</span>
+            <span className="logo-texts">MEDICAL</span>
           </div>
           <nav className="nav-linkss">
             <div className="nav-item">
               <FaTachometerAlt className="nav-icon" />
-              <span onClick={() => navigate("/dashboard_radiology")}>Dashboard</span>
+              <span onClick={() => navigate("/dashboard_medical")}>Dashboard</span>
             </div>
             <div className="nav-item">
               <FaCalendarAlt className="nav-icon" />
-              <span onClick={() => handleNavigation("/appointments_radiology")}>
+              <span onClick={() => handleNavigation("/appointments_medical")}>
                 Appointments
               </span>
             </div>
             <div className="nav-item">
               <FaUsers className="nav-icon" />
-              <span onClick={() => handleNavigation("/patientrecords_radiology")}>
+              <span onClick={() => handleNavigation("/patientrecords_medical")}>
                 Patient Records
               </span>
             </div>
             <div className="nav-item active">
               <FaClock className="nav-icon" />
-              <span onClick={() => handleNavigation("/manageslots_radiology")}>
+              <span onClick={() => handleNavigation("/manageslots_medical")}>
                 Manage Slots
               </span>
             </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
-              <span onClick={() => handleNavigation("/reports&analytics_radiology")}>
+              <span onClick={() => handleNavigation("/reports&analytics_medical")}>
                 Reports & Analytics
               </span>
             </div>

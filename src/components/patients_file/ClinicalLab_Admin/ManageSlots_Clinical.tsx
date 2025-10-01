@@ -218,38 +218,38 @@ const ManageSlots_Clinical: React.FC = () => {
         <div>
           <div
             className="logo-boxs"
-            onClick={() => handleNavigation("/dashboard_radiology")}
+            onClick={() => handleNavigation("/dashboard_clinical")}
             style={{ cursor: "pointer" }}
           >
             <img src="logo.png" alt="logo" className="logoss" />
-            <span className="logo-texts">RADIOLOGY</span>
+            <span className="logo-texts">CLINICAL</span>
           </div>
           <nav className="nav-linkss">
             <div className="nav-item">
               <FaTachometerAlt className="nav-icon" />
-              <span onClick={() => navigate("/dashboard_radiology")}>Dashboard</span>
+              <span onClick={() => navigate("/dashboard_clinical")}>Dashboard</span>
             </div>
             <div className="nav-item">
               <FaCalendarAlt className="nav-icon" />
-              <span onClick={() => handleNavigation("/appointments_radiology")}>
+              <span onClick={() => handleNavigation("/appointments_clinical")}>
                 Appointments
               </span>
             </div>
             <div className="nav-item">
               <FaUsers className="nav-icon" />
-              <span onClick={() => handleNavigation("/patientrecords_radiology")}>
+              <span onClick={() => handleNavigation("/patientrecords_clinical")}>
                 Patient Records
               </span>
             </div>
             <div className="nav-item active">
               <FaClock className="nav-icon" />
-              <span onClick={() => handleNavigation("/manageslots_radiology")}>
+              <span onClick={() => handleNavigation("/manageslots_clinical")}>
                 Manage Slots
               </span>
             </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
-              <span onClick={() => handleNavigation("/reports&analytics_radiology")}>
+              <span onClick={() => handleNavigation("/reports&analytics_clinical")}>
                 Reports & Analytics
               </span>
             </div>

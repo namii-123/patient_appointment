@@ -9,9 +9,9 @@ interface RadiographicServicesProps {
     targetView: "calendar" | "confirm" | "allservices" | "labservices",
     data?: any
   ) => void;
-  patientId?: string; // Add patientId prop
-  controlNo?: string; // Add controlNo prop
-  formData?: any; // Add formData to carry over from AllServices
+  patientId?: string; 
+  controlNo?: string;
+  formData?: any; 
 }
 
 
@@ -170,6 +170,7 @@ useEffect(() => {
       displayId,
       dateStr,
       uid,
+      department: "Radiographic",
     };
 
     // Save to Firestore

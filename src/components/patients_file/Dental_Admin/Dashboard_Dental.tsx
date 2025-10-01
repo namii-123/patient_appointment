@@ -127,12 +127,26 @@ useEffect(() => {
   useEffect(() => {
     // Count Users
     const fetchUsers = async () => {
-      const snap = await getDocs(collection(db, "Users"));
-      setTotalUsers(snap.size);
+      const q = query(
+        collection(db, "Transactions"),
+        where("purpose", "==", "Dental")
+      );
+      const snap = await getDocs(q);
+    
+      const uniqueUsers = new Set<string>();
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data.UserId) {
+          uniqueUsers.add(data.userId);
+        }
+      });
+    
+      setTotalUsers(uniqueUsers.size);
     };
+    
+
 
     // Count Patients
-   // Count Patients based on Transactions (unique patient IDs)
 const fetchPatients = async () => {
   const q = query(
     collection(db, "Transactions"),

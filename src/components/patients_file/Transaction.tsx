@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { db, auth } from "./firebase"; // Ensure `auth` is exported from firebase.js
-import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { db, auth } from "./firebase";
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, deleteDoc, runTransaction } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import "../../assets/Transaction.css";
 import ShortUniqueId from "short-unique-id";
@@ -34,6 +34,7 @@ interface TransactionItem {
   slotTime: string;
   slotID: string;
   status: "Pending" | "Approved" | "Rejected" | "Completed" | "Cancelled";
+  reservationId?: string; // Added to match AppointmentCalendar
 }
 
 const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
@@ -51,7 +52,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
         return;
       }
 
-     
       const transactionsQuery = query(
         collection(db, "Transactions"),
         where("uid", "==", user.uid)
@@ -69,6 +69,7 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
             slotID: docData?.slotID || "",
             status: docData?.status || "Pending",
             services: Array.isArray(docData?.services) ? docData.services : [],
+            reservationId: docData?.reservationId || "", // Include reservationId
           };
         });
         setTransactions(data);
@@ -76,36 +77,85 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
         console.error("Error listening to transactions:", error);
       });
 
-     
       return () => unsubscribeSnapshot();
     });
 
-    
     return () => unsubscribeAuth();
   }, []);
 
   const handleCancel = async (transactionId: string) => {
-  const confirmCancel = window.confirm("Do you want to cancel your appointment?");
-  if (!confirmCancel) return;
+    const confirmCancel = window.confirm("Do you want to cancel your appointment?");
+    if (!confirmCancel) return;
 
-  try {
-    const transactionRef = doc(db, "Transactions", transactionId);
-    const transactionSnap = await getDoc(transactionRef);
-    if (!transactionSnap.exists()) {
-      console.warn("Transaction not found:", transactionId);
-      return;
+    try {
+      await runTransaction(db, async (transaction) => {
+        const transactionRef = doc(db, "Transactions", transactionId);
+        const transactionSnap = await transaction.get(transactionRef);
+
+        if (!transactionSnap.exists()) {
+          console.warn("Transaction not found:", transactionId);
+          throw new Error("Transaction not found.");
+        }
+
+        const transactionData = transactionSnap.data();
+        const { purpose, date, slotID, reservationId } = transactionData;
+
+        // Skip slot update if already Cancelled
+        if (transactionData.status === "Cancelled") {
+          console.warn("Transaction already cancelled:", transactionId);
+          throw new Error("Appointment is already cancelled.");
+        }
+
+        // Update slot availability
+        const slotRef = doc(db, "Departments", purpose, "Slots", date);
+        const slotSnap = await transaction.get(slotRef);
+
+        if (slotSnap.exists() && !slotSnap.data().closed) {
+          const slots = slotSnap.data().slots || [];
+          const slotIndex = slots.findIndex((s: any) => s.slotID === slotID);
+
+          if (slotIndex !== -1) {
+            slots[slotIndex].remaining = (slots[slotIndex].remaining || 0) + 1;
+            const totalSlots = slots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+
+            transaction.update(slotRef, {
+              slots,
+              totalSlots,
+              updatedAt: new Date().toISOString(),
+            });
+            console.log(`📌 Transaction: Incremented remaining for slot ${slotID} on ${date} in ${purpose}`);
+          } else {
+            console.warn(`Slot ${slotID} not found in ${slotRef.path}`);
+          }
+        } else {
+          console.warn(`Slot document ${slotRef.path} does not exist or is closed`);
+        }
+
+        // Delete reservation if it exists
+        if (reservationId) {
+          const reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
+          const reservationSnap = await transaction.get(reservationRef);
+          if (reservationSnap.exists()) {
+            transaction.delete(reservationRef);
+            console.log(`📌 Transaction: Deleted reservation ${reservationId}`);
+          } else {
+            console.warn(`Reservation ${reservationId} not found`);
+          }
+        }
+
+        // Update transaction status
+        transaction.update(transactionRef, {
+          status: "Cancelled",
+          updatedAt: new Date().toISOString(),
+        });
+      });
+
+      alert("Your appointment has been cancelled, and the slot is now available.");
+    } catch (error) {
+      console.error("Error cancelling transaction:", error);
+      alert("❌ Failed to cancel appointment. Please try again.");
     }
-
-    
-    await updateDoc(transactionRef, { status: "Cancelled" });
-
-    alert("Your appointment has been cancelled.");
-  } catch (error) {
-    console.error("Error cancelling transaction:", error);
-    alert("❌ Failed to cancel appointment.");
-  }
-};
-
+  };
 
   const parseDateTime = (dateStr: string, timeStr: string): number => {
     if (!dateStr || !timeStr) return 0;
@@ -275,7 +325,7 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
                 <div className="detail-line">
                   <strong>Department:</strong> {item.purpose}
                 </div>
-                  <div className="detail-line">
+                <div className="detail-line">
                   <strong>Slot ID:</strong> {item.slotID}
                 </div>
                 <div className="detail-line">
@@ -284,7 +334,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
                 <div className="detail-line">
                   <strong>Time Slot:</strong> {item.slotTime}
                 </div>
-                
                 <div className="detail-line">
                   <strong>Services:</strong>
                   <div className="services-list">

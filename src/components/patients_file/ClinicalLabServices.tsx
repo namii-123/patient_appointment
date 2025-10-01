@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "../../assets/ClinicalLabServices.css";
+import "../../assets/RadiographicServices.css";
 import { db } from "./firebase";
 import { collection, addDoc, getDoc, setDoc, updateDoc, doc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -158,13 +158,11 @@ const handleNext = async () => {
         ))}
       </form>
 
-      <div className="labservices-navigation flex justify-between mt-6">
-        
+         <div className="labservices-navigation flex justify-between mt-6">
+      
 
         <button
-          className={`nav-button px-4 py-2 rounded ${
-            selectedServices.length > 0 ? "bg-blue-500" : "bg-green-500"
-          } text-white`}
+          className="nav-button bg-blue-500 text-white px-4 py-2 rounded"
           type="button"
           onClick={handleNext}
         >

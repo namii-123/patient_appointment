@@ -49,8 +49,8 @@
 }
 
 .labservices-navigation {
-  display: flex;
-  justify-content: flex-end;
+ display: flex;
+ justify-content: flex-end;
   margin-top: 25px;
 }
 
@@ -64,12 +64,18 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease;
+  justify-content: space-between;
+  
+}
+
+.labservices-navigation button:hover {
+  background: #1a276d;
 }
 
 
-.labservices-navigation button:hover{
-    background: #1a276d;
-}
+
+
+
 
 /* Complaint/History Section */
 .complaint-history {

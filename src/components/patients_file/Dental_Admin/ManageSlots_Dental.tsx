@@ -1,23 +1,19 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock} from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock } from "react-icons/fa";
 import "../../../assets/ManageSlots.css";
 import { db } from "../firebase";
-import { doc, setDoc, onSnapshot} from "firebase/firestore";
-import ShortUniqueId from "short-unique-id";
-
-
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 
 interface Notification {
   text: string;
   unread: boolean;
 }
 
-
 interface Slot {
   time: string;
   remaining: number;
-  slotID?: string;
+  slotID: string;
 }
 
 const formatDateKey = (date: Date): string => {
@@ -25,8 +21,6 @@ const formatDateKey = (date: Date): string => {
 };
 
 type SlotsState = Record<string, { slots: Slot[]; totalSlots: number }>;
-
-
 
 const generateDays = (year: number, month: number): Date[] => {
   const date = new Date(year, month, 1);
@@ -37,7 +31,6 @@ const generateDays = (year: number, month: number): Date[] => {
   }
   return days;
 };
-
 
 const ManageSlots_Dental: React.FC = () => {
   const navigate = useNavigate();
@@ -53,8 +46,7 @@ const ManageSlots_Dental: React.FC = () => {
   const [slotCounts, setSlotCounts] = useState<Record<string, number>>({});
   const [closeDay, setCloseDay] = useState(false);
 
-  
-   const monthNames: string[] = [
+  const monthNames: string[] = [
     "January",
     "February",
     "March",
@@ -72,7 +64,7 @@ const ManageSlots_Dental: React.FC = () => {
   const days: Date[] = generateDays(currentYear, currentMonth);
   const department = "Dental";
 
-   const predefinedSlots: { time: string; capacity: number }[] = [
+  const predefinedSlots: { time: string; capacity: number }[] = [
     { time: "8:00 AM - 9:00 AM", capacity: 3 },
     { time: "9:00 AM - 10:00 AM", capacity: 3 },
     { time: "10:00 AM - 11:00 AM", capacity: 3 },
@@ -82,63 +74,60 @@ const ManageSlots_Dental: React.FC = () => {
   ];
 
   const [maxYear, setMaxYear] = useState(currentDate.getFullYear() + 20);
-  
+
   useEffect(() => {
-     const unsubscribeFns: (() => void)[] = [];
- 
-     const loadSlots = async () => {
-       const start = new Date(currentYear, currentMonth, 1);
-       const end = new Date(currentYear, currentMonth + 1, 0);
-       const updatedSlots: SlotsState = {};
- 
-       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-         const dateKey = formatDateKey(d);
-         const slotRef = doc(db, "Departments", department, "Slots", dateKey);
- 
-         const unsub = onSnapshot(
-           slotRef,
-           (slotSnap) => {
-             console.log(`ManageSlots_Dental: Date ${dateKey}, Firestore data:`, slotSnap.data());
-             if (slotSnap.exists()) {
-               const data = slotSnap.data();
-               if (data.closed) {
-                 updatedSlots[dateKey] = { slots: [], totalSlots: 0 };
-               } else {
-                 const slotsData = (data.slots as Slot[]) || [];
-                 const totalSlots = slotsData.reduce((sum, s) => sum + (s.remaining || 0), 0);
-                 updatedSlots[dateKey] = { slots: slotsData, totalSlots };
-               }
-             } else {
-               const slotsData = predefinedSlots.map((s) => ({
-                 time: s.time,
-                 remaining: s.capacity,
-               }));
-               const totalSlots = slotsData.reduce((sum, s) => sum + s.remaining, 0);
-               updatedSlots[dateKey] = { slots: slotsData, totalSlots };
-             }
-             setSlots((prev) => ({ ...prev, ...updatedSlots }));
-           },
-           (error) => {
-             console.error(`onSnapshot error for ${dateKey}:`, error);
-           }
-         );
- 
-         unsubscribeFns.push(unsub);
-       }
-     };
- 
-     loadSlots();
- 
-     return () => {
-       unsubscribeFns.forEach((fn) => fn());
-     };
-   }, [currentMonth, currentYear, department]);
- 
- 
+    const unsubscribeFns: (() => void)[] = [];
 
+    const loadSlots = async () => {
+      const start = new Date(currentYear, currentMonth, 1);
+      const end = new Date(currentYear, currentMonth + 1, 0);
+      const updatedSlots: SlotsState = {};
 
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateKey = formatDateKey(d);
+        const slotRef = doc(db, "Departments", department, "Slots", dateKey);
 
-    const handleDayClick = (date: Date) => {
+        const unsub = onSnapshot(
+          slotRef,
+          (slotSnap) => {
+            console.log(`ManageSlots_Dental: Date ${dateKey}, Firestore data:`, slotSnap.data());
+            if (slotSnap.exists()) {
+              const data = slotSnap.data();
+              if (data.closed) {
+                updatedSlots[dateKey] = { slots: [], totalSlots: 0 };
+              } else {
+                const slotsData = (data.slots as Slot[]) || [];
+                const totalSlots = slotsData.reduce((sum, s) => sum + (s.remaining || 0), 0);
+                updatedSlots[dateKey] = { slots: slotsData, totalSlots };
+              }
+            } else {
+              const slotsData = predefinedSlots.map((s) => ({
+                slotID: `${dateKey}-${s.time}`,
+                time: s.time,
+                remaining: s.capacity,
+              }));
+              const totalSlots = slotsData.reduce((sum, s) => sum + s.remaining, 0);
+              updatedSlots[dateKey] = { slots: slotsData, totalSlots };
+            }
+            setSlots((prev) => ({ ...prev, ...updatedSlots }));
+          },
+          (error) => {
+            console.error(`onSnapshot error for ${dateKey}:`, error);
+          }
+        );
+
+        unsubscribeFns.push(unsub);
+      }
+    };
+
+    loadSlots();
+
+    return () => {
+      unsubscribeFns.forEach((fn) => fn());
+    };
+  }, [currentMonth, currentYear, department]);
+
+  const handleDayClick = (date: Date) => {
     const dayStr = date.toDateString();
     const daySlots = getSlotsForDay(dayStr);
 
@@ -152,60 +141,51 @@ const ManageSlots_Dental: React.FC = () => {
     setCloseDay(daySlots.length === 0);
   };
 
+  const handleSlotSubmit = async () => {
+    if (!selectedDate) return;
 
+    try {
+      const dateKey = formatDateKey(selectedDate);
+      const slotRef = doc(db, "Departments", department, "Slots", dateKey);
 
- const handleSlotSubmit = async () => {
-   if (!selectedDate) return;
- 
-   try {
-     const dateKey = formatDateKey(selectedDate);
-     const slotRef = doc(db, "Departments", department, "Slots", dateKey);
- 
-     if (closeDay) {
-       await setDoc(
-         slotRef,
-         { date: dateKey, closed: true, slots: [], totalSlots: 0 },
-         { merge: true }
-       );
-       setSlots((prev) => ({ ...prev, [dateKey]: { slots: [], totalSlots: 0 } }));
-     } else {
-       const uid = new ShortUniqueId({ length: 8 });
- 
-       
-       const existingSlots = slots[dateKey]?.slots || [];
- 
-       const slotsData = predefinedSlots.map((s) => {
-         const existingSlot = existingSlots.find((es) => es.time === s.time);
-         const remaining = slotCounts[s.time] ?? s.capacity;
- 
-         return {
-           slotID: existingSlot?.slotID || `SLOT-${uid.randomUUID()}`,
-           time: s.time,
-           remaining,
-         };
-       });
- 
-       const totalSlots = slotsData.reduce((sum, s) => sum + s.remaining, 0);
- 
-       await setDoc(
-         slotRef,
-         { date: dateKey, closed: false, slots: slotsData, totalSlots },
-         { merge: true }
-       );
- 
-       setSlots((prev) => ({ ...prev, [dateKey]: { slots: slotsData, totalSlots } }));
-     }
- 
-     setSelectedDate(null);
-     setSlotCounts({});
-     setCloseDay(false);
-   } catch (error) {
-     console.error("Error saving slots:", error);
-     alert("Failed to save slots. Please try again.");
-   }
- };
- 
- 
+      if (closeDay) {
+        await setDoc(
+          slotRef,
+          { date: dateKey, closed: true, slots: [], totalSlots: 0 },
+          { merge: true }
+        );
+        setSlots((prev) => ({ ...prev, [dateKey]: { slots: [], totalSlots: 0 } }));
+      } else {
+        const slotsData = predefinedSlots.map((s) => {
+          const existingSlot = slots[dateKey]?.slots.find((es) => es.time === s.time);
+          const remaining = slotCounts[s.time] ?? s.capacity;
+
+          return {
+            slotID: `${dateKey}-${s.time}`,
+            time: s.time,
+            remaining,
+          };
+        });
+
+        const totalSlots = slotsData.reduce((sum, s) => sum + s.remaining, 0);
+
+        await setDoc(
+          slotRef,
+          { date: dateKey, closed: false, slots: slotsData, totalSlots },
+          { merge: true }
+        );
+
+        setSlots((prev) => ({ ...prev, [dateKey]: { slots: slotsData, totalSlots } }));
+      }
+
+      setSelectedDate(null);
+      setSlotCounts({});
+      setCloseDay(false);
+    } catch (error) {
+      console.error("Error saving slots:", error);
+      alert("Failed to save slots. Please try again.");
+    }
+  };
 
   const getSlotsForDay = (dayStr: string): Slot[] => {
     const date = new Date(dayStr);
@@ -215,12 +195,11 @@ const ManageSlots_Dental: React.FC = () => {
 
     const dateKey = formatDateKey(date);
     return slots[dateKey]?.slots || predefinedSlots.map((s) => ({
+      slotID: `${dateKey}-${s.time}`,
       time: s.time,
       remaining: s.capacity,
     }));
   };
-
-
 
   // Notifications
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
@@ -230,16 +209,11 @@ const ManageSlots_Dental: React.FC = () => {
     { text: "System update completed", unread: false },
   ]);
 
-  
-  
-
-  const unreadCount: number = notifications.filter(n => n.unread).length;
+  const unreadCount: number = notifications.filter((n) => n.unread).length;
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
-
-  
 
   return (
     <div className="dashboards">
@@ -257,9 +231,9 @@ const ManageSlots_Dental: React.FC = () => {
 
           {/* Nav Links */}
           <nav className="nav-linkss">
-            <div className="nav-item ">
+            <div className="nav-item">
               <FaTachometerAlt className="nav-icon" />
-               <span onClick={() => navigate("/dashboard_dental")}>Dashboard</span>
+              <span onClick={() => navigate("/dashboard_dental")}>Dashboard</span>
             </div>
             <div className="nav-item">
               <FaCalendarAlt className="nav-icon" />
@@ -273,20 +247,18 @@ const ManageSlots_Dental: React.FC = () => {
                 Patient Records
               </span>
             </div>
-            <div className="nav-item active" >
-  <FaClock className="nav-icon" />
-  <span onClick={() => handleNavigation("/manageslots_dental")}>
-    Manage Slots
-  </span>
-</div>
-
+            <div className="nav-item active">
+              <FaClock className="nav-icon" />
+              <span onClick={() => handleNavigation("/manageslots_dental")}>
+                Manage Slots
+              </span>
+            </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_dental")}>
                 Reports & Analytics
               </span>
             </div>
-          
           </nav>
         </div>
 
@@ -296,14 +268,13 @@ const ManageSlots_Dental: React.FC = () => {
             <FaUser className="user-icon" />
             <span className="user-label">Admin</span>
           </div>
-
-           <div className="signout-box">
+          <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
             <span
               onClick={() => {
                 const isConfirmed = window.confirm("Are you sure you want to sign out?");
                 if (isConfirmed) {
-                  navigate("/loginadmin"); 
+                  navigate("/loginadmin");
                 }
               }}
               className="signout-label"
@@ -316,7 +287,6 @@ const ManageSlots_Dental: React.FC = () => {
 
       {/* Main content */}
       <main className="main-content">
-       
         <div className="top-navbar-dental">
           <h2 className="navbar-title">Manage Slots</h2>
           <div className="notification-wrapper">
@@ -361,151 +331,147 @@ const ManageSlots_Dental: React.FC = () => {
           </div>
         </div>
 
-     
-      <div className="content-wrapper">
-        {/* Calendar */}
-         <div className="calendar-containers">
-          <div className="calendar-headers">
-            <h3 className="calendar-title">Monthly Calendar - Manage Slots</h3>
-            <div className="calendar-nav">
-              <select
-                value={currentMonth}
-                onChange={(e) => setCurrentMonth(parseInt(e.target.value))}
-              >
-                {monthNames.map((month, i) => (
-                  <option value={i} key={i}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={currentYear}
-                onChange={(e) => {
-                  const selected = parseInt(e.target.value);
-                  setCurrentYear(selected);
-                  if (selected === maxYear) {
-                    setMaxYear(maxYear + 20);
-                  }
-                }}
-              >
-                {Array.from(
-                  { length: maxYear - currentDate.getFullYear() + 1 },
-                  (_, i) => currentDate.getFullYear() + i
-                ).map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-
-
-          <div className="calendar-grid">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((wd) => (
-              <div key={wd} className="calendar-weekday">
-                {wd}
-              </div>
-            ))}
-            {Array(days[0].getDay())
-              .fill(null)
-              .map((_, idx) => (
-                <div key={"empty-" + idx} className="calendar-day empty"></div>
-              ))}
-            {days.map((day) => {
-              const dayStr = day.toDateString();
-              const dateKey = formatDateKey(day);
-              const totalAvailable = slots[dateKey]?.totalSlots || getSlotsForDay(dayStr).reduce((sum, s) => sum + s.remaining, 0);
-              const dayOfWeek = day.getDay();
-              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-              const todayStart = new Date();
-              todayStart.setHours(0, 0, 0, 0);
-              const isPast = day < todayStart;
-              const weekdayName = day.toLocaleDateString("en-US", { weekday: "short" });
-
-              return (
-                <div
-                  key={dayStr}
-                  className={`calendar-day ${isWeekend ? "disabled-day" : ""} ${isPast ? "past-day" : ""}`}
-                  onClick={() => {
-                    if (!isWeekend && !isPast) {
-                      handleDayClick(day);
+        <div className="content-wrapper">
+          {/* Calendar */}
+          <div className="calendar-containers">
+            <div className="calendar-headers">
+              <h3 className="calendar-title">Monthly Calendar - Manage Slots</h3>
+              <div className="calendar-nav">
+                <select
+                  value={currentMonth}
+                  onChange={(e) => setCurrentMonth(parseInt(e.target.value))}
+                >
+                  {monthNames.map((month, i) => (
+                    <option value={i} key={i}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={currentYear}
+                  onChange={(e) => {
+                    const selected = parseInt(e.target.value);
+                    setCurrentYear(selected);
+                    if (selected === maxYear) {
+                      setMaxYear(maxYear + 20);
                     }
                   }}
                 >
-                  <div className="day-number">{day.getDate()}</div>
-                  <div className="weekday-name">{weekdayName}</div>
-                  <div className="slots-summary">
-                    {isWeekend ? (
-                      <span className="closed">Closed</span>
-                    ) : isPast ? (
-                      <span className="closed">Past</span>
-                    ) : totalAvailable > 0 ? (
-                      <span>{totalAvailable} slots</span>
-                    ) : (
-                      <span className="closed">Closed</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Slot Add Modal */}
-  {selectedDate && (
-          <div className="modal-overlay-calendar">
-            <div className="modal colored-modal">
-              <h4>Manage Slots for {selectedDate.toDateString()}</h4>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={closeDay}
-                  onChange={(e) => setCloseDay(e.target.checked)}
-                />
-                Close this day (No slots available)
-              </label>
-              {!closeDay && (
-                <div className="slot-list">
-                  {getSlotsForDay(selectedDate.toDateString()).map((slot) => (
-                    <div key={slot.time} className="slot-row">
-                      <span>{slot.time}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={slotCounts[slot.time] ?? slot.remaining}
-                        onChange={(e) =>
-                          setSlotCounts((prev) => ({
-                            ...prev,
-                            [slot.time]: parseInt(e.target.value) || 0,
-                          }))
-                        }
-                      />
-                    </div>
+                  {Array.from(
+                    { length: maxYear - currentDate.getFullYear() + 1 },
+                    (_, i) => currentDate.getFullYear() + i
+                  ).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
                   ))}
-                </div>
-              )}
-              <div className="modal-actionss">
-                <button className="button-save" onClick={handleSlotSubmit}>
-                  Save
-                </button>
-                <button
-                  className="button-cancel"
-                  onClick={() => setSelectedDate(null)}
-                >
-                  Cancel
-                </button>
+                </select>
               </div>
             </div>
+
+            <div className="calendar-grid">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((wd) => (
+                <div key={wd} className="calendar-weekday">
+                  {wd}
+                </div>
+              ))}
+              {Array(days[0].getDay())
+                .fill(null)
+                .map((_, idx) => (
+                  <div key={"empty-" + idx} className="calendar-day empty"></div>
+                ))}
+              {days.map((day) => {
+                const dayStr = day.toDateString();
+                const dateKey = formatDateKey(day);
+                const totalAvailable = slots[dateKey]?.totalSlots || getSlotsForDay(dayStr).reduce((sum, s) => sum + s.remaining, 0);
+                const dayOfWeek = day.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                const isPast = day < todayStart;
+                const weekdayName = day.toLocaleDateString("en-US", { weekday: "short" });
+
+                return (
+                  <div
+                    key={dayStr}
+                    className={`calendar-day ${isWeekend ? "disabled-day" : ""} ${isPast ? "past-day" : ""}`}
+                    onClick={() => {
+                      if (!isWeekend && !isPast) {
+                        handleDayClick(day);
+                      }
+                    }}
+                  >
+                    <div className="day-number">{day.getDate()}</div>
+                    <div className="weekday-name">{weekdayName}</div>
+                    <div className="slots-summary">
+                      {isWeekend ? (
+                        <span className="closed">Closed</span>
+                      ) : isPast ? (
+                        <span className="closed">Past</span>
+                      ) : totalAvailable > 0 ? (
+                        <span>{totalAvailable} slots</span>
+                      ) : (
+                        <span className="closed">Closed</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        )}
-</div>
-</main>
-</div>
-);
+
+          {/* Slot Add Modal */}
+          {selectedDate && (
+            <div className="modal-overlay-calendar">
+              <div className="modal colored-modal">
+                <h4>Manage Slots for {selectedDate.toDateString()}</h4>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={closeDay}
+                    onChange={(e) => setCloseDay(e.target.checked)}
+                  />
+                  Close this day (No slots available)
+                </label>
+                {!closeDay && (
+                  <div className="slot-list">
+                    {getSlotsForDay(selectedDate.toDateString()).map((slot) => (
+                      <div key={slot.time} className="slot-row">
+                        <span>{slot.time}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={slotCounts[slot.time] ?? slot.remaining}
+                          onChange={(e) =>
+                            setSlotCounts((prev) => ({
+                              ...prev,
+                              [slot.time]: parseInt(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="modal-actionss">
+                  <button className="button-save" onClick={handleSlotSubmit}>
+                    Save
+                  </button>
+                  <button
+                    className="button-cancel"
+                    onClick={() => setSelectedDate(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
 };
 
 export default ManageSlots_Dental;
-

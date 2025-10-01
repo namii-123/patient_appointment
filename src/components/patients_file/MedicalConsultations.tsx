@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import "../../assets/MedicalConsultations.css";
+import "../../assets/RadiographicServices.css";
 import { getAuth } from "firebase/auth";
 
 interface MedicalConsultationsProps {
