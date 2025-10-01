@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { db, auth } from "./firebase";
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, deleteDoc, runTransaction } from "firebase/firestore";
@@ -34,7 +35,7 @@ interface TransactionItem {
   slotTime: string;
   slotID: string;
   status: "Pending" | "Approved" | "Rejected" | "Completed" | "Cancelled";
-  reservationId?: string; // Added to match AppointmentCalendar
+  reservationId?: string; 
 }
 
 const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
@@ -89,6 +90,7 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
 
     try {
       await runTransaction(db, async (transaction) => {
+        // Perform all reads first
         const transactionRef = doc(db, "Transactions", transactionId);
         const transactionSnap = await transaction.get(transactionRef);
 
@@ -98,18 +100,28 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
         }
 
         const transactionData = transactionSnap.data();
-        const { purpose, date, slotID, reservationId } = transactionData;
+        const { purpose, date, slotID, reservationId, status } = transactionData;
 
-        // Skip slot update if already Cancelled
-        if (transactionData.status === "Cancelled") {
+        // Skip if already Cancelled
+        if (status === "Cancelled") {
           console.warn("Transaction already cancelled:", transactionId);
           throw new Error("Appointment is already cancelled.");
         }
 
-        // Update slot availability
+        // Read slot document
         const slotRef = doc(db, "Departments", purpose, "Slots", date);
         const slotSnap = await transaction.get(slotRef);
 
+        // Read reservation document if reservationId exists
+        let reservationSnap = null;
+        let reservationRef = null;
+        if (reservationId) {
+          reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
+          reservationSnap = await transaction.get(reservationRef);
+        }
+
+        // Perform all writes
+        // Update slot availability
         if (slotSnap.exists() && !slotSnap.data().closed) {
           const slots = slotSnap.data().slots || [];
           const slotIndex = slots.findIndex((s: any) => s.slotID === slotID);
@@ -132,15 +144,11 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
         }
 
         // Delete reservation if it exists
-        if (reservationId) {
-          const reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
-          const reservationSnap = await transaction.get(reservationRef);
-          if (reservationSnap.exists()) {
-            transaction.delete(reservationRef);
-            console.log(`📌 Transaction: Deleted reservation ${reservationId}`);
-          } else {
-            console.warn(`Reservation ${reservationId} not found`);
-          }
+        if (reservationRef && reservationSnap?.exists()) {
+          transaction.delete(reservationRef);
+          console.log(`📌 Transaction: Deleted reservation ${reservationId}`);
+        } else if (reservationId) {
+          console.warn(`Reservation ${reservationId} not found`);
         }
 
         // Update transaction status

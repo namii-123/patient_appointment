@@ -135,7 +135,7 @@ const fetchUsers = async () => {
   snap.forEach((doc) => {
     const data = doc.data();
     if (data.UserId) {
-      uniqueUsers.add(data.userId);
+      uniqueUsers.add(data.UserId);
     }
   });
 
