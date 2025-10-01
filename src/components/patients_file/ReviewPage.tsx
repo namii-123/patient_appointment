@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
 import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction } from "firebase/firestore";
@@ -254,100 +255,98 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
     onNavigate?.("calendar", navigateData);
   };
 
- const finalizeBooking = async ({
-  department,
-  date,
-  slotId,
-  reservationId,
-  previousDate,
-  previousSlotId,
-}: {
-  department: string;
-  date: string | null;
-  slotId: string | null;
-  reservationId: string | null;
-  previousDate?: string | null;
-  previousSlotId?: string | null;
-}) => {
-  if (!date || !slotId || !reservationId) {
-    console.error(`📌 ReviewPage: Missing data for ${department} booking`, { date, slotId, reservationId });
-    throw new Error(`Missing required data for ${department} booking`);
-  }
+  const finalizeBooking = async ({
+    department,
+    date,
+    slotId,
+    reservationId,
+    previousDate,
+    previousSlotId,
+  }: {
+    department: string;
+    date: string | null;
+    slotId: string | null;
+    reservationId: string | null;
+    previousDate?: string | null;
+    previousSlotId?: string | null;
+  }) => {
+    if (!date || !slotId || !reservationId) {
+      console.error(`📌 ReviewPage: Missing data for ${department} booking`, { date, slotId, reservationId });
+      throw new Error(`Missing required data for ${department} booking`);
+    }
 
-  try {
-    console.log(`📌 ReviewPage: Finalizing ${department} booking - Date: ${date}, SlotId: ${slotId}, ReservationId: ${reservationId}, PreviousDate: ${previousDate}, PreviousSlotId: ${previousSlotId}`);
-    await runTransaction(db, async (transaction) => {
-      // Perform all reads first
-      const slotRef = doc(db, "Departments", department, "Slots", date);
-      const slotSnap = await transaction.get(slotRef);
+    try {
+      console.log(`📌 ReviewPage: Finalizing ${department} booking - Date: ${date}, SlotId: ${slotId}, ReservationId: ${reservationId}, PreviousDate: ${previousDate}, PreviousSlotId: ${previousSlotId}`);
+      await runTransaction(db, async (transaction) => {
+        // Perform all reads first
+        const slotRef = doc(db, "Departments", department, "Slots", date);
+        const slotSnap = await transaction.get(slotRef);
 
-      const reservationRef = doc(db, "Departments", department, "Reservations", reservationId);
-      const reservationSnap = await transaction.get(reservationRef);
+        const reservationRef = doc(db, "Departments", department, "Reservations", reservationId);
+        const reservationSnap = await transaction.get(reservationRef);
 
-      const previousSlotRef = previousDate && previousSlotId ? doc(db, "Departments", department, "Slots", previousDate) : null;
-      const previousSlotSnap = previousSlotRef ? await transaction.get(previousSlotRef) : null;
+        const previousSlotRef = previousDate && previousSlotId ? doc(db, "Departments", department, "Slots", previousDate) : null;
+        const previousSlotSnap = previousSlotRef ? await transaction.get(previousSlotRef) : null;
 
-      // Validate reads
-      if (!slotSnap.exists()) {
-        console.error(`📌 ReviewPage: Slot document for ${department} on ${date} does not exist`);
-        throw new Error(`${department} slot date not found`);
-      }
-
-      if (!reservationSnap.exists()) {
-        console.error(`📌 ReviewPage: Reservation ${reservationId} for ${department} does not exist`);
-        throw new Error(`Reservation for ${department} not found`);
-      }
-
-      const data = slotSnap.data();
-      const currentSlots = data.slots || [];
-      const slotIndex = currentSlots.findIndex((s: any) => s.slotID === slotId);
-
-      if (slotIndex === -1 || currentSlots[slotIndex].remaining <= 0) {
-        console.error(`📌 ReviewPage: Slot ${slotId} in ${department} is unavailable or overbooked`);
-        throw new Error(`${department} slot unavailable`);
-      }
-
-      // Perform writes
-      // Update the new slot count (decrement)
-      currentSlots[slotIndex].remaining -= 1;
-      const newTotal = currentSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
-      transaction.update(slotRef, {
-        slots: currentSlots,
-        totalSlots: newTotal,
-        updatedAt: new Date().toISOString(),
-      });
-
-      // Restore previous slot count if applicable
-      if (previousSlotSnap && previousSlotSnap.exists() && !previousSlotSnap.data().closed && previousSlotId) {
-        const previousSlots = previousSlotSnap.data().slots || [];
-        const previousSlotIndex = previousSlots.findIndex((s: any) => s.slotID === previousSlotId);
-        if (previousSlotIndex !== -1) {
-          previousSlots[previousSlotIndex].remaining += 1;
-          const previousTotal = previousSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
-          transaction.update(previousSlotRef!, {
-            slots: previousSlots,
-            totalSlots: previousTotal,
-            updatedAt: new Date().toISOString(),
-          });
-          console.log(`📌 ReviewPage: Restored slot ${previousSlotId} on ${previousDate}`);
+        // Validate reads
+        if (!slotSnap.exists()) {
+          console.error(`📌 ReviewPage: Slot document for ${department} on ${date} does not exist`);
+          throw new Error(`${department} slot date not found`);
         }
-      }
 
-      // Update the reservation status
-      transaction.update(reservationRef, {
-        status: "confirmed",
-        updatedAt: new Date().toISOString(),
+        if (!reservationSnap.exists()) {
+          console.error(`📌 ReviewPage: Reservation ${reservationId} for ${department} does not exist`);
+          throw new Error(`Reservation for ${department} not found`);
+        }
+
+        const data = slotSnap.data();
+        const currentSlots = data.slots || [];
+        const slotIndex = currentSlots.findIndex((s: any) => s.slotID === slotId);
+
+        if (slotIndex === -1 || currentSlots[slotIndex].remaining <= 0) {
+          console.error(`📌 ReviewPage: Slot ${slotId} in ${department} is unavailable or overbooked`);
+          throw new Error(`${department} slot unavailable`);
+        }
+
+        // Perform writes
+        // Update the new slot count (decrement)
+        currentSlots[slotIndex].remaining -= 1;
+        const newTotal = currentSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+        transaction.update(slotRef, {
+          slots: currentSlots,
+          totalSlots: newTotal,
+          updatedAt: new Date().toISOString(),
+        });
+
+        // Restore previous slot count if applicable
+        if (previousSlotSnap && previousSlotSnap.exists() && !previousSlotSnap.data().closed && previousSlotId) {
+          const previousSlots = previousSlotSnap.data().slots || [];
+          const previousSlotIndex = previousSlots.findIndex((s: any) => s.slotID === previousSlotId);
+          if (previousSlotIndex !== -1) {
+            previousSlots[previousSlotIndex].remaining += 1;
+            const previousTotal = previousSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+            transaction.update(previousSlotRef!, {
+              slots: previousSlots,
+              totalSlots: previousTotal,
+              updatedAt: new Date().toISOString(),
+            });
+            console.log(`📌 ReviewPage: Restored slot ${previousSlotId} on ${previousDate}`);
+          }
+        }
+
+        transaction.update(reservationRef, {
+          status: "confirmed",
+          updatedAt: new Date().toISOString(),
+        });
+
+        console.log(`📌 ReviewPage: Updated ${department} slot ${slotId} to ${currentSlots[slotIndex].remaining} remaining, confirmed reservation ${reservationId}`);
       });
-
-      console.log(`📌 ReviewPage: Updated ${department} slot ${slotId} to ${currentSlots[slotIndex].remaining} remaining, confirmed reservation ${reservationId}`);
-    });
-    console.log(`📌 ReviewPage: ${department} booking finalized successfully!`);
-  } catch (err) {
-    console.error(`📌 ReviewPage: Error finalizing ${department} booking:`, err);
-    throw err;
-  }
-};
-
+      console.log(`📌 ReviewPage: ${department} booking finalized successfully!`);
+    } catch (err) {
+      console.error(`📌 ReviewPage: Error finalizing ${department} booking:`, err);
+      throw err;
+    }
+  };
 
   const handleDownloadPDF = async () => {
     const formElement = document.querySelector(".all-services-container");
@@ -461,71 +460,71 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
       }
 
       for (const appointment of appointments) {
-  console.log(`📌 ReviewPage: Processing appointment for ${appointment.department}:`, appointment);
-  if (!appointment.reservationId || !appointment.slotID || !appointment.date || !appointment.slotTime) {
-    console.error(`📌 ReviewPage: Missing critical fields for ${appointment.department}`, appointment);
-    setError(`Missing required data (reservationId, slotID, date, or slotTime) for ${appointment.department} appointment.`);
-    return;
-  }
+        console.log(`📌 ReviewPage: Processing appointment for ${appointment.department}:`, appointment);
+        if (!appointment.reservationId || !appointment.slotID || !appointment.date || !appointment.slotTime) {
+          console.error(`📌 ReviewPage: Missing critical fields for ${appointment.department}`, appointment);
+          setError(`Missing required data (reservationId, slotID, date, or slotTime) for ${appointment.department} appointment.`);
+          return;
+        }
 
-  const editedData = editedAppointments[appointment.department] || {};
-  if (!editedData.services || editedData.services.length === 0) {
-    setError(`No services selected for ${appointment.department}. Please select at least one service.`);
-    return;
-  }
-  if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
-    setError(`Please specify the 'Others' service for ${appointment.department}.`);
-    return;
-  }
-  const services = editedData.services.includes("Others") && editedData.otherService?.trim()
-    ? [...editedData.services.filter((s) => s !== "Others"), `Others: ${editedData.otherService}`]
-    : editedData.services;
+        const editedData = editedAppointments[appointment.department] || {};
+        if (!editedData.services || editedData.services.length === 0) {
+          setError(`No services selected for ${appointment.department}. Please select at least one service.`);
+          return;
+        }
+        if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
+          setError(`Please specify the 'Others' service for ${appointment.department}.`);
+          return;
+        }
+        const services = editedData.services.includes("Others") && editedData.otherService?.trim()
+          ? [...editedData.services.filter((s) => s !== "Others"), `Others: ${editedData.otherService}`]
+          : editedData.services;
 
-  const appointmentRef = doc(db, "Appointments", appointment.id);
-  await updateDoc(appointmentRef, {
-    services,
-    complaint: editedData.complaint || "",
-    ...(appointment.department === "Radiographic" && {
-      lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
-      isPregnant: editedData.isPregnant || "No",
-      clearance: editedData.clearance || false,
-      shield: editedData.shield || false,
-      pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
-    }),
-    updatedAt: new Date().toISOString(),
-  });
+        const appointmentRef = doc(db, "Appointments", appointment.id);
+        await updateDoc(appointmentRef, {
+          services,
+          complaint: editedData.complaint || "",
+          ...(appointment.department === "Radiographic" && {
+            lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
+            isPregnant: editedData.isPregnant || "No",
+            clearance: editedData.clearance || false,
+            shield: editedData.shield || false,
+            pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
+          }),
+          updatedAt: new Date().toISOString(),
+        });
 
-  await finalizeBooking({
-    department: appointment.department,
-    date: appointment.date,
-    slotId: appointment.slotID,
-    reservationId: appointment.reservationId,
-  });
+        await finalizeBooking({
+          department: appointment.department,
+          date: appointment.date,
+          slotId: appointment.slotID,
+          reservationId: appointment.reservationId,
+        });
 
-  await updateDoc(appointmentRef, {
-    status: "submitted",
-    updatedAt: new Date().toISOString(),
-  });
+        await updateDoc(appointmentRef, {
+          status: "submitted",
+          updatedAt: new Date().toISOString(),
+        });
 
-  const transactionRef = doc(collection(db, "Transactions"));
-  await setDoc(transactionRef, {
-    uid: currentUser?.uid,
-    UserId: userId,
-    patientId: appointment.patientId || safeFormData.patientId,
-    transactionCode: `TRANS-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    controlNo: safeFormData.controlNo,
-    purpose: appointment.department,
-    services: services || [],
-    doctor: "TBA",
-    date: appointment.date || "",
-    slotTime: appointment.slotTime || "",
-    slotID: appointment.slotID || "",
-    status: "Pending",
-    createdAt: new Date().toISOString(),
-    transactionId: transactionRef.id,
-    reservationId: appointment.reservationId,
-  });
-}
+        const transactionRef = doc(collection(db, "Transactions"));
+        await setDoc(transactionRef, {
+          uid: currentUser?.uid,
+          UserId: userId,
+          patientId: appointment.patientId || safeFormData.patientId,
+          transactionCode: `TRANS-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+          controlNo: safeFormData.controlNo,
+          purpose: appointment.department,
+          services: services || [],
+          doctor: "TBA",
+          date: appointment.date || "",
+          slotTime: appointment.slotTime || "",
+          slotID: appointment.slotID || "",
+          status: "Pending",
+          createdAt: new Date().toISOString(),
+          transactionId: transactionRef.id,
+          reservationId: appointment.reservationId,
+        });
+      }
 
       alert("✅ Appointments submitted and slots updated!");
       onNavigate?.("transaction", {});
@@ -914,7 +913,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                               {appointment && (
                                 <button
                                   type="button"
-                                  className="change-btn bg-yellow-500 text-white px-2 py-1 rounded"
+                                  className="change-btns "
                                   onClick={() => handleChangeDateTime(dept, appointment)}
                                 >
                                   Change
@@ -980,7 +979,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                               {appointment && (
                                 <button
                                   type="button"
-                                  className="change-btn bg-yellow-500 text-white px-2 py-1 rounded"
+                                  className="change-btns "
                                   onClick={() => handleChangeDateTime(dept, appointment)}
                                 >
                                   Change
@@ -1046,7 +1045,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                               {appointment && (
                                 <button
                                   type="button"
-                                  className="change-btn bg-yellow-500 text-white px-2 py-1 rounded"
+                                  className="change-btns "
                                   onClick={() => handleChangeDateTime(dept, appointment)}
                                 >
                                   Change
@@ -1112,7 +1111,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                               {appointment && (
                                 <button
                                   type="button"
-                                  className="change-btn bg-yellow-500 text-white px-2 py-1 rounded"
+                                  className="change-btns "
                                   onClick={() => handleChangeDateTime(dept, appointment)}
                                 >
                                   Change

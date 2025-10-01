@@ -256,3 +256,16 @@ h2 {
     opacity: 1;
   }
 }
+
+
+.calendar-day.selected-date {
+  animation: fadeInSelected 0.3s ease-in-out;
+}
+.selected-checkmark {
+  color: #16a34a; 
+}
+
+@keyframes fadeInSelected {
+  from { background-color: #ffffff; }
+  to { background-color: #4ade80; }
+}

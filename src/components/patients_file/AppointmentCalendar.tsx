@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../../assets/AppointmentCalendar.css";
-import { X } from "lucide-react";
+import { X, CheckCircle } from "lucide-react"; // Added CheckCircle for optional checkmark
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, setDoc, collection, deleteDoc, runTransaction } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
@@ -411,6 +411,7 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
             const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const isDayClosed = isClosed[day] || false;
+            const isSelected = selectedDate?.endsWith(`-${String(day).padStart(2, "0")}`);
 
             return (
               <div
@@ -418,7 +419,7 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
                 className={`calendar-day ${
                   slots[day] === 0 || isWeekend || isPast || isDayClosed ? "fully-booked" : ""
                 } ${isWeekend ? "weekend" : ""} ${isDayClosed ? "closed" : ""} ${
-                  selectedDate?.endsWith(`-${String(day).padStart(2, "0")}`) ? "selected" : ""
+                  isSelected ? "selected-date" : ""
                 }`}
                 onClick={() =>
                   !isWeekend && !isPast && !isDayClosed && handleSelectDate(day)
@@ -429,6 +430,9 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
                 <span className="slots-info">
                   {isWeekend ? "Closed" : isPast ? "Past" : isDayClosed ? "Closed" : `${slots[day] || 0} slots`}
                 </span>
+                {isSelected && (
+                  <CheckCircle className="selected-checkmark" size={16} />
+                )}
               </div>
             );
           })}
@@ -532,7 +536,7 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
                 previousDate: formData?.previousDate,
                 previousSlotId: formData?.previousSlotId,
                 previousSlotTime: formData?.previousSlotTime,
-                previousReservationId: formData?.previousReservationId, // Preserve previous slot details
+                previousReservationId: formData?.previousReservationId,
               };
 
               console.log(

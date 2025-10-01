@@ -1,15 +1,20 @@
 
 import React, { useState, useEffect } from "react";
 import "../../assets/AppointmentCalendar.css";
-import { X } from "lucide-react";
+import { X, CheckCircle } from "lucide-react"; 
 import { db } from "./firebase";
-import { doc, getDoc, onSnapshot, setDoc, collection, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc, collection, deleteDoc, runTransaction } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
 
 interface CalendarDentalProps {
   formData?: {
     patientId: string;
     appointmentId: string;
+    fromReview?: boolean; 
+    previousDate?: string; 
+    previousSlotId?: string;
+    previousSlotTime?: string;
+    previousReservationId?: string;
     [key: string]: any;
   };
   onNavigate?: (
@@ -149,7 +154,6 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
     if (slotDoc.exists() && !slotDoc.data().closed) {
       slotsData = slotDoc.data().slots as Slot[];
       console.log(`📌 CalendarDental: Loaded slots for ${selected}:`, slotsData);
-      // Regenerate slotIDs if they don't start with "SLOT-"
       slotsData = slotsData.map((slot) => {
         if (!slot.slotID.startsWith("SLOT-")) {
           console.log(`📌 CalendarDental: Regenerating slotID for ${slot.time}, old slotID: ${slot.slotID}`);
@@ -165,7 +169,6 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
         setError("No slots available for the selected date.");
         return;
       }
-      // Update Firestore with regenerated slotIDs if needed
       if (slotsData.some((s) => s.slotID !== slotDoc.data().slots.find((fs: Slot) => fs.time === s.time)?.slotID)) {
         const totalSlots = slotsData.reduce((sum, s) => sum + s.remaining, 0);
         await setDoc(
@@ -251,40 +254,68 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
     }
 
     try {
-      // If there's an existing reservation, delete it
-      if (reservationId) {
-        const oldReservationRef = doc(db, "Departments", department, "Reservations", reservationId);
-        await deleteDoc(oldReservationRef);
-        console.log(`📌 CalendarDental: Deleted previous reservation ${reservationId}`);
-      }
+      await runTransaction(db, async (transaction) => {
+        // Perform all reads first
+        const oldReservationRef =
+          formData?.previousReservationId
+            ? doc(db, "Departments", department, "Reservations", formData.previousReservationId)
+            : null;
 
-      // Create new reservation
-      const reservationRef = doc(collection(db, "Departments", department, "Reservations"));
-      const reservationData = {
-        slotID: availableSlot.slotID,
-        date: selectedDate,
-        time: availableSlot.time,
-        appointmentId: formData.appointmentId,
-        patientId: formData.patientId,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-      };
+        const appointmentRef = doc(db, "Appointments", formData.appointmentId);
+        const appointmentDoc = await transaction.get(appointmentRef);
 
-      await setDoc(reservationRef, reservationData);
+        const newSlotRef = doc(db, "Departments", department, "Slots", selectedDate);
+        const newSlotSnap = await transaction.get(newSlotRef);
 
-      // Update appointment with new slot details
-      const appointmentRef = doc(db, "Appointments", formData.appointmentId);
-      const appointmentDoc = await getDoc(appointmentRef);
-      if (appointmentDoc.exists() && appointmentDoc.data().department !== department) {
-        console.error(`📌 CalendarDental: Appointment ${formData.appointmentId} already exists for department ${appointmentDoc.data().department}`);
-        setError("Appointment ID conflicts with another department. Please use a unique appointment ID.");
-        setShowModal(false);
-        return;
-      }
+        // Validate appointment document
+        if (!appointmentDoc.exists()) {
+          console.error(`📌 CalendarDental: Appointment ${formData.appointmentId} does not exist`);
+          throw new Error("Appointment not found");
+        }
+        if (
+          appointmentDoc.data().department !== department &&
+          appointmentDoc.data().department !== undefined
+        ) {
+          console.error(
+            `📌 CalendarDental: Appointment ${formData.appointmentId} already exists for department ${appointmentDoc.data().department}`
+          );
+          throw new Error("Appointment ID conflicts with another department");
+        }
 
-      await setDoc(
-        appointmentRef,
-        {
+        // Validate new slot availability within transaction
+        if (!newSlotSnap.exists() || newSlotSnap.data().closed) {
+          console.error(`📌 CalendarDental: Slot for ${selectedDate} does not exist or is closed`);
+          throw new Error("Selected slot is unavailable");
+        }
+        const newSlots = newSlotSnap.data().slots || [];
+        const newSlotIndex = newSlots.findIndex((s: any) => s.slotID === availableSlot.slotID);
+        if (newSlotIndex === -1 || newSlots[newSlotIndex].remaining <= 0) {
+          console.error(`📌 CalendarDental: Slot ${availableSlot.slotID} is unavailable`);
+          throw new Error("Selected slot is no longer available");
+        }
+
+        // Perform writes
+        // Delete previous reservation if it exists
+        if (oldReservationRef) {
+          transaction.delete(oldReservationRef);
+          console.log(`📌 CalendarDental: Deleted previous reservation ${formData.previousReservationId}`);
+        }
+
+        // Create new reservation
+        const reservationRef = doc(collection(db, "Departments", department, "Reservations"));
+        const reservationData = {
+          slotID: availableSlot.slotID,
+          date: selectedDate,
+          time: availableSlot.time,
+          appointmentId: formData.appointmentId,
+          patientId: formData.patientId,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        };
+        transaction.set(reservationRef, reservationData);
+
+        // Update appointment with new slot details
+        transaction.update(appointmentRef, {
           department,
           date: selectedDate,
           slotID: availableSlot.slotID,
@@ -293,25 +324,26 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
           patientId: formData.patientId,
           status: "pending",
           updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
+        });
 
-      setSelectedSlot({ slotID: availableSlot.slotID, time: availableSlot.time });
-      setReservationId(reservationRef.id);
-      setShowModal(false);
-      console.log("📌 CalendarDental: After setting states - selectedSlot:", {
-        slotID: availableSlot.slotID,
-        time: availableSlot.time,
-        selectedDate,
-        reservationId: reservationRef.id,
-        appointmentId: formData.appointmentId,
-        patientId: formData.patientId,
+        // Update states
+        setSelectedSlot({ slotID: availableSlot.slotID, time: availableSlot.time });
+        setReservationId(reservationRef.id);
+        console.log("📌 CalendarDental: After setting states - selectedSlot:", {
+          slotID: availableSlot.slotID,
+          time: availableSlot.time,
+          selectedDate,
+          reservationId: reservationRef.id,
+          appointmentId: formData.appointmentId,
+          patientId: formData.patientId,
+        });
+
+        if (onConfirm) {
+          onConfirm(selectedDate, availableSlot.slotID);
+        }
       });
 
-      if (onConfirm) {
-        onConfirm(selectedDate, availableSlot.slotID);
-      }
+      setShowModal(false);
     } catch (error: unknown) {
       console.error("📌 CalendarDental: Error creating reservation:", error);
       setError("Failed to select slot. Please try again.");
@@ -376,9 +408,10 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
 
           {daysInfo.map(({ day, weekday }) => {
             const date = new Date(year, month - 1, day);
-            const isWeekend = date.getDay() === 0 || date.getDay() == 6;
+            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
             const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const isDayClosed = isClosed[day] || false;
+            const isSelected = selectedDate?.endsWith(`-${String(day).padStart(2, "0")}`);
 
             return (
               <div
@@ -386,7 +419,7 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
                 className={`calendar-day ${
                   slots[day] === 0 || isWeekend || isPast || isDayClosed ? "fully-booked" : ""
                 } ${isWeekend ? "weekend" : ""} ${isDayClosed ? "closed" : ""} ${
-                  selectedDate?.endsWith(`-${String(day).padStart(2, "0")}`) ? "selected" : ""
+                  isSelected ? "selected-date" : ""
                 }`}
                 onClick={() =>
                   !isWeekend && !isPast && !isDayClosed && handleSelectDate(day)
@@ -397,6 +430,9 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
                 <span className="slots-info">
                   {isWeekend ? "Closed" : isPast ? "Past" : isDayClosed ? "Closed" : `${slots[day] || 0} slots`}
                 </span>
+                {isSelected && (
+                  <CheckCircle className="selected-checkmark" size={16} aria-hidden="true" />
+                )}
               </div>
             );
           })}
@@ -467,45 +503,55 @@ const CalendarDental: React.FC<CalendarDentalProps> = ({
 
       <div className="calendar-navigation">
         <div className="nav-right">
-<button
-  className="next-btn"
-  disabled={!selectedDate || !selectedSlot}
-  onClick={() => {
-    if (!selectedDate || !selectedSlot) {
-      console.log("📌 CalendarDental: Cannot navigate, missing required data", {
-        selectedDate,
-        selectedSlot,
-      });
-      alert("Please select and confirm a time slot before proceeding.");
-      return;
-    }
+          <button
+            className="next-btn"
+            disabled={!selectedDate || !selectedSlot}
+            onClick={() => {
+              if (!selectedDate || !selectedSlot) {
+                console.log("📌 CalendarDental: Cannot navigate, missing required data", {
+                  selectedDate,
+                  selectedSlot,
+                });
+                alert("Please select and confirm a time slot before proceeding.");
+                return;
+              }
 
-    const confirmNext = window.confirm(
-      "Are you sure you want to continue to the Medical appointment step?"
-    );
+              const confirmNext = window.confirm(
+                formData?.fromReview
+                  ? "Are you sure you want to update the appointment slot and return to the review page?"
+                  : "Are you sure you want to continue to the Medical appointment step?"
+              );
 
-    if (!confirmNext) {
-      console.log("📌 CalendarDental: User cancelled navigation.");
-      return;
-    }
+              if (!confirmNext) {
+                console.log("📌 CalendarDental: User cancelled navigation.");
+                return;
+              }
 
-    const navigateData = {
-      ...formData,
-      dentalDate: selectedDate,
-      dentalSlotId: selectedSlot.slotID,
-      dentalSlotTime: selectedSlot.time,
-      dentalReservationId: reservationId || "",
-    };
-    console.log(
-      "📌 CalendarDental: Next button clicked, navigating to medical with data:",
-      navigateData
-    );
-    onNavigate?.("medical", navigateData);
-  }}
->
-  Next ➡
-</button>
+              const navigateData = {
+                ...formData,
+                dentalDate: selectedDate,
+                dentalSlotId: selectedSlot.slotID,
+                dentalSlotTime: selectedSlot.time,
+                dentalReservationId: reservationId || "",
+                previousDate: formData?.previousDate,
+                previousSlotId: formData?.previousSlotId,
+                previousSlotTime: formData?.previousSlotTime,
+                previousReservationId: formData?.previousReservationId,
+              };
+              console.log(
+                "📌 CalendarDental: Next button clicked, navigating to medical with data:",
+                navigateData
+              );
 
+              if (formData?.fromReview) {
+                onNavigate?.("review", navigateData);
+              } else {
+                onNavigate?.("medical", navigateData);
+              }
+            }}
+          >
+            Next ➡
+          </button>
         </div>
       </div>
     </div>
