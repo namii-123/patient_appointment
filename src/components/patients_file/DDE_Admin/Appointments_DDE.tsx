@@ -322,44 +322,57 @@ DDE Team`;
     }
   };
 
-  const [availableYears, setAvailableYears] = useState(() => {
-    const currentYear = new Date().getFullYear();
-    return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
-  });
-
-  const handleYearClick = () => {
-    const maxYear = Math.max(...availableYears);
-    const currentYear = new Date().getFullYear();
-    if (maxYear < currentYear + 50) {
-      const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
-      setAvailableYears((prev) => [...prev, ...newYears]);
-    }
-  };
-
-  const availableMonths = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
-
-  const availableDays = Array.from({ length: 31 }, (_, index) => index + 1);
-
+    const [availableYears, setAvailableYears] = useState(() => {
+          const currentYear = new Date().getFullYear();
+          return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
+        });
+      
+        const handleYearClick = () => {
+          const maxYear = Math.max(...availableYears);
+          const currentYear = new Date().getFullYear();
+          if (maxYear < currentYear + 50) {
+           
+            const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
+            setAvailableYears((prev) => [...prev, ...newYears]);
+          }
+        };
+  
+   
+    const availableMonths = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+  
+    const availableDays = Array.from({ length: 31 }, (_, index) => index + 1);
+  
   const filteredAppointments = appointments.filter((appt) => {
-    const matchesSearch =
-      appt.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appt.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appt.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appt.UserId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appt.patientCode.toLowerCase().includes(searchTerm.toLowerCase());
+  const matchesSearch =
+    appt.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appt.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appt.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appt.UserId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appt.patientCode.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const appointmentDate = appt.appointmentDate ? new Date(appt.appointmentDate) : null;
-    const matchesYear = yearFilter === "All" || (appointmentDate && appointmentDate.getFullYear() === parseInt(yearFilter));
-    const matchesMonth = monthFilter === "All" || (appointmentDate && availableMonths[appointmentDate.getMonth()] === monthFilter);
-    const matchesDay = dayFilter === "All" || (appointmentDate && appointmentDate.getDate() === parseInt(dayFilter));
+  const appointmentDate = appt.appointmentDate ? new Date(appt.appointmentDate) : null;
+  const matchesYear =
+    yearFilter === "All" || (appointmentDate && appointmentDate.getFullYear() === parseInt(yearFilter));
+  const matchesMonth =
+    monthFilter === "All" ||
+    (appointmentDate && availableMonths[appointmentDate.getMonth()] === monthFilter);
+  const matchesDay =
+    dayFilter === "All" || (appointmentDate && appointmentDate.getDate() === parseInt(dayFilter));
+  const matchesStatus =
+    statusFilter === "All" || appt.status === statusFilter;
 
-    const matchesStatus = statusFilter === "All" || appt.status === statusFilter;
+  return (
+    matchesSearch &&
+    matchesYear &&
+    matchesMonth &&
+    matchesDay &&
+    matchesStatus
+  );
+});
 
-    return matchesSearch && matchesYear && matchesMonth && matchesDay && matchesStatus;
-  });
 
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [rejectReason, setRejectReason] = useState<string>("");
@@ -583,78 +596,81 @@ DDE Team`;
         </div>
 
         <div className="content-wrapper">
-         <div className="filter-bars">
-                               <div className="searchbar-containerss">
-                                 <div className="searchss">
-                                   <FaSearch className="search-iconss" />
-                                   <input
-                                     type="text"
-                                     placeholder="Search by Name or Number..."
-                                     className="search-input"
-                                     value={searchTerm}
-                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                                   />
-                                 </div>
-                               </div>
-            <div className="filters">
-              <label>Status:</label>
-              <select
-                className="status-dropdown"
-                value={statusFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
-              >
-                <option value="All">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="filters">
-              <label>Year:</label>
-              <select
-                className="status-dropdown"
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                onClick={handleYearClick}
-              >
-                <option value="All">All</option>
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filters">
-              <label>Month:</label>
-              <select
-                className="status-dropdown"
-                value={monthFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setMonthFilter(e.target.value)}
-              >
-                <option value="All">All</option>
-                {availableMonths.map((month) => (
-                  <option key={month} value={month}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filters">
-              <label>Day:</label>
-              <select
-                className="status-dropdown"
-                value={dayFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setDayFilter(e.target.value)}
-              >
-                <option value="All">All</option>
-                {availableDays.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <div className="filter-barr">
+                            <div className="search-containerrr">
+                                <div className="search-bar-wrapper">
+                                  <FaSearch className="search-icon" />
+                                  <input
+                                    type="text"
+                                    placeholder="Search by Name or Number..."
+                                    className="search-bar"
+                                    value={searchTerm}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                                  />
+                                </div>
+                    </div>
+                               <div className="filter">
+                                                            <label>Status:</label>
+                                                            <select
+                                                              className="status-dropdown"
+                                                              value={statusFilter}
+                                                              onChange={(e: ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+                                                            >
+                                                              <option value="All">All</option>
+                                                              <option value="Pending">Pending</option>
+                                                              <option value="Cancelled">Cancelled</option>
+                                                            </select>
+                                                          </div>
+                                   <div className="filter">
+                          <label>Year:</label>
+                          <select
+                            className="status-dropdown"
+                            value={yearFilter}
+                            onChange={(e) => setYearFilter(e.target.value)}
+                            onClick={handleYearClick} 
+                          >
+                            <option value="All Years">All Years</option>
+                            {availableYears.map((year) => (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                                
+                                  <div className="filter">
+                                     <label>Month:</label>
+                                  <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
+                                    <option value="All">All Months</option>
+                                    <option value="01">January</option>
+                                    <option value="02">February</option>
+                                    <option value="03">March</option>
+                                    <option value="04">April</option>
+                                    <option value="05">May</option>
+                                    <option value="06">June</option>
+                                    <option value="07">July</option>
+                                    <option value="08">August</option>
+                                    <option value="09">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                  </select>
+                                </div>
+                    
+                                 <div className="filter">
+                                  <label>Day:</label>
+                    
+                                  <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
+                                    
+                                    <option value="All">All Days</option>
+                                    {Array.from({ length: 31 }, (_, i) => (
+                                      <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
+                                        {i + 1}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                </div>
 
           <p className="appointments-header">All Patient Appointment Requests</p>
 
