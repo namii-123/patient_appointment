@@ -17,12 +17,14 @@ const LandingPage: React.FC = () => {
   const [modalView, setModalView] = useState<"login" | "signup" | null>(null);
   const [menuOpen, setMenuOpen] = useState(false); 
   const handleViewChange = (
-    view: "home" | "services" | "about" | "contact"
-  ) => {
-    setCurrentView(view);
-    setActiveView(view);
-    setModalView(null); // Close the modal when switching views
-  };
+  view: "home" | "services" | "about" | "contact"
+) => {
+  setCurrentView(view);
+  setActiveView(view);
+  setModalView(null); 
+  setMenuOpen(false); 
+};
+
 
   const handleModalOpen = (modal: "login" | "signup") => {
     setModalView(modal);
@@ -44,26 +46,38 @@ const LandingPage: React.FC = () => {
     <div className="landing-container">
       <nav className="navbar">
         <div className="logo">
-          <Link to="#" onClick={() => handleViewChange("home")}>
-            <img
-              className="landing-logo"
-              src="/logo.png"
-              alt="DOH Logo"
-              style={{ cursor: "pointer" }}
-            />
-          </Link>
-          <div className="logo-text">DOH-TRCArgao</div>
-        </div>
+  <div className="logo-left">
+    <Link to="#" onClick={() => handleViewChange("home")}>
+      <img
+        className="landing-logo"
+        src="/logo.png"
+        alt="DOH Logo"
+        style={{ cursor: "pointer" }}
+      />
+    </Link>
+    <div className="logo-text">DOH-TRC Argao</div>
+  </div>
 
-        {/* Hamburger Button */}
-        <button
-          className={`hamburger ${menuOpen ? "active" : ""}`}
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
+
+  <button
+  className={`hamburger ${menuOpen ? "active" : ""}`}
+  onClick={() => {
+    if (menuOpen) {
+      handleViewChange("home"); 
+    }
+    setMenuOpen(!menuOpen); 
+  }}
+>
+  <span></span>
+  <span></span>
+  <span></span>
+</button>
+
+</div>
+
+       
+
+        
 
         <ul className={`nav-links ${menuOpen ? "open" : ""}`}>
           <li

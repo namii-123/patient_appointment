@@ -182,7 +182,6 @@
   }
 }
 
-<<<<<<< HEAD
 
 
 .dialog-overlay {
@@ -260,9 +259,6 @@
 }
 
 
-=======
-/* Mobile Phones */
->>>>>>> ee4478eda8fbbd3cae3a458f03df4feae28107d1
 @media (max-width: 576px) {
   .contact-section {
     min-height: 100vh;              /* full height */

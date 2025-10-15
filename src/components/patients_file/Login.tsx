@@ -10,7 +10,7 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { sendPasswordResetEmail } from "firebase/auth";
 import ShortUniqueId from "short-unique-id";
-import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
+import { useNavigate } from "react-router-dom";
 
 interface LoginProps {
   onClose?: () => void;
@@ -21,7 +21,7 @@ const Login: React.FC<LoginProps> = ({ onClose, onSignUpClick }) => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate(); // Initialize navigate hook
+  const navigate = useNavigate();
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -68,11 +68,18 @@ const Login: React.FC<LoginProps> = ({ onClose, onSignUpClick }) => {
         `Welcome ${firstName || user.displayName || "User"} ${lastName || ""}!`,
         { position: "top-center" }
       );
-      onClose?.(); // Close the modal
-      navigate("/home"); // Navigate to the home page
+      onClose?.();
+      navigate("/home");
     } catch (error) {
       console.error(error);
-      toast.error("Google sign-in failed. Please try again.", { position: "top-center" });
+      const err = error as { code?: string; message?: string };
+      let errorMessage = "Google sign-in failed. Please try again.";
+      
+      if (err.code === "auth/unauthorized-domain") {
+        errorMessage = "This domain is not authorized for Google sign-in. Please contact support.";
+      }
+
+      toast.error(errorMessage, { position: "top-center" });
     }
   };
 
@@ -102,8 +109,8 @@ const Login: React.FC<LoginProps> = ({ onClose, onSignUpClick }) => {
       }
 
       toast.success(`Welcome ${displayName}!`, { position: "top-center" });
-      onClose?.(); // Close the modal
-      navigate("/home"); // Navigate to the home page
+      onClose?.();
+      navigate("/home");
     } catch (error) {
       const err = error as { code?: string; message?: string };
       let errorMessage: string;
