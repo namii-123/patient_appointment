@@ -1,17 +1,17 @@
-/* Appointment Table */
+/* ================= GENERAL STYLES ================= */
 .appointment-container {
   padding: 40px 20px;
 }
 
 .section-title {
   font-size: 1.8rem;
-   text-align: center;
+  text-align: center;
   font-weight: 600;
   margin-bottom: 30px;
   color: #052659;
-  
 }
 
+/* ================= APPOINTMENT TABLE ================= */
 .appointment-table {
   width: 100%;
   max-width: 1100px;
@@ -30,12 +30,13 @@
 
 .appointment-row {
   display: grid;
-  grid-template-columns: 200px 1fr 200px 140px; /* gi-expand ang Status column */
+  grid-template-columns: 200px 1fr 200px 140px;
   border-bottom: 1px solid #ececec;
   align-items: center;
   transition: background 0.2s ease;
   padding: 16px;
   min-height: 100px;
+  word-break: break-word;
 }
 
 .appointment-row.header {
@@ -45,12 +46,11 @@
   text-transform: uppercase;
   padding: 16px;
   font-size: 14px;
-  grid-template-columns: 200px 1fr 200px 140px; /* same layout sa header */
+  grid-template-columns: 200px 1fr 200px 140px;
   border-bottom: 1px solid #ddd;
 }
 
-
-/* Para di magdugo ang long text */
+/* ================= COLUMNS ================= */
 .col {
   display: flex;
   align-items: center;
@@ -58,8 +58,8 @@
   text-align: center;
   padding: 12px;
   border-right: 1px solid #eee;
-  word-break: break-all;   /* long IDs wrap */
-  white-space: normal;     /* allow wrapping */
+  word-break: break-word;
+  white-space: normal;
   font-size: 0.95rem;
 }
 
@@ -67,21 +67,14 @@
   font-weight: bold;
   color: white;
   font-size: 0.9rem;
+  white-space: normal; /* allow wrapping */
 }
+
 .col.nos {
   font-weight: bold;
   color: black;
   font-size: 0.9rem;
 }
-
-/* Optional: kung gusto nimo ma-scroll nalang instead of wrap */
-.col.no {
-  overflow-x: auto;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-
 
 .col:last-child {
   border-right: none;
@@ -96,7 +89,6 @@
   text-align: left;
   padding: 12px 10px;
   font-size: 0.95rem;
-  
 }
 
 .detail-line {
@@ -117,29 +109,25 @@
   text-align: center;
 }
 
-
-/* Pending = yellow */
+/* ================= STATUS COLORS ================= */
 .status.pending {
   background-color: #fff3cd;
   color: #856404;
   border: 1px solid #ffeeba;
 }
 
-/* Approved = blue */
 .status.approved {
   background-color: #cce5ff;
   color: #004085;
   border: 1px solid #b8daff;
 }
 
-/* Completed = green */
 .status.completed {
   background-color: #d4edda;
   color: #155724;
   border: 1px solid #c3e6cb;
 }
 
-/* Rejected = red */
 .status.rejected {
   background-color: #f8d7da;
   color: #721c24;
@@ -152,6 +140,7 @@
   border: 1px solid #d6d8db;
 }
 
+/* ================= CANCEL BUTTON ================= */
 .cancel-btn {
   background-color: #d9534f;
   color: white;
@@ -168,6 +157,7 @@
   transform: scale(1.05);
 }
 
+/* ================= NOTE ================= */
 .appointment-note {
   max-width: 1000px;
   margin: 20px auto;
@@ -179,8 +169,7 @@
   color: #8c6d1f;
 }
 
-/* Footer — Keep as-is */
-
+/* ================= FOOTER ================= */
 .footer {
   background: midnightblue;
   color: white;
@@ -195,45 +184,47 @@
   align-items: center;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .nav-links {
-      flex-wrap: wrap;
-      gap: 15px;
-  }
-
-  .appointment-row,
-  .appointment-row.header {
-      grid-template-columns: 50px 1fr 100px 100px;
-      font-size: 13px;
-  }
+/* ================= SERVICE BADGES ================= */
+.service-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
+.service-badge {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  display: inline-block;
+}
 
-
+/* ================= FILTERS ================= */
 .filters {
   display: flex;
-  justify-content: center;  
-  align-items: center;      
-  gap: 15px;               
-  flex-wrap: wrap;          
-  margin: 20px 0;          
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px auto;
+  max-width: 450px;
 }
 
 .filters label {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   font-weight: 500;
   color: midnightblue;
+  font-size: 13px;
 }
 
 .filters select {
-  padding: 10px 15px;
-  margin-left: 5px;
+  padding: 6px 10px;
+  margin-top: 5px;
   border: 1px solid #ccc;
   border-radius: 6px;
   background-color: #fff;
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
   transition: 0.2s ease-in-out;
   color: midnightblue;
@@ -250,35 +241,67 @@
   box-shadow: 0 0 6px rgba(33, 150, 243, 0.4);
 }
 
+/* ================= RESPONSIVE QUERIES ================= */
 
-
-@media (max-width: 576px) {
-  .nav-links {
-      flex-direction: column;
-      gap: 10px;
-      text-align: center;
-  }
-
-  .footer {
-      padding: 15px;
-  }
-
+/* Laptops / Tablets */
+@media (max-width: 1024px) {
   .appointment-row,
   .appointment-row.header {
-      grid-template-columns: 40px 1fr 80px 80px;
+    grid-template-columns: 120px 1fr 150px 120px;
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+
+  .filters select {
+    font-size: 11px;
+    padding: 5px 8px;
   }
 }
-.service-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px; /* space between badges */
+
+/* Small Tablets / Large Phones */
+@media (max-width: 768px) {
+  .appointment-row,
+  .appointment-row.header {
+    grid-template-columns: 70px 1fr 100px 100px;
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+
+  .col.details {
+    font-size: 0.85rem;
+  }
+
+  .filters select {
+    font-size: 11px;
+    padding: 5px 6px;
+  }
+
+  .service-badge {
+    font-size: 0.75rem;
+    padding: 3px 6px;
+  }
 }
 
-.service-badge {
-  background-color: #f0f0f0;
-  color: #333;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  display: inline-block;
+/* Mobile */
+@media (max-width: 576px) {
+  .appointment-row,
+  .appointment-row.header {
+    grid-template-columns: 50px 1fr 80px 80px;
+    padding: 8px;
+    font-size: 0.8rem;
+  }
+
+  .col.details {
+    font-size: 0.8rem;
+  }
+
+  .filters select {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+
+  .service-badge {
+    font-size: 0.7rem;
+    padding: 2px 5px;
+  }
 }

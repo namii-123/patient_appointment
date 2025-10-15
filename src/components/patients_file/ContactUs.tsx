@@ -118,7 +118,7 @@ const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) =>
 
   return (
     <div className="contact-section">
-      <h1>Contact Us</h1>
+      <h2>Contact Us</h2>
       <p className="contact-description">
         We'd love to hear from you. Reach out via the options below or send us a message directly.
       </p>
