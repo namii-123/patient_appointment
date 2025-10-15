@@ -21,9 +21,21 @@ import CalendarClinicalLab from './components/patients_file/CalendarClinicalLab'
 import CalendarDental from './components/patients_file/CalendarDental';
 import CalendarMedical from './components/patients_file/CalendarMedical';
 import ReviewPage from './components/patients_file/ReviewPage';
+import FormDDE from './components/patients_file/FormDDE';
+import CourtOrderForm from './components/patients_file/CourtOrderForm';
+import PAOForm from './components/patients_file/PAOForm';
+import EmployeeRecommendationForm from './components/patients_file/EmployeeRecommendationForm';
+import LawyersRequestForm from './components/patients_file/LawyersRequestForm';
+import OfficialReceiptForm from './components/patients_file/OfficialReceiptForm';
+import ValidIDForm from './components/patients_file/ValidIDForm';
+import ConsentForm from './components/patients_file/ConsentForm';
+
+
 
 import LoginAdmin from './components/patients_file/LoginAdmin';
 import Register from './components/patients_file/Register';
+
+
 
 // Dental Admin
 import Dashboard_Dental from './components/patients_file/Dental_Admin/Dashboard_Dental';
@@ -75,7 +87,7 @@ import SuperAdmin_RadiologyAdmin from './components/patients_file/SuperAdmin/Sup
 import SuperAdmin_MedicalAdmin from './components/patients_file/SuperAdmin/SuperAdmin_MedicalAdmin';
 import SuperAdmin_DDEAdmin from './components/patients_file/SuperAdmin/SuperAdmin_DDEAdmin';
 import SuperAdmin_RegisteredUsers from './components/patients_file/SuperAdmin/SuperAdmin_RegisteredUsers';
-
+import SuperAdmin_RejectedAdmins from './components/patients_file/SuperAdmin/SuperAdmin_RejectedAdmins';
 
 
 import { ToastContainer } from "react-toastify";
@@ -98,7 +110,7 @@ const App: React.FC = () => {
             {/* Admin dashboards also protected */}
             <Route path="/loginadmin" element={<LoginAdmin />} />
             <Route path="/register" element={<Register />} />
-            
+           
            {/*dental*/}
             <Route path="/dashboard_dental" element={<Dashboard_Dental />} />
             <Route path="/appointments_dental" element={<Appointments_Dental />} />
@@ -155,6 +167,8 @@ const App: React.FC = () => {
             <Route path="/superadmin_medicaladmin" element={<SuperAdmin_MedicalAdmin/>} />
             <Route path="/superadmin_ddeadmin" element={<SuperAdmin_DDEAdmin/>} />
             <Route path="/superadmin_registeredusers" element={<SuperAdmin_RegisteredUsers/>} />
+            <Route path="/superadmin_rejectedadmins" element={<SuperAdmin_RejectedAdmins/>} />
+
 
 
           {/* Protected routes */}
@@ -174,7 +188,14 @@ const App: React.FC = () => {
             <Route path="/calendardental" element={<CalendarDental />} />
             <Route path="/calendarmedical" element={<CalendarMedical />} />
             <Route path="/review" element={<ReviewPage />} />
-            
+            <Route path="/formdde" element={<FormDDE/>} />
+            <Route path="/courtorder" element={<CourtOrderForm/>} />
+            <Route path="/pao" element={<PAOForm/>} />
+            <Route path="/employee-recommendation" element={<EmployeeRecommendationForm/>} />
+            <Route path="/lawyersrequest" element={<LawyersRequestForm/>} />
+            <Route path="/officialreceipt" element={<OfficialReceiptForm/>} />
+            <Route path="/validid" element={<ValidIDForm/>} />
+            <Route path="/consentform" element={<ConsentForm/>} />
           
           </Route>
         </Routes>

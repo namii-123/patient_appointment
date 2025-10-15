@@ -1,36 +1,36 @@
-/* Container for the entire form to mimic high-quality bond paper */
+
 .all-services-container {
-  max-width: 900px; /* A4 width approximation at 96dpi */
+  max-width: 900px; 
   margin: 30px auto;
   padding: 25px;
-  background-color: #fefefe; /* Off-white for premium paper feel */
-  border: 1px solid #2a2a2a; /* Subtle dark gray border */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Softer shadow for depth */
-  font-size: 11pt; /* Slightly smaller for cleaner look */
+  background-color: #fefefe; 
+  border: 1px solid #2a2a2a; 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); 
+  font-size: 11pt; 
   line-height: 1.6;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px); /* Subtle paper texture */
+  background-image: linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px); 
   background-size: 100% 1.6em;
 }
 
-/* Form header styling */
+
 .form-header {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
   align-items: center;
   padding-bottom: 12px;
-  border-bottom: 1.5px solid #2a2a2a; /* Thinner, elegant line */
+  border-bottom: 1.5px solid #2a2a2a; 
   margin-bottom: 25px;
 }
 
-/* Left header (DOH logo) */
+
 .header-left img {
-  max-width: 100px; /* Slightly smaller for balance */
+  max-width: 100px; 
   height: auto;
 
   
 }
 
-/* Center header (DOH text and form title) */
+
 .header-center {
   text-align: center;
 }
@@ -53,7 +53,17 @@
   color: #052659;;
 }
 
-/* Right header (Document details) */
+
+.header-center h2 {
+  margin: 8px 0;
+  font-size: 15pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #000000;;
+}
+
+
 .header-right {
   text-align: right;
   font-size: 10pt;
@@ -65,26 +75,26 @@
   margin: 1px 0;
 }
 
-/* Form styling */
+
 .all-services-form {
   display: grid;
   gap: 18px;
 }
 
-/* Field group (grid for multiple inputs) */
+
 .field-group {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 
-/* Individual field container */
+
 .field-group > div {
   display: flex;
   flex-direction: column;
 }
 
-/* Label styling */
+
 label {
   font-size: 12pt;
   font-weight: 600;
@@ -94,7 +104,7 @@ label {
   letter-spacing: 0.3px;
 }
 
-/* Input and select styling to mimic clean form fields */
+
 input[type="text"],
 input[type="date"],
 input[type="time"],
@@ -104,8 +114,8 @@ input[type="tel"],
 select {
   width: 100%;
   padding: 13px;
-  border: 1px solid #2a2a2a; /* Dark gray for cleaner lines */
-  border-radius: 5px; /* Minimal rounding for modern touch */
+  border: 1px solid #2a2a2a; 
+  border-radius: 5px; 
   font-size: 10pt;
   font-family: 'Georgia', 'Times New Roman', Times, serif;
   background-color: #fff;
@@ -120,14 +130,14 @@ select:focus {
   background-color: #f9f9f9;
 }
 
-/* Placeholder styling */
+
 input::placeholder {
   color: #6a6a6a;
-  font-style: normal; /* Remove italic for cleaner look */
+  font-style: normal; 
   opacity: 0.7;
 }
 
-/* Select dropdown arrow styling */
+
 select {
   appearance: none;
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24"><path fill="%231a1a1a" d="M7 10l5 5 5-5z"/></svg>');
@@ -137,12 +147,12 @@ select {
   padding-right: 22px;
 }
 
-/* Conditional field (e.g., genderSpecify) */
+
 .conditional-field {
   margin-bottom: 18px;
 }
 
-/* Submit button styling */
+
 .submit-button {
   padding: 8px 24px;
   background-color: #fff;
@@ -171,21 +181,20 @@ select {
 
 .house-street-group {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* House No. narrower, Street wider */
+  grid-template-columns: 1fr 1fr; 
   gap: 12px;
 }
 
 
-/* Button container for right alignment */
+
 .button-containerss {
   display: flex;
-  justify-content: flex-end; /* Align button to the right */
+  justify-content: flex-end;
   margin-top: 18px;
   margin-bottom: 10px;
   margin-right: -1%;
 }
 
-/* Next button styling */
 .next-buttons {
 padding: 10px 22px;
   border: none;
@@ -208,7 +217,7 @@ background: #1a276d;
   background-color: #3a3a3a;
   color: #fff;
 }
-/* Responsive design */
+
 @media (max-width: 768px) {
   .all-services-container {
     padding: 15px;

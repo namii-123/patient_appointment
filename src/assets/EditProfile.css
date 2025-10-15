@@ -56,15 +56,21 @@
     justify-content: center;
     z-index: 2; /* Stay on top */
     transition: background-color 0.3s;
+    overflow: hidden;
   }
   
 .avatar-upload-btn:hover {
     background-color: #e0e0e0;
 }
 
-  .avatar-input {
-    display: none;
-  }
+ .avatar-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  z-index: -1;
+}
   
 
 

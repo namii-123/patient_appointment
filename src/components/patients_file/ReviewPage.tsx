@@ -1,12 +1,13 @@
 
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
-import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction } from "firebase/firestore";
+import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction, addDoc, deleteDoc } from "firebase/firestore";
 import "../../assets/ReviewPage.css";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { getAuth } from "firebase/auth";
 import { query, where } from "firebase/firestore";
+import ShortUniqueId from "short-unique-id";
 
 interface Appointment {
   id: string;
@@ -128,6 +129,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
       pregnancyTestResult?: string;
     };
   }>({});
+  const uidGenerator = new ShortUniqueId({ length: 8 });
 
   useEffect(() => {
     console.log("📌 ReviewPage: Received formData:", safeFormData);
@@ -209,12 +211,40 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
     fetchAppointments();
   }, [safeFormData.patientId]);
 
-  const toggleService = (department: string, service: string) => {
+  const toggleService = async (department: string, service: string) => {
     setEditedAppointments((prev) => {
       const deptData = prev[department] || { services: [], otherService: "", complaint: "" };
       const services = deptData.services.includes(service)
         ? deptData.services.filter((s) => s !== service)
         : [...deptData.services, service];
+
+      // If services become empty, clear date/time and delete appointment
+      if (services.length === 0) {
+        const appointment = appointments.find((a) => a.department === department);
+        if (appointment) {
+          // Delete the appointment document from Firestore
+          const appointmentRef = doc(db, "Appointments", appointment.id);
+          deleteDoc(appointmentRef).catch((err) => {
+            console.error(`📌 ReviewPage: Error deleting appointment for ${department}:`, err);
+            setError(`Failed to remove ${department} appointment. Please try again.`);
+          });
+
+          // Remove from local appointments state
+          setAppointments((prevAppointments) =>
+            prevAppointments.filter((appt) => appt.department !== department)
+          );
+
+          // Clear otherService if "Others" is unchecked
+          if (service === "Others" && !services.includes("Others")) {
+            return {
+              ...prev,
+              [department]: { ...deptData, services: [], otherService: "" },
+            };
+          }
+        }
+        return { ...prev, [department]: { ...deptData, services } };
+      }
+
       return { ...prev, [department]: { ...deptData, services } };
     });
   };
@@ -239,17 +269,119 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
     }));
   };
 
-  const handleChangeDateTime = (department: string, appointment: Appointment) => {
+  const handleChangeDateTime = async (department: string, appointment?: Appointment) => {
+    const editedData = editedAppointments[department] || { services: [], otherService: "" };
+
+    // Check if no services are selected and show an alert
+    if (editedData.services.length === 0) {
+      alert(`Please select at least one service for ${department} before scheduling.`);
+      return;
+    }
+
+    // Check if "Others" is selected but no specification is provided
+    if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
+      alert(`Please specify the 'Others' service for ${department}.`);
+      return;
+    }
+
+    let appointmentId = appointment?.id;
+    const patientId = safeFormData.patientId || getAuth().currentUser?.uid;
+
+    if (!patientId) {
+      console.error("📌 ReviewPage: No patientId available for creating appointment");
+      setError("No authenticated user or patient ID found.");
+      return;
+    }
+
+    // Construct services array for Firestore
+    const services = editedData.services.includes("Others") && editedData.otherService?.trim()
+      ? [...editedData.services.filter((s) => s !== "Others"), `Others: ${editedData.otherService}`]
+      : editedData.services;
+
+    // If no appointment exists, create a new one
+    if (!appointment) {
+      try {
+        const appointmentRef = doc(collection(db, "Appointments"));
+        appointmentId = appointmentRef.id;
+        await setDoc(appointmentRef, {
+          department,
+          patientId,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+          services,
+          complaint: editedData.complaint || "",
+          ...(department === "Radiographic" && {
+            lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
+            isPregnant: editedData.isPregnant || "No",
+            clearance: editedData.clearance || false,
+            shield: editedData.shield || false,
+            pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
+          }),
+        });
+        console.log(`📌 ReviewPage: Created new appointment for ${department} with ID: ${appointmentId}`);
+        // Update appointments state to include the new appointment
+        setAppointments((prev) => [
+          ...prev,
+          {
+            id: appointmentId!,
+            department,
+            patientId,
+            status: "pending",
+            date: "",
+            slotID: "",
+            slotTime: "",
+            reservationId: "",
+            services,
+            complaint: editedData.complaint || "",
+            ...(department === "Radiographic" && {
+              lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
+              isPregnant: editedData.isPregnant || "No",
+              clearance: editedData.clearance || false,
+              shield: editedData.shield || false,
+              pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
+            }),
+          },
+        ]);
+      } catch (err) {
+        console.error(`📌 ReviewPage: Error creating new appointment for ${department}:`, err);
+        setError(`Failed to initialize appointment for ${department}. Please try again.`);
+        return;
+      }
+    } else {
+      // Update existing appointment with current services
+      try {
+        const appointmentRef = doc(db, "Appointments", appointment.id);
+        await updateDoc(appointmentRef, {
+          services,
+          complaint: editedData.complaint || "",
+          ...(department === "Radiographic" && {
+            lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
+            isPregnant: editedData.isPregnant || "No",
+            clearance: editedData.clearance || false,
+            shield: editedData.shield || false,
+            pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
+          }),
+          updatedAt: new Date().toISOString(),
+        });
+        console.log(`📌 ReviewPage: Updated appointment for ${department} with ID: ${appointmentId}`);
+      } catch (err) {
+        console.error(`📌 ReviewPage: Error updating appointment for ${department}:`, err);
+        setError(`Failed to update services for ${department}. Please try again.`);
+        return;
+      }
+    }
+
     const navigateData = {
       ...safeFormData,
-      appointmentId: appointment.id,
-      patientId: appointment.patientId,
-      fromReview: true, // Flag to indicate origin
-      department, // Pass department to calendar
-      previousDate: appointment.date,
-      previousSlotId: appointment.slotID,
-      previousSlotTime: appointment.slotTime,
-      previousReservationId: appointment.reservationId,
+      appointmentId,
+      patientId,
+      fromReview: true,
+      department,
+      previousDate: appointment?.date,
+      previousSlotId: appointment?.slotID,
+      previousSlotTime: appointment?.slotTime,
+      previousReservationId: appointment?.reservationId,
+      services, // Pass services to calendar view if needed
     };
     console.log(`📌 ReviewPage: Navigating to calendar for ${department} with data:`, navigateData);
     onNavigate?.("calendar", navigateData);
@@ -308,8 +440,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
           throw new Error(`${department} slot unavailable`);
         }
 
-        // Perform writes
-        // Update the new slot count (decrement)
+     
         currentSlots[slotIndex].remaining -= 1;
         const newTotal = currentSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
         transaction.update(slotRef, {
@@ -318,7 +449,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
           updatedAt: new Date().toISOString(),
         });
 
-        // Restore previous slot count if applicable
+        
         if (previousSlotSnap && previousSlotSnap.exists() && !previousSlotSnap.data().closed && previousSlotId) {
           const previousSlots = previousSlotSnap.data().slots || [];
           const previousSlotIndex = previousSlots.findIndex((s: any) => s.slotID === previousSlotId);
@@ -438,6 +569,16 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
         return;
       }
 
+      const validAppointments = appointments.filter((appointment) => {
+        const editedData = editedAppointments[appointment.department] || {};
+        return editedData.services && editedData.services.length > 0;
+      });
+
+      if (validAppointments.length === 0) {
+        setError("No departments have services selected. Please select at least one service for one department.");
+        return;
+      }
+
       const confirmSubmit = window.confirm("Are you sure you want to submit?");
       if (!confirmSubmit) return;
 
@@ -459,7 +600,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
         return;
       }
 
-      for (const appointment of appointments) {
+      for (const appointment of validAppointments) {
         console.log(`📌 ReviewPage: Processing appointment for ${appointment.department}:`, appointment);
         if (!appointment.reservationId || !appointment.slotID || !appointment.date || !appointment.slotTime) {
           console.error(`📌 ReviewPage: Missing critical fields for ${appointment.department}`, appointment);
@@ -468,10 +609,6 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
         }
 
         const editedData = editedAppointments[appointment.department] || {};
-        if (!editedData.services || editedData.services.length === 0) {
-          setError(`No services selected for ${appointment.department}. Please select at least one service.`);
-          return;
-        }
         if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
           setError(`Please specify the 'Others' service for ${appointment.department}.`);
           return;
@@ -651,7 +788,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
             </div>
             <div>
               <label>Time of Request</label>
-              <input type="time" value={safeFormData.requestTime} readOnly />
+              <input type="time" value={safeFormData.requestDate} readOnly />
             </div>
             <div>
               <label>Control No.</label>
@@ -751,6 +888,8 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                   shield: false,
                   pregnancyTestResult: "Negative",
                 };
+                const isScheduleDisabled = editedData.services.length === 0;
+
                 return (
                   <div key={dept} className="service-box">
                     <h4>{dept} Services</h4>
@@ -908,17 +1047,16 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                           </tr>
                           <tr>
                             <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "_______"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "_______"}</strong> &nbsp;&nbsp;
-                              {appointment && (
-                                <button
-                                  type="button"
-                                  className="change-btns "
-                                  onClick={() => handleChangeDateTime(dept, appointment)}
-                                >
-                                  Change
-                                </button>
-                              )}
+                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              <button
+                                type="button"
+                                className="change-btns"
+                                onClick={() => handleChangeDateTime(dept, appointment)}
+                                disabled={isScheduleDisabled}
+                              >
+                                {appointment ? "Change" : "Schedule"}
+                              </button>
                             </td>
                           </tr>
                         </tbody>
@@ -974,17 +1112,16 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                           ))}
                           <tr>
                             <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "_______"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "_______"}</strong> &nbsp;&nbsp;
-                              {appointment && (
-                                <button
-                                  type="button"
-                                  className="change-btns "
-                                  onClick={() => handleChangeDateTime(dept, appointment)}
-                                >
-                                  Change
-                                </button>
-                              )}
+                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              <button
+                                type="button"
+                                className="change-btns"
+                                onClick={() => handleChangeDateTime(dept, appointment)}
+                                disabled={isScheduleDisabled}
+                              >
+                                {appointment ? "Change" : "Schedule"}
+                              </button>
                             </td>
                           </tr>
                         </tbody>
@@ -1040,17 +1177,16 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                           ))}
                           <tr>
                             <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "_______"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "_______"}</strong> &nbsp;&nbsp;
-                              {appointment && (
-                                <button
-                                  type="button"
-                                  className="change-btns "
-                                  onClick={() => handleChangeDateTime(dept, appointment)}
-                                >
-                                  Change
-                                </button>
-                              )}
+                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              <button
+                                type="button"
+                                className="change-btns"
+                                onClick={() => handleChangeDateTime(dept, appointment)}
+                                disabled={isScheduleDisabled}
+                              >
+                                {appointment ? "Change" : "Schedule"}
+                              </button>
                             </td>
                           </tr>
                         </tbody>
@@ -1106,17 +1242,16 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                           ))}
                           <tr>
                             <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "_______"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "_______"}</strong> &nbsp;&nbsp;
-                              {appointment && (
-                                <button
-                                  type="button"
-                                  className="change-btns "
-                                  onClick={() => handleChangeDateTime(dept, appointment)}
-                                >
-                                  Change
-                                </button>
-                              )}
+                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
+                              <button
+                                type="button"
+                                className="change-btns"
+                                onClick={() => handleChangeDateTime(dept, appointment)}
+                                disabled={isScheduleDisabled}
+                              >
+                                {appointment ? "Change" : "Schedule"}
+                              </button>
                             </td>
                           </tr>
                         </tbody>

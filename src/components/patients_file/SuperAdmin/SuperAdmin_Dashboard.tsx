@@ -1,7 +1,21 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaTooth, FaStethoscope, FaXRay, FaClinicMedical, FaUserMd } from "react-icons/fa";
+import {
+  FaBell,
+  FaUser,
+  FaTachometerAlt,
+  FaCalendarAlt,
+  FaUserTimes,
+  FaUsers,
+  FaChartBar,
+  FaSignOutAlt,
+  FaTooth,
+  FaStethoscope,
+  FaXRay,
+  FaClinicMedical,
+  FaUserMd,
+} from "react-icons/fa";
+import { toast } from "react-toastify";
 import "../../../assets/SuperAdmin_Dashboard.css";
 import logo from "/logo.png";
 import {
@@ -10,17 +24,48 @@ import {
   Cell,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
 import { db } from "../firebase";
 import { collection, query, onSnapshot, where } from "firebase/firestore";
 
-const departmentQueries = {
-  Clinical: { collection: "ManageAdmins", department: "Clinical Laboratory", patientPurpose: "Clinical Laboratory" },
-  Dental: { collection: "ManageAdmins", department: "Dental", patientPurpose: "Dental" },
-  Radiology: { collection: "ManageAdmins", department: "Radiographic", patientPurpose: "Radiographic" },
-  Medical: { collection: "ManageAdmins", department: "Medical", patientPurpose: "Medical" },
-  DDE: { collection: "ManageAdmins", department: "DDE", patientPurpose: "DDE" }
+interface DepartmentQuery {
+  collection: string;
+  department?: string;
+  patientPurpose?: string;
+  status?: string;
+}
+
+const departmentQueries: Record<string, DepartmentQuery> = {
+  Clinical: {
+    collection: "ManageAdmins",
+    department: "Clinical Laboratory",
+    patientPurpose: "Clinical Laboratory",
+  },
+  Dental: {
+    collection: "ManageAdmins",
+    department: "Dental",
+    patientPurpose: "Dental",
+  },
+  Radiology: {
+    collection: "ManageAdmins",
+    department: "Radiographic",
+    patientPurpose: "Radiographic",
+  },
+  Medical: {
+    collection: "ManageAdmins",
+    department: "Medical",
+    patientPurpose: "Medical",
+  },
+  DDE: {
+    collection: "ManageAdmins",
+    department: "DDE",
+    patientPurpose: "DDE",
+  },
+  Rejected: {
+    collection: "ManageAdmins",
+    status: "rejected",
+  },
 };
 
 const SuperAdmin_Dashboard: React.FC = () => {
@@ -31,34 +76,34 @@ const SuperAdmin_Dashboard: React.FC = () => {
     Dental: 0,
     Radiology: 0,
     Medical: 0,
-    DDE: 0
+    DDE: 0,
+    Rejected: 0,
   });
   const [patientCounts, setPatientCounts] = useState({
     Clinical: 0,
     Dental: 0,
     Radiology: 0,
     Medical: 0,
-    DDE: 0
+    DDE: 0,
   });
-  const [totalRegisteredUsers, setTotalRegisteredUsers] = useState(0); 
+  const [totalRegisteredUsers, setTotalRegisteredUsers] = useState(0);
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: "New patient registered in Dental", unread: true },
+    { id: 2, text: "3 Appointment requests pending approval", unread: true },
+    { id: 3, text: "Radiology report uploaded by Dr. Smith", unread: false },
+    { id: 4, text: "Clinical department updated patient records", unread: false },
+  ]);
 
   const handleNavigation = (path: string) => {
     navigate(path);
   };
 
-  const notifications = [
-    { id: 1, text: "New patient registered in Dental", unread: true },
-    { id: 2, text: "3 Appointment requests pending approval", unread: true },
-    { id: 3, text: "Radiology report uploaded by Dr. Smith", unread: false },
-    { id: 4, text: "Clinical department updated patient records", unread: false },
-  ];
-
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE"];
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA46BE", "#FF4560"];
   const REGISTERED_USER_COLOR = "#FF4560";
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const { name, value, percent } = payload[0] as any;
+      const { name, value, percent } = payload[0];
       return (
         <div
           style={{
@@ -75,50 +120,104 @@ const SuperAdmin_Dashboard: React.FC = () => {
     return null;
   };
 
-  
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    setShowNotifications(false);
+  };
+
+  // Fetch total registered users
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "Users"), (snapshot) => {
-      setTotalRegisteredUsers(snapshot.docs.length);
-    }, (error) => {
-      console.error("Error fetching total registered users:", error);
-    });
+    const unsubscribe = onSnapshot(
+      collection(db, "Users"),
+      (snapshot) => {
+        setTotalRegisteredUsers(snapshot.docs.length);
+      },
+      (error) => {
+        console.error("Error fetching total registered users:", error);
+        toast.error("Failed to fetch registered users: ${error.message}", {
+          position: "top-center",
+        });
+      }
+    );
 
     return () => unsubscribe();
   }, []);
 
+  // Fetch admin counts
   useEffect(() => {
     const unsubscribers: (() => void)[] = [];
 
-    Object.entries(departmentQueries).forEach(([dept, { collection: coll, department: deptFilter }]) => {
-      const adminQuery = query(collection(db, coll), where("department", "==", deptFilter));
-      const unsubscribe = onSnapshot(adminQuery, (snap) => {
-        const count = snap.docs.length;
-        setAdminCounts((prev) => ({ ...prev, [dept]: count }));
-      });
+    Object.entries(departmentQueries).forEach(([dept, queryConfig]) => {
+      const { collection: coll, department, status } = queryConfig;
+      const adminQuery = status
+        ? query(collection(db, coll), where("status", "==", status))
+        : query(collection(db, coll), where("department", "==", department));
+      const unsubscribe = onSnapshot(
+        adminQuery,
+        (snap) => {
+          const count = snap.docs.length;
+          console.log(
+            `[DEBUG] ${dept} count: ${count}, Query: collection=${coll}, status=${status || "N/A"}, department=${
+              department || "N/A"
+            }`
+          );
+          if (dept === "Rejected") {
+            console.log(
+              `[DEBUG] Rejected admins documents:`,
+              snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+            );
+            if (count === 0) {
+              console.log("[DEBUG] No rejected admins found in", coll);
+            }
+          }
+          setAdminCounts((prev) => ({ ...prev, [dept]: count }));
+        },
+        (error) => {
+          console.error(`Error fetching ${dept} admins:`, error);
+          toast.error(`Failed to fetch ${dept} admins: ${error.message}`, {
+            position: "top-center",
+          });
+        }
+      );
       unsubscribers.push(unsubscribe);
     });
 
-    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, []);
 
+  // Fetch patient counts
   useEffect(() => {
     const unsubscribers: (() => void)[] = [];
 
-    Object.entries(departmentQueries).forEach(([dept, { patientPurpose }]) => {
-      const transQuery = query(collection(db, "Transactions"), where("purpose", "==", patientPurpose));
-      const unsubscribe = onSnapshot(transQuery, (snap) => {
-        const patientIds = new Set<string>();
-        snap.forEach((doc) => {
-          const data = doc.data();
-          if (data.patientId) patientIds.add(data.patientId);
-        });
-        const count = patientIds.size;
-        setPatientCounts((prev) => ({ ...prev, [dept]: count }));
-      });
+    Object.entries(departmentQueries).forEach(([dept, queryConfig]) => {
+      const { patientPurpose } = queryConfig;
+      if (!patientPurpose) return;
+      const transQuery = query(
+        collection(db, "Transactions"),
+        where("purpose", "==", patientPurpose)
+      );
+      const unsubscribe = onSnapshot(
+        transQuery,
+        (snap) => {
+          const patientIds = new Set<string>();
+          snap.forEach((doc) => {
+            const data = doc.data();
+            if (data.patientId) patientIds.add(data.patientId);
+          });
+          const count = patientIds.size;
+          setPatientCounts((prev) => ({ ...prev, [dept]: count }));
+        },
+        (error) => {
+          console.error(`Error fetching ${dept} patients:`, error);
+          toast.error(`Failed to fetch ${dept} patients: ${error.message}`, {
+            position: "top-center",
+          });
+        }
+      );
       unsubscribers.push(unsubscribe);
     });
 
-    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, []);
 
   const patientUserData = [
@@ -127,15 +226,16 @@ const SuperAdmin_Dashboard: React.FC = () => {
     { name: "Radiology Patients", value: patientCounts.Radiology },
     { name: "Medical Patients", value: patientCounts.Medical },
     { name: "DDE Patients", value: patientCounts.DDE },
-    { name: "Registered Users", value: totalRegisteredUsers } 
+    { name: "Registered Users", value: totalRegisteredUsers },
   ];
 
   const adminDeptData = [
+    { name: "Clinical Admins", value: adminCounts.Clinical },
     { name: "Dental Admins", value: adminCounts.Dental },
     { name: "Radiology Admins", value: adminCounts.Radiology },
     { name: "Medical Admins", value: adminCounts.Medical },
     { name: "DDE Admins", value: adminCounts.DDE },
-    { name: "Clinical Admins", value: adminCounts.Clinical }
+    { name: "Rejected Admins", value: adminCounts.Rejected },
   ];
 
   return (
@@ -143,9 +243,12 @@ const SuperAdmin_Dashboard: React.FC = () => {
       {/* Sidebar */}
       <aside className="sidebar">
         <div>
-          <div className="logo-boxss" onClick={() => handleNavigation("/superadmin_dashboard")}
-            style={{ cursor: "pointer" }}>
-            <img src={logo} alt="logos" className="logosss" />
+          <div
+            className="logo-boxss"
+            onClick={() => handleNavigation("/superadmin_dashboard")}
+            style={{ cursor: "pointer" }}
+          >
+            <img src={logo} alt="logo" className="logosss" />
             <span className="logo-textss">HealthSys</span>
           </div>
           <div className="nav-linkss">
@@ -153,16 +256,22 @@ const SuperAdmin_Dashboard: React.FC = () => {
               <FaTachometerAlt className="nav-icon" /> Dashboard
             </div>
             <div className="nav-items">
-              <FaUsers className="nav-icon" /> 
-              <span onClick={() => handleNavigation("/superadmin_userrequests")}>User Requests</span>
+              <FaUsers className="nav-icon" />
+              <span onClick={() => handleNavigation("/superadmin_userrequests")}>
+                User Requests
+              </span>
             </div>
             <div className="nav-items">
-              <FaCalendarAlt className="nav-icon" /> 
-              <span onClick={() => handleNavigation("/superadmin_manageadmins")}>Manage Admins</span>
+              <FaCalendarAlt className="nav-icon" />
+              <span onClick={() => handleNavigation("/superadmin_manageadmins")}>
+                Manage Admins
+              </span>
             </div>
             <div className="nav-items">
-              <FaChartBar className="nav-icon" /> 
-              <span onClick={() => handleNavigation("/superadmin_reports")}>Reports & Analytics</span>
+              <FaChartBar className="nav-icon" />
+              <span onClick={() => handleNavigation("/superadmin_reports")}>
+                Reports & Analytics
+              </span>
             </div>
           </div>
         </div>
@@ -175,9 +284,11 @@ const SuperAdmin_Dashboard: React.FC = () => {
             <FaSignOutAlt className="signout-icon" />
             <span
               onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                const isConfirmed = window.confirm(
+                  "Are you sure you want to sign out?"
+                );
                 if (isConfirmed) {
-                  navigate("/loginadmin"); 
+                  navigate("/loginadmin");
                 }
               }}
               className="signout-label"
@@ -207,10 +318,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
               <div className="notification-dropdown">
                 <div className="notification-header">
                   <span>Notifications</span>
-                  <button
-                    className="mark-read-btn"
-                    onClick={() => notifications.forEach((n) => (n.unread = false))}
-                  >
+                  <button className="mark-read-btn" onClick={markAllAsRead}>
                     Mark all as read
                   </button>
                 </div>
@@ -232,65 +340,106 @@ const SuperAdmin_Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* ✅ Summary Cards */}
+        {/* Summary Cards */}
         <div className="summary-cards-content-wrapper">
           <div className="summary-cards-container">
             <div className="summary-cards-row">
               <div className="summary-cards-row single">
-                <div className="card" onClick={() => handleNavigation("/superadmin_clinical")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_clinical")}
+                >
                   <FaClinicMedical className="card-icon" />
-                  <h3>{patientCounts.Clinical}</h3> 
+                  <h3>{patientCounts.Clinical}</h3>
                   <p>Total Clinical Patients</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_dental")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_dental")}
+                >
                   <FaTooth className="card-icon" />
-                  <h3>{patientCounts.Dental}</h3> 
+                  <h3>{patientCounts.Dental}</h3>
                   <p>Total Dental Patients</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_radiology")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_radiology")}
+                >
                   <FaXRay className="card-icon" />
-                  <h3>{patientCounts.Radiology}</h3> 
+                  <h3>{patientCounts.Radiology}</h3>
                   <p>Total Radiology Patients</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_medical")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_medical")}
+                >
                   <FaUserMd className="card-icon" />
-                  <h3>{patientCounts.Medical}</h3> 
+                  <h3>{patientCounts.Medical}</h3>
                   <p>Total Medical Patients</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_dde")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_dde")}
+                >
                   <FaStethoscope className="card-icon" />
-                  <h3>{patientCounts.DDE}</h3> 
+                  <h3>{patientCounts.DDE}</h3>
                   <p>Total DDE Patients</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_registeredusers")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_registeredusers")}
+                >
                   <FaUsers className="card-icon" />
-                  <h3>{totalRegisteredUsers}</h3> 
+                  <h3>{totalRegisteredUsers}</h3>
                   <p>Total Registered Users</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_clinicaladmin")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_clinicaladmin")}
+                >
                   <FaClinicMedical className="card-icon" />
-                  <h3>{adminCounts.Clinical}</h3> 
+                  <h3>{adminCounts.Clinical}</h3>
                   <p>Clinical Admins</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_dentaladmin")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_dentaladmin")}
+                >
                   <FaTooth className="card-icon" />
-                  <h3>{adminCounts.Dental}</h3> 
+                  <h3>{adminCounts.Dental}</h3>
                   <p>Dental Admins</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_radiologyadmin")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_radiologyadmin")}
+                >
                   <FaXRay className="card-icon" />
-                  <h3>{adminCounts.Radiology}</h3> 
+                  <h3>{adminCounts.Radiology}</h3>
                   <p>Radiology Admins</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_medicaladmin")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_medicaladmin")}
+                >
                   <FaUserMd className="card-icon" />
-                  <h3>{adminCounts.Medical}</h3> 
+                  <h3>{adminCounts.Medical}</h3>
                   <p>Medical Admins</p>
                 </div>
-                <div className="card" onClick={() => handleNavigation("/superadmin_ddeadmin")}>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_ddeadmin")}
+                >
                   <FaStethoscope className="card-icon" />
-                  <h3>{adminCounts.DDE}</h3> 
+                  <h3>{adminCounts.DDE}</h3>
                   <p>DDE Admins</p>
+                </div>
+                <div
+                  className="card"
+                  onClick={() => handleNavigation("/superadmin_rejectedadmins")}
+                >
+                  <FaUserTimes className="card-icon" />
+                  <h3>{adminCounts.Rejected}</h3>
+                  <p>Rejected Admins</p>
                 </div>
               </div>
             </div>
@@ -304,31 +453,28 @@ const SuperAdmin_Dashboard: React.FC = () => {
               <h3 className="chart-titles">Patients per Department</h3>
               <ResponsiveContainer width="100%" height={400}>
                 <PieChart width={400} height={400}>
-<Pie
-  data={patientUserData}
-  dataKey="value"
-  nameKey="name"
-  cx="50%"
-  cy="50%"
-  outerRadius={100}
-  label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
->
-  {patientUserData.map((entry, index) => {
-  
-    const fillColor =
-      entry.name === "Registered Users"
-        ? REGISTERED_USER_COLOR
-        : COLORS[index % COLORS.length];
-    return <Cell key={`cell-${index}`} fill={fillColor} />;
-  })}
-</Pie>
-
+                  <Pie
+                    data={patientUserData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
+                  >
+                    {patientUserData.map((entry, index) => {
+                      const fillColor =
+                        entry.name === "Registered Users"
+                          ? REGISTERED_USER_COLOR
+                          : COLORS[index % COLORS.length];
+                      return <Cell key={`cell-${index}`} fill={fillColor} />;
+                    })}
+                  </Pie>
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            {/* Pie Chart for Admins per Department */}
             <div className="chart-box">
               <h3 className="chart-titles">Admins per Department</h3>
               <ResponsiveContainer width="100%" height={400}>
@@ -359,5 +505,3 @@ const SuperAdmin_Dashboard: React.FC = () => {
 };
 
 export default SuperAdmin_Dashboard;
-
-

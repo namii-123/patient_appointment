@@ -1,20 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, } from "recharts";
-import "../../../assets/Dashboard_DDE.css";
-import logo from "/logo.png";
+import "../../../assets/Dashboard_Clinical.css";
+import { db } from "../firebase";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
+
+
+
 
 interface Notification {
   text: string;
   unread: boolean;
-}
-
-interface Appointment {
-  no: number;
-  name: string;
-  date: string;
-  status: string;
 }
 
 interface ChartData {
@@ -22,12 +25,187 @@ interface ChartData {
   value: number;
 }
 
+
+
+
+
+// ---------- Component ----------
 const Dashboard_DDE: React.FC = () => {
   const navigate = useNavigate();
   const handleNavigation = (path: string) => {
     navigate(path);
   };
 
+
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPatients, setTotalPatients] = useState(0);
+  const [totalAppointments, setTotalAppointments] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [cancelledCount, setCancelledCount] = useState(0);
+  const [approvedCount, setApprovedCount] = useState(0);
+const [rejectedCount, setRejectedCount] = useState(0);
+const [completedCount, setCompletedCount] = useState(0);
+
+
+const [weeklyActivity, setWeeklyActivity] = useState<Record<string, number>>({
+  Monday: 0,
+  Tuesday: 0,
+  Wednesday: 0,
+  Thursday: 0,
+  Friday: 0,
+  Saturday: 0,
+  Sunday: 0,
+});
+
+
+
+useEffect(() => {
+  const transQuery = query(
+    collection(db, "Transactions"),
+    where("purpose", "==", "DDE")
+  );
+
+  const unsubscribe = onSnapshot(transQuery, (snap) => {
+    // Initialize counters
+    const activity: Record<string, number> = {
+      Monday: 0,
+      Tuesday: 0,
+      Wednesday: 0,
+      Thursday: 0,
+      Friday: 0,
+      Saturday: 0,
+      Sunday: 0,
+    };
+
+    
+    const now = new Date();
+
+    
+    const firstDayOfWeek = new Date(now);
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); 
+    firstDayOfWeek.setDate(diff);
+    firstDayOfWeek.setHours(0, 0, 0, 0);
+
+    
+    const lastDayOfWeek = new Date(firstDayOfWeek);
+    lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+    lastDayOfWeek.setHours(23, 59, 59, 999);
+
+    snap.forEach((doc) => {
+      const data = doc.data();
+      if (!data.date) return;
+
+      const apptDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
+
+      if (apptDate >= firstDayOfWeek && apptDate <= lastDayOfWeek) {
+        const dayIndex = apptDate.getDay();
+        const dayNames = [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ];
+        const dayName = dayNames[dayIndex];
+        activity[dayName] = (activity[dayName] || 0) + 1;
+      }
+    });
+
+    setWeeklyActivity(activity);
+  });
+
+  return () => unsubscribe();
+}, []);
+
+
+
+
+  useEffect(() => {
+    
+    const fetchUsers = async () => {
+      const q = query(
+        collection(db, "Transactions"),
+        where("purpose", "==", "DDE")
+      );
+      const snap = await getDocs(q);
+    
+      const uniqueUsers = new Set<string>();
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data.UserId) {
+          uniqueUsers.add(data.UserId);
+        }
+      });
+    
+      setTotalUsers(uniqueUsers.size);
+    };
+    
+
+
+    // Count Patients
+const fetchPatients = async () => {
+  const q = query(
+    collection(db, "Transactions"),
+    where("purpose", "==", "DDE")
+  );
+  const snap = await getDocs(q);
+
+  const uniquePatients = new Set<string>();
+  snap.forEach((doc) => {
+    const data = doc.data();
+    if (data.patientId) {
+      uniquePatients.add(data.patientId);
+    }
+  });
+
+  setTotalPatients(uniquePatients.size);
+};
+
+
+   
+    const transQuery = query(
+      collection(db, "Transactions"),
+      where("purpose", "==", "DDE")
+    );
+
+    const unsubscribe = onSnapshot(transQuery, (snap) => {
+  let total = 0;
+  let pending = 0;
+  let cancelled = 0;
+  let approved = 0;
+  let rejected = 0;
+  let completed = 0;
+
+  snap.forEach((doc) => {
+    const data = doc.data();
+    total++;
+    if (data.status === "Pending") pending++;
+    if (data.status === "Cancelled") cancelled++;
+    if (data.status === "Approved") approved++;
+    if (data.status === "Rejected") rejected++;
+    if (data.status === "Completed") completed++;
+  });
+
+  setTotalAppointments(total);
+  setPendingCount(pending);
+  setCancelledCount(cancelled);
+  setApprovedCount(approved);
+  setRejectedCount(rejected);
+  setCompletedCount(completed);
+});
+    fetchUsers();
+    fetchPatients();
+
+    return () => unsubscribe();
+  }, []);
+
+
+
+
+  // Notifications
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     { text: "3 new appointment requests", unread: true },
@@ -35,33 +213,27 @@ const Dashboard_DDE: React.FC = () => {
     { text: "System update completed", unread: false },
   ]);
 
-  const [showApproveModal, setShowApproveModal] = useState<boolean>(false);
-  const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
-  const [rejectReason, setRejectReason] = useState<string>("");
-  const [selectedAppointment, setSelectedAppointment] =
-    useState<Appointment | null>(null);
+  
 
-  const data: ChartData[] = [
-    { name: "Approved", value: 735 },
-    { name: "Pending", value: 36 },
-    { name: "Canceled", value: 76 },
-  ];
+  // Chart Data - Updated to include Completed and Rejected
+ const data: ChartData[] = [
+  { name: "Approved", value: approvedCount },
+  { name: "Pending", value: pendingCount },
+  { name: "Canceled", value: cancelledCount },
+  { name: "Completed", value: completedCount },
+  { name: "Rejected", value: rejectedCount },
+];
 
-  const COLORS: string[] = ["#4CAF50", "#FFC107", "#F44336"];
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const COLORS: string[] = ["#4CAF50", "#FFC107", "#F44336", "#2196F3", "#FF5722"];
 
-  const markAllAsRead = (): void => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  const unreadCount: number = notifications.filter(n => n.unread).length;
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
   };
 
-  const appointments: Appointment[] = [
-    { no: 1, name: "John Doe", date: "2025-05-01", status: "Pending" },
-    { no: 2, name: "Jane Smith", date: "2025-05-02", status: "Pending" },
-    { no: 3, name: "Michael Johnson", date: "2025-05-03", status: "Pending" },
-    { no: 4, name: "Emily Davis", date: "2025-05-04", status: "Pending" },
-    { no: 5, name: "David Wilson", date: "2025-05-05", status: "Pending" },
-  ];
+  
 
   return (
     <div className="dashboards">
@@ -73,7 +245,7 @@ const Dashboard_DDE: React.FC = () => {
             onClick={() => handleNavigation("/dashboard_dde")}
             style={{ cursor: "pointer" }}
           >
-            <img src={logo} alt="logo" className="logoss" />
+            <img src="logo.png" alt="logo" className="logoss" />
             <span className="logo-texts">DDE</span>
           </div>
 
@@ -95,12 +267,15 @@ const Dashboard_DDE: React.FC = () => {
                 Patient Records
               </span>
             </div>
+        
+
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_dde")}>
                 Reports & Analytics
               </span>
             </div>
+          
           </nav>
         </div>
 
@@ -111,10 +286,15 @@ const Dashboard_DDE: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
 
-          <div className="signout-box">
+           <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
             <span
-              onClick={() => handleNavigation("/")}
+              onClick={() => {
+                const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                if (isConfirmed) {
+                  navigate("/loginadmin"); 
+                }
+              }}
               className="signout-label"
             >
               Sign Out
@@ -126,7 +306,7 @@ const Dashboard_DDE: React.FC = () => {
       {/* Main content */}
       <main className="main-content">
         {/* Top Navbar */}
-        <div className="top-navbar-dde">
+        <div className="top-navbar-dental">
           <h2 className="navbar-title">Dashboard</h2>
           <div className="notification-wrapper">
             <FaBell
@@ -152,9 +332,7 @@ const Dashboard_DDE: React.FC = () => {
                   notifications.map((notif, index) => (
                     <div
                       key={index}
-                      className={`notification-item ${
-                        notif.unread ? "unread" : ""
-                      }`}
+                      className={`notification-item ${notif.unread ? "unread" : ""}`}
                     >
                       <span>{notif.text}</span>
                       {notif.unread && (
@@ -176,33 +354,57 @@ const Dashboard_DDE: React.FC = () => {
       <div className="content-wrapper">
         <div className="cards-container">
           <div className="card-row">
-            <div className="card">
+
+              <div className="cardss">
               <FaUsers className="card-icon" />
-              <h3>1245</h3>
+              <h3>{totalUsers}</h3>
+              <p>Total Users</p>
+            </div>
+
+            <div className="cardss">
+              <FaUsers className="card-icon" />
+              <h3>{totalPatients}</h3>
               <p>Total Patients</p>
             </div>
-            <div className="card">
+            <div className="cardss">
               <FaCalendarAlt className="card-icon" />
-              <h3>847</h3>
+              <h3>{totalAppointments}</h3>
               <p>Total Appointments</p>
             </div>
-            <div className="card">
-              <FaChartBar className="card-icon" />
-              <h3>36</h3>
-              <p>Pending Appointments</p>
-            </div>
+            
           </div>
 
-          <div className="card-row center">
-            <div className="card">
+          <div className="card-row">
+            <div className="cardss">
+              <FaChartBar className="card-icon" />
+               <h3>{pendingCount}</h3>
+              <p>Pending Appointments</p>
+            </div>
+             <div className="cardss">
               <FaCalendarAlt className="card-icon" />
-              <h3>735</h3>
+              <h3>{cancelledCount}</h3>
+              <p>Canceled Appointments</p>
+            </div>
+
+            <div className="cardss">
+              <FaCalendarAlt className="card-icon" />
+               <h3>{approvedCount}</h3>
               <p>Approved Appointments</p>
             </div>
-            <div className="card">
-              <FaCalendarAlt className="card-icon" />
-              <h3>76</h3>
-              <p>Canceled Appointments</p>
+           
+           
+          </div>
+
+          <div className="card-row">
+            <div className="cardss">
+              <FaTimesCircle className="card-icon" />
+              <h3>{rejectedCount}</h3>
+              <p>Total Rejected</p>
+            </div>
+            <div className="cardss">
+              <FaCheckCircle className="card-icon" />
+              <h3>{completedCount}</h3>
+              <p>Total Completed</p>
             </div>
           </div>
         </div>
@@ -211,7 +413,7 @@ const Dashboard_DDE: React.FC = () => {
         <div className="chart-activity-container">
           <div className="chart-wrapper">
             <h3 className="chart-title">Appointment Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
                   data={data}
@@ -245,161 +447,34 @@ const Dashboard_DDE: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          <div className="activity-wrapper">
-            <h3 className="chart-title">Weekly Activity Status</h3>
-            <ul className="activity-list">
-              <li>
-                <strong>Monday:</strong> 32 Appointments
-              </li>
-              <li>
-                <strong>Tuesday:</strong> 45 Appointments
-              </li>
-              <li>
-                <strong>Wednesday:</strong> 28 Appointments
-              </li>
-              <li>
-                <strong>Thursday:</strong> 36 Appointments
-              </li>
-              <li>
-                <strong>Friday:</strong> 40 Appointments
-              </li>
-              <li>
-                <strong>Saturday:</strong> Closed
-              </li>
-              <li>
-                <strong>Sunday:</strong> Closed
-              </li>
-            </ul>
-          </div>
+
+       <div className="activity-wrapper">
+  <h3 className="chart-title">Weekly Activity Status</h3>
+  <ul className="activity-list">
+    {Object.entries(weeklyActivity).map(([day, count]) => (
+      <li key={day}>
+        <strong>{day}:</strong>{" "}
+        {(day === "Saturday" || day === "Sunday")
+          ? "Closed"
+          : `${count} Appointments`}
+      </li>
+    ))}
+  </ul>
+</div>
+
+
+
         </div>
 
-        {/* Appointment Table */}
-        <h3 className="table-titles">New Incoming Appointment Requests</h3>
-        <table className="appointment-tables">
-          <thead>
-            <tr>
-              <th>Patient ID</th>
-              <th>Patient Name</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {appointments.map((appointment, index) => (
-              <tr key={index}>
-                <td>{appointment.no}</td>
-                <td>{appointment.name}</td>
-                <td>{appointment.date}</td>
-                <td>
-                  <span
-                    className={`status-text ${appointment.status.toLowerCase()}`}
-                  >
-                    {appointment.status}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    className="action-btn approve"
-                    onClick={() => {
-                      setSelectedAppointment(appointment);
-                      setShowApproveModal(true);
-                    }}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    className="action-btn reject"
-                    onClick={() => {
-                      setSelectedAppointment(appointment);
-                      setShowRejectModal(true);
-                    }}
-                  >
-                    Reject
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      
 
-        {/* Approve Modal */}
-        {showApproveModal && (
-          <div className="modal-overlay">
-            <div className="modal-box">
-              <h3>Approve Appointment</h3>
-              <p>
-                Are you sure you want to approve{" "}
-                <strong>{selectedAppointment?.name}</strong>?
-              </p>
-              <div className="modal-buttons">
-                <button
-                  className="modal-cancel"
-                  onClick={() => setShowApproveModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="modal-confirm"
-                  onClick={() => {
-                    console.log("Accepted appointment:", selectedAppointment);
-                    alert(
-                      `Appointment for ${selectedAppointment?.name} accepted.`
-                    );
-                    setShowApproveModal(false);
-                    setSelectedAppointment(null);
-                  }}
-                >
-                  Confirm Approve
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Reject Reason Modal */}
-        {showRejectModal && (
-          <div className="modal-overlay">
-            <div className="modal-box">
-              <h3>Reject Appointment</h3>
-              <p>Please enter the reason for rejection:</p>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Type reason here..."
-              />
-              <div className="modal-buttons">
-                <button
-                  className="modal-cancel"
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setRejectReason("");
-                    setSelectedAppointment(null);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="modal-confirm"
-                  onClick={() => {
-                    console.log("Rejected:", selectedAppointment);
-                    console.log("Reason:", rejectReason);
-                    alert(`Rejected appointment.\nReason: ${rejectReason}`);
-                    setShowRejectModal(false);
-                    setRejectReason("");
-                    setSelectedAppointment(null);
-                  }}
-                >
-                  Confirm Reject
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        </div>
-      </main>
-    </div>
-  );
+        
+              
+      
+</div>
+</main>
+</div>
+);
 };
 
 export default Dashboard_DDE;

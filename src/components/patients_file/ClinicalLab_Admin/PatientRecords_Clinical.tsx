@@ -382,78 +382,86 @@ const [availableYears, setAvailableYears] = useState(() => {
 
         {/* Search Bar */}
       <div className="content-wrapper">
-          <div className="filter-bar">
-                <div className="search-containerrr">
-                    <div className="search-bar-wrapper">
-                      <FaSearch className="search-icon" />
-                      <input
-                        type="text"
-                        placeholder="Search by Name or Number..."
-                        className="search-bar"
-                        value={searchTerm}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-        </div>
-                    <div className="filter">
-                      <label>Status:</label>
-                      <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="status-dropdown">
-                        <option value="All">All Status</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                        <option value="Completed">Completed</option>
-                      </select>
-                     </div>
-                       <div className="filter">
-      <label>Year:</label>
-      <select
-        className="status-dropdown"
-        value={yearFilter}
-        onChange={(e) => setYearFilter(e.target.value)}
-        onClick={handleYearClick} 
-      >
-        <option value="All Years">All Years</option>
-        {availableYears.map((year) => (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        ))}
-      </select>
-    </div>
+           <div className="filter-barr">
+                      <div className="search-containerrr">
+                        <div className="search-bar-wrapper">
+                          <FaSearch className="search-icon" />
+                          <input
+                            type="text"
+                            placeholder="Search by Name or Number..."
+                            className="search-bar"
+                            value={searchTerm}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                          />
+                        </div>
+                      </div>
                       <div className="filter">
-                         <label>Month:</label>
-                      <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
-                        <option value="All">All Months</option>
-                        <option value="01">January</option>
-                        <option value="02">February</option>
-                        <option value="03">March</option>
-                        <option value="04">April</option>
-                        <option value="05">May</option>
-                        <option value="06">June</option>
-                        <option value="07">July</option>
-                        <option value="08">August</option>
-                        <option value="09">September</option>
-                        <option value="10">October</option>
-                        <option value="11">November</option>
-                        <option value="12">December</option>
-                      </select>
+                        <label>Status:</label>
+                        <select
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                          className="status-dropdown"
+                        >
+                          <option value="All">All Status</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Rejected">Rejected</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </div>
+                      <div className="filter">
+                <label>Year:</label>
+                <select
+                  className="status-dropdown"
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  onClick={handleYearClick} 
+                >
+                  <option value="All Years">All Years</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+                      <div className="filter">
+                        <label>Month:</label>
+                        <select
+                          value={monthFilter}
+                          onChange={(e) => setMonthFilter(e.target.value)}
+                          className="status-dropdown"
+                        >
+                          <option value="All">All Months</option>
+                          <option value="01">January</option>
+                          <option value="02">February</option>
+                          <option value="03">March</option>
+                          <option value="04">April</option>
+                          <option value="05">May</option>
+                          <option value="06">June</option>
+                          <option value="07">July</option>
+                          <option value="08">August</option>
+                          <option value="09">September</option>
+                          <option value="10">October</option>
+                          <option value="11">November</option>
+                          <option value="12">December</option>
+                        </select>
+                      </div>
+                      <div className="filter">
+                        <label>Day:</label>
+                        <select
+                          value={dayFilter}
+                          onChange={(e) => setDayFilter(e.target.value)}
+                          className="status-dropdown"
+                        >
+                          <option value="All">All Days</option>
+                          {Array.from({ length: 31 }, (_, i) => (
+                            <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
+                              {i + 1}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-        
-                     <div className="filter">
-                      <label>Day:</label>
-        
-                      <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
-                        
-                        <option value="All">All Days</option>
-                        {Array.from({ length: 31 }, (_, i) => (
-                          <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-                            {i + 1}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    </div>
-                  
 
         {/* Subheading */}
         <p className="appointments-heading">All Accepted Appointments</p>

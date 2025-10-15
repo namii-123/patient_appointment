@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaBell, FaUser, FaTachometerAlt, FaUsers, FaSignOutAlt, FaArrowLeft, FaCalendarAlt, FaChartBar, FaSearch } from "react-icons/fa";
 import "../../../assets/SuperAdmin_RegisteredUsers.css";
 import logo from "/logo.png";
+import type { ChangeEvent } from "react";
 import { db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 
@@ -217,22 +218,21 @@ const filteredUsers = users.filter((u) => {
           <FaArrowLeft /> Back
         </button>
 
-      <div className="filter-search-row">
-                 <div className="search-section">
-                   <div className="search-container">
-                     <div className="search-bar-wrapper">
-                       <FaSearch className="search-icons" />
-                       <input
-                         type="text"
-                         placeholder="Search by Name or ID..."
-                         className="search-bar"
-                         value={searchTerm}
-                         onChange={(e) => setSearchTerm(e.target.value)}
-                       />
-                     </div>
-                   </div>
-                 </div>
-                 </div>
+     
+                  <div className="searchbar-containersss">
+                    <div className="searchsss">
+                      <FaSearch className="search-iconsss" />
+                      <input
+                        type="text"
+                        placeholder="Search by Name or ID..."
+                        className="search-inputss"
+                        value={searchTerm}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                 
+                
 
         {/* Users Table */}
         <div className="appointments-sections">

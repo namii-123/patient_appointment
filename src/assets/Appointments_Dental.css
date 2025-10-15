@@ -528,6 +528,7 @@
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 5%;
 }
 
 .modal-cancel,
@@ -697,4 +698,45 @@
   padding: 8px 12px;
   border-bottom: 1px solid #eee;
   color: #333;
+}
+
+
+
+.enlarged-image-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.enlarged-image-box {
+  position: relative;
+  text-align: center;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.enlarged-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.close-enlarged {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  background-color: white;
+  border: 2px solid black;
+  font-size: 20px;
+  border-radius: 40%;
+  color: #ff0000;
+  cursor: pointer;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../../assets/AppointmentCalendar.css";
-import { X, CheckCircle } from "lucide-react"; // Added CheckCircle for optional checkmark
+import { X, CheckCircle } from "lucide-react"; 
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, setDoc, collection, deleteDoc, runTransaction } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
@@ -430,9 +430,10 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
                 <span className="slots-info">
                   {isWeekend ? "Closed" : isPast ? "Past" : isDayClosed ? "Closed" : `${slots[day] || 0} slots`}
                 </span>
-                {isSelected && (
-                  <CheckCircle className="selected-checkmark" size={16} />
-                )}
+                {isSelected && selectedSlot && (
+  <CheckCircle className="selected-checkmark" size={16} />
+)}
+
               </div>
             );
           })}
@@ -501,65 +502,60 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
         </div>
       )}
 
-      <div className="calendar-navigation">
-        <div className="nav-right">
-          <button
-            className="next-btn"
-            disabled={!selectedDate || !selectedSlot}
-            onClick={() => {
-              if (!selectedDate || !selectedSlot) {
-                console.log("📌 AppointmentCalendar: Cannot navigate, missing required data", {
-                  selectedDate,
-                  selectedSlot,
-                });
-                alert("Please select and confirm a time slot before proceeding.");
-                return;
-              }
+     <div className="calendar-navigation">
+  <div className="nav-right">
+    <button
+      className={`next-btn ${!selectedDate || !selectedSlot ? "disabled" : ""}`}
+      onClick={() => {
+        if (!selectedDate || !selectedSlot) {
+          alert("⚠️ Please select and confirm a time slot before proceeding.");
+          return;
+        }
 
-              const confirmNext = window.confirm(
-                formData?.fromReview
-                  ? "Are you sure you want to update the appointment slot and return to the review page?"
-                  : `Are you sure you want to continue to the ${department === "Radiographic" ? "Clinical Laboratory" : department} appointment step?`
-              );
+        const confirmNext = window.confirm(
+          formData?.fromReview
+            ? "Are you sure you want to update the appointment slot and return to the review page?"
+            : `Are you sure you want to continue to the ${
+                department === "Radiographic"
+                  ? "Clinical Laboratory"
+                  : department
+              } appointment step?`
+        );
 
-              if (!confirmNext) {
-                console.log("📌 AppointmentCalendar: User cancelled navigation.");
-                return;
-              }
+        if (!confirmNext) return;
 
-              const navigateData = {
-                ...formData,
-                [`${department.toLowerCase()}Date`]: selectedDate,
-                [`${department.toLowerCase()}SlotId`]: selectedSlot.slotID,
-                [`${department.toLowerCase()}SlotTime`]: selectedSlot.time,
-                [`${department.toLowerCase()}ReservationId`]: reservationId || "",
-                previousDate: formData?.previousDate,
-                previousSlotId: formData?.previousSlotId,
-                previousSlotTime: formData?.previousSlotTime,
-                previousReservationId: formData?.previousReservationId,
-              };
+        const navigateData = {
+          ...formData,
+          [`${department.toLowerCase()}Date`]: selectedDate,
+          [`${department.toLowerCase()}SlotId`]: selectedSlot.slotID,
+          [`${department.toLowerCase()}SlotTime`]: selectedSlot.time,
+          [`${department.toLowerCase()}ReservationId`]: reservationId || "",
+          previousDate: formData?.previousDate,
+          previousSlotId: formData?.previousSlotId,
+          previousSlotTime: formData?.previousSlotTime,
+          previousReservationId: formData?.previousReservationId,
+        };
 
-              console.log(
-                "📌 AppointmentCalendar: Next button clicked, navigating with data:",
-                navigateData
-              );
+        if (formData?.fromReview) {
+          onNavigate?.("review", navigateData);
+        } else {
+          const nextView =
+            department === "Radiographic"
+              ? "labservices"
+              : department === "Clinical Laboratory"
+              ? "dental"
+              : department === "Dental"
+              ? "medical"
+              : "review";
+          onNavigate?.(nextView, navigateData);
+        }
+      }}
+    >
+      Next ➡
+    </button>
+  </div>
+</div>
 
-              if (formData?.fromReview) {
-                onNavigate?.("review", navigateData);
-              } else {
-                const nextView =
-                  department === "Radiographic" ? "labservices" :
-                  department === "Clinical Laboratory" ? "dental" :
-                  department === "Dental" ? "medical" :
-                  "review";
-                onNavigate?.(nextView, navigateData);
-              }
-            }}
-          >
-            Next ➡
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

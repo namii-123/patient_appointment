@@ -29,6 +29,15 @@ import CalendarClinicalLab from "./CalendarClinicalLab";
 import CalendarDental from "./CalendarDental";
 import CalendarMedical from "./CalendarMedical";
 import ReviewPage from "./ReviewPage";
+import FormDDE from "./FormDDE";
+import CourtOrderForm from "./CourtOrderForm";
+import PAOForm from "./PAOForm";
+import EmployeeRecommendationForm from "./EmployeeRecommendationForm";
+import LawyersRequestForm from "./LawyersRequestForm";
+import OfficialReceiptForm from "./OfficialReceiptForm";
+import ValidIDForm from "./ValidIDForm";
+import ConsentForm from "./ConsentForm"
+
 
 import {
   FaEnvelope,
@@ -61,7 +70,8 @@ const Home: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"ALL" | "UNREAD">("ALL");
   const [currentView, setCurrentView] = useState<"home" | "contacts" | "dde" | "allservices" | "profile" | "editprofile" | "transaction" | "calendar" | "confirm" 
   | "labservices" | "radioservices" | "dental" | "medical" | "calendarlab" | "calendardental"
-  | "calendarmedical" | "review">("home");
+  | "calendarmedical" | "review" | "formdde" | "courtorder" | "pao" | "employee-recommendation"
+  | "lawyersrequest" | "officialreceipt" | "validid" | "consentform">("home");
 
   const notifRef = useRef<HTMLLIElement>(null);
   const profileRef = useRef<HTMLLIElement>(null);
@@ -69,7 +79,9 @@ const Home: React.FC = () => {
 
 
   const handleNavigate = (targetView: "profile" | "editprofile" | "transaction" | "allservices" | "calendar" | "confirm"
-  | "labservices" | "radioservices" | "dental" | "medical" | "calendarlab" | "calendardental" | "calendarmedical" | "review"
+  | "labservices" | "radioservices" | "dental" | "medical" | "calendarlab" | "calendardental" | "calendarmedical" 
+  | "review" | "formdde" | "courtorder" | "pao" | "employee-recommendation" | "lawyersrequest" | "officialreceipt"
+  | "validid" | "consentform"
 ) => {
 
     setCurrentView(targetView);
@@ -309,7 +321,7 @@ const Home: React.FC = () => {
             </div>
            <div className="click-button" style={{ display: "flex", gap: "10px" }}>
   <button className="learn-more" onClick={() => setCurrentView("allservices")}>Book For All Services</button>
-  <button className="learn-more" onClick={() => setCurrentView("dde")}>Book For DDE</button>
+  <button className="learn-more" onClick={() => setCurrentView("formdde")}>Book For DDE</button>
 </div>
 
           </section>
@@ -375,7 +387,14 @@ const Home: React.FC = () => {
 {currentView === "allservices" && (
   <AllServices onNavigate={(view, data) => {
     setCurrentView(view);
-    setFormData(data);  // 🔑 store formData, patientId, controlNo in state
+    setFormData(data);  
+  }} />
+)}
+
+{currentView === "formdde" && (
+  <FormDDE onNavigate={(view, data) => {
+    setCurrentView(view);
+    setFormData(data);  
   }} />
 )}
 
@@ -390,6 +409,97 @@ const Home: React.FC = () => {
     formData={formData}
   />
 )}
+
+
+{currentView === "courtorder" && (
+  <CourtOrderForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
+
+{currentView === "pao" && (
+  <PAOForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
+
+
+{currentView === "employee-recommendation" && (
+  <EmployeeRecommendationForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
+
+
+{currentView === "lawyersrequest" && (
+  <LawyersRequestForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
+
+
+{currentView === "officialreceipt" && (
+  <OfficialReceiptForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
+
+{currentView === "validid" && (
+  <ValidIDForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
+
+{currentView === "consentform" && (
+  <ConsentForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
+
+
+
 
 
 {currentView === "dental" && (

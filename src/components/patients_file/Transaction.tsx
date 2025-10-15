@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect } from "react";
 import { db, auth } from "./firebase";
-import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, deleteDoc, runTransaction } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, deleteDoc, runTransaction, addDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import "../../assets/Transaction.css";
-import ShortUniqueId from "short-unique-id";
 
 interface TransactionProps {
   onNavigate?: (
@@ -22,7 +21,8 @@ interface TransactionProps {
       | "calendarlab"
       | "calendardental"
       | "calendarmedical"
-      | "review"
+      | "review",
+    data?: any
   ) => void;
 }
 
@@ -35,7 +35,54 @@ interface TransactionItem {
   slotTime: string;
   slotID: string;
   status: "Pending" | "Approved" | "Rejected" | "Completed" | "Cancelled";
-  reservationId?: string; 
+  reservationId?: string;
+  patientId?: string;
+  controlNo?: string;
+  patientCode?: string;
+  checklist?: {
+    courtOrder: boolean;
+    officialReceipt: boolean;
+    requestForm: boolean;
+    dataPrivacy: boolean;
+    hasValidID: boolean;
+    vitalSigns: boolean;
+  };
+  lastName?: string;
+  firstName?: string;
+  middleInitial?: string;
+  validIDData?: any;
+  courtOrderData?: any;
+  paoData?: any;
+  empData?: any;
+  lawyersRequestData?: any;
+  receiptData?: any;
+}
+
+interface NavigateData {
+  patientId?: string;
+  controlNo: string;
+  patientCode: string;
+  hasValidID?: boolean;
+  department?: string;
+  requestDate?: string;
+  lastName?: string;
+  firstName?: string;
+  middleInitial?: string;
+  checklist?: {
+    courtOrder: boolean;
+    officialReceipt: boolean;
+    requestForm: boolean;
+    dataPrivacy: boolean;
+    hasValidID: boolean;
+    vitalSigns: boolean;
+  };
+  validIDData?: any;
+  courtOrderData?: any;
+  paoData?: any;
+  empData?: any;
+  lawyersRequestData?: any;
+  receiptData?: any;
+  appointmentId?: string;
 }
 
 const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
@@ -65,12 +112,32 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
             id: docSnap.id,
             transactionCode: docData?.transactionCode || "N/A",
             purpose: docData?.purpose || "N/A",
-            date: docData?.date || "N/A",
-            slotTime: docData?.slotTime || "N/A",
+            date: docData?.date || "",
+            slotTime: docData?.slotTime || "",
             slotID: docData?.slotID || "",
             status: docData?.status || "Pending",
             services: Array.isArray(docData?.services) ? docData.services : [],
-            reservationId: docData?.reservationId || "", // Include reservationId
+            reservationId: docData?.reservationId || "",
+            patientId: docData?.patientId || "",
+            controlNo: docData?.controlNo || "",
+            patientCode: docData?.patientCode || "",
+            checklist: docData?.checklist || {
+              courtOrder: false,
+              officialReceipt: false,
+              requestForm: false,
+              dataPrivacy: false,
+              hasValidID: false,
+              vitalSigns: false,
+            },
+            lastName: docData?.lastName || "",
+            firstName: docData?.firstName || "",
+            middleInitial: docData?.middleInitial || "",
+            validIDData: docData?.validIDData || null,
+            courtOrderData: docData?.courtOrderData || null,
+            paoData: docData?.paoData || null,
+            empData: docData?.empData || null,
+            lawyersRequestData: docData?.lawyersRequestData || null,
+            receiptData: docData?.receiptData || null,
           };
         });
         setTransactions(data);
@@ -90,7 +157,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
 
     try {
       await runTransaction(db, async (transaction) => {
-        // Perform all reads first
         const transactionRef = doc(db, "Transactions", transactionId);
         const transactionSnap = await transaction.get(transactionRef);
 
@@ -102,56 +168,52 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
         const transactionData = transactionSnap.data();
         const { purpose, date, slotID, reservationId, status } = transactionData;
 
-        // Skip if already Cancelled
         if (status === "Cancelled") {
           console.warn("Transaction already cancelled:", transactionId);
           throw new Error("Appointment is already cancelled.");
         }
 
-        // Read slot document
-        const slotRef = doc(db, "Departments", purpose, "Slots", date);
-        const slotSnap = await transaction.get(slotRef);
+        // Only update slot if slotID exists
+        if (slotID && date) {
+          const slotRef = doc(db, "Departments", purpose, "Slots", date);
+          const slotSnap = await transaction.get(slotRef);
 
-        // Read reservation document if reservationId exists
-        let reservationSnap = null;
-        let reservationRef = null;
-        if (reservationId) {
-          reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
-          reservationSnap = await transaction.get(reservationRef);
-        }
-
-        // Perform all writes
-        // Update slot availability
-        if (slotSnap.exists() && !slotSnap.data().closed) {
-          const slots = slotSnap.data().slots || [];
-          const slotIndex = slots.findIndex((s: any) => s.slotID === slotID);
-
-          if (slotIndex !== -1) {
-            slots[slotIndex].remaining = (slots[slotIndex].remaining || 0) + 1;
-            const totalSlots = slots.reduce((sum: number, s: any) => sum + s.remaining, 0);
-
-            transaction.update(slotRef, {
-              slots,
-              totalSlots,
-              updatedAt: new Date().toISOString(),
-            });
-            console.log(`📌 Transaction: Incremented remaining for slot ${slotID} on ${date} in ${purpose}`);
-          } else {
-            console.warn(`Slot ${slotID} not found in ${slotRef.path}`);
+          let reservationSnap = null;
+          let reservationRef = null;
+          if (reservationId) {
+            reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
+            reservationSnap = await transaction.get(reservationRef);
           }
-        } else {
-          console.warn(`Slot document ${slotRef.path} does not exist or is closed`);
+
+          if (slotSnap.exists() && !slotSnap.data().closed) {
+            const slots = slotSnap.data().slots || [];
+            const slotIndex = slots.findIndex((s: any) => s.slotID === slotID);
+
+            if (slotIndex !== -1) {
+              slots[slotIndex].remaining = (slots[slotIndex].remaining || 0) + 1;
+              const totalSlots = slots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+
+              transaction.update(slotRef, {
+                slots,
+                totalSlots,
+                updatedAt: new Date().toISOString(),
+              });
+              console.log(`📌 Transaction: Incremented remaining for slot ${slotID} on ${date} in ${purpose}`);
+            } else {
+              console.warn(`Slot ${slotID} not found in ${slotRef.path}`);
+            }
+          } else {
+            console.warn(`Slot document ${slotRef.path} does not exist or is closed`);
+          }
+
+          if (reservationRef && reservationSnap?.exists()) {
+            transaction.delete(reservationRef);
+            console.log(`📌 Transaction: Deleted reservation ${reservationId}`);
+          } else if (reservationId) {
+            console.warn(`Reservation ${reservationId} not found`);
+          }
         }
 
-        // Delete reservation if it exists
-        if (reservationRef && reservationSnap?.exists()) {
-          transaction.delete(reservationRef);
-          console.log(`📌 Transaction: Deleted reservation ${reservationId}`);
-        } else if (reservationId) {
-          console.warn(`Reservation ${reservationId} not found`);
-        }
-
-        // Update transaction status
         transaction.update(transactionRef, {
           status: "Cancelled",
           updatedAt: new Date().toISOString(),
@@ -205,7 +267,7 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
   });
 
   const filteredTransactions = sortedTransactions.filter((t) => {
-    const [y, m, d] = t.date.split("-");
+    const [y, m, d] = t.date.split("-") || ["", "", ""];
     return (
       (filterDept === "All" || t.purpose === filterDept) &&
       (filterStatus === "All" || t.status === filterStatus) &&
@@ -219,7 +281,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
     <div className="appointment-container">
       <div className="appointment-header">
         <h2 className="section-title">TRANSACTIONS</h2>
-
         <div className="filters">
           <label style={{ marginRight: "10px" }}>
             Department:
@@ -236,7 +297,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
               <option value="DDE">DDE</option>
             </select>
           </label>
-
           <label style={{ marginRight: "10px" }}>
             Status:
             <select
@@ -251,7 +311,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
               <option value="Rejected">Rejected</option>
             </select>
           </label>
-
           <label style={{ marginRight: "10px" }}>
             Year:
             <select
@@ -267,7 +326,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
               ))}
             </select>
           </label>
-
           <label style={{ marginRight: "10px" }}>
             Month:
             <select
@@ -289,7 +347,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
               })}
             </select>
           </label>
-
           <label>
             Day:
             <select
@@ -310,7 +367,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
           </label>
         </div>
       </div>
-
       <div className="appointment-table">
         <div className="appointment-row header">
           <div className="col no">Transaction ID</div>
@@ -318,7 +374,6 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
           <div className="col status">Status</div>
           <div className="col action">Action</div>
         </div>
-
         {filteredTransactions.length === 0 ? (
           <div className="appointment-row">
             <div className="col details" style={{ textAlign: "center" }}>
@@ -334,14 +389,23 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
                   <strong>Department:</strong> {item.purpose}
                 </div>
                 <div className="detail-line">
-                  <strong>Slot ID:</strong> {item.slotID}
+                  <strong>Control No.:</strong> {item.controlNo || "N/A"}
                 </div>
-                <div className="detail-line">
-                  <strong>Appointment Date:</strong> {item.date}
-                </div>
-                <div className="detail-line">
-                  <strong>Time Slot:</strong> {item.slotTime}
-                </div>
+                {(item.purpose !== "DDE" || item.status !== "Pending") && item.date && (
+                  <div className="detail-line">
+                    <strong>Appointment Date:</strong> {item.date}
+                  </div>
+                )}
+                {(item.purpose !== "DDE" || item.status !== "Pending") && item.slotID && (
+                  <div className="detail-line">
+                    <strong>Slot ID:</strong> {item.slotID}
+                  </div>
+                )}
+                {(item.purpose !== "DDE" || item.status !== "Pending") && item.slotTime && (
+                  <div className="detail-line">
+                    <strong>Time Slot:</strong> {item.slotTime}
+                  </div>
+                )}
                 <div className="detail-line">
                   <strong>Services:</strong>
                   <div className="services-list">
@@ -359,13 +423,11 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
                   </div>
                 </div>
               </div>
-
               <div className="col status">
                 <span className={`status ${item.status.toLowerCase()}`}>
                   {item.status}
                 </span>
               </div>
-
               <div className="col action">
                 {item.status === "Pending" && (
                   <button

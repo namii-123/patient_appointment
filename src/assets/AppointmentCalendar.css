@@ -235,6 +235,12 @@ h2 {
   margin-left: 95%;
 }
 
+.next-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 .close-buttons:hover {
   background: #dc3545; /* Red similar to notification badge */
   color: white;

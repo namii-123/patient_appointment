@@ -1,0 +1,334 @@
+/* CourtOrderForm.css */
+
+/* Base container styling */
+.courtorder {
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  min-height: calc(100vh - 12rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .courtorder {
+    background-color: #1f2a44;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Heading styles */
+h2 {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #2c3e50;
+}
+
+@media (prefers-color-scheme: dark) {
+  h2 {
+    color: #e2e8f0;
+  }
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  h3 {
+    color: #cbd5e0;
+  }
+}
+
+/* Form styling */
+form.space-y-6 {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* File input styling */
+input[type="file"] {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: #f7fafc;
+  font-size: 1rem;
+  color: #4a5568;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+input[type="file"]:focus {
+  outline: none;
+  border-color: #3182ce;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  input[type="file"] {
+    border-color: #4a5568;
+    background-color: #2d3748;
+    color: #e2e8f0;
+  }
+
+  input[type="file"]:focus {
+    border-color: #63b3ed;
+    background-color: #3c4b64;
+    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.3);
+  }
+}
+
+/* Selected file text */
+p.mt-2 {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #4a5568;
+}
+
+@media (prefers-color-scheme: dark) {
+  p.mt-2 {
+    color: #a0aec0;
+  }
+}
+
+/* File name and link styling */
+.file-name {
+  color: #4a5568;
+}
+
+.file-link {
+  color: #3182ce;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.3s ease;
+}
+
+.file-link:hover {
+  color: #2b6cb0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .file-name {
+    color: #a0aec0;
+  }
+
+  .file-link {
+    color: #63b3ed;
+  }
+
+  .file-link:hover {
+    color: #4299e1;
+  }
+}
+
+/* Error message styling */
+.error-message {
+  background-color: #fef2f2;
+  color: #dc2626;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-message {
+    background-color: #4a1e1e;
+    color: #f87171;
+  }
+}
+
+/* Navigation button container */
+.courtorder-navigation {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+/* Button styling */
+.nav-button {
+  background-color: #3182ce;
+  color: #ffffff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.nav-button:hover {
+  background-color: #2b6cb0;
+  transform: translateY(-1px);
+}
+
+.nav-button:active {
+  transform: translateY(0);
+}
+
+@media (prefers-color-scheme: dark) {
+  .nav-button {
+    background-color: #63b3ed;
+  }
+
+  .nav-button:hover {
+    background-color: #4299e1;
+  }
+}
+
+/* Cancel button styling */
+.cancel-buttonsss {
+  background-color: #dc2626;
+  color: #ffffff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.cancel-buttonsss:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.cancel-buttonsss:active {
+  transform: translateY(0);
+}
+
+.x-button{
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -2%;
+}
+.note-message{
+  margin-bottom: 2%;
+}
+@media (prefers-color-scheme: dark) {
+  .cancel-button {
+    background-color: #f87171;
+  }
+
+  .cancel-button:hover {
+    background-color: #ef4444;
+  }
+}
+
+/* File preview section */
+.file-preview {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: #f7fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  .file-preview {
+    border-color: #4a5568;
+    background-color: #2d3748;
+  }
+}
+
+/* Iframe for PDF preview */
+.preview-iframe {
+  width: 100%;
+  height: 500px;
+  border: none;
+  border-radius: 6px;
+}
+
+/* Image preview */
+.preview-image {
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+
+
+.button-container-dde {
+  display: flex;
+  justify-content: flex-end; /* Previous sa left, Next sa right */
+  margin-top: 18px;
+  margin-bottom: 10px;
+  margin-right: -1%;
+}
+
+/* Next button styling */
+.next-button-dde {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #2c3e91;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.next-button-dde:hover {
+  background: #1a276d;
+}
+
+.next-button-dde:focus {
+  outline: none;
+  background-color: #3a3a3a;
+  color: #fff;
+}
+
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .courtorder {
+    padding: 1rem;
+    margin: 1rem;
+    min-height: calc(100vh - 4rem);
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  .nav-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .preview-iframe,
+  .preview-image {
+    height: 300px;
+  }
+
+  .cancel-button {
+    width: 20px;
+    height: 20px;
+    font-size: 0.8rem;
+  }
+}

@@ -12,7 +12,7 @@
   background-size: 100% 1.6em;
 }
 
-*/
+
 .form-header {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
@@ -206,6 +206,12 @@ background: #1a276d;
   outline: none;
   background-color: #3a3a3a;
   color: #fff;
+}
+
+.change-btns:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 /* Responsive design */
 @media (max-width: 768px) {

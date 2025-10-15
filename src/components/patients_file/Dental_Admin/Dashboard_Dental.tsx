@@ -125,7 +125,7 @@ useEffect(() => {
 
 
   useEffect(() => {
-    // Count Users
+    
     const fetchUsers = async () => {
       const q = query(
         collection(db, "Transactions"),

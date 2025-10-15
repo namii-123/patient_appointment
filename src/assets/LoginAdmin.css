@@ -165,3 +165,29 @@
   pointer-events: auto;
   z-index: 10;
 }
+.error-message {
+  color: #d32f2f;
+  font-size: 14px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.success-message {
+  color: #ffffff;
+  font-size: 14px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.password-wrapper {
+  position: relative;
+}
+.eye-toggles {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+}

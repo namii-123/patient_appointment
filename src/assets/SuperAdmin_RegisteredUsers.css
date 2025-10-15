@@ -688,3 +688,37 @@ html, body {
 }
 
 
+.searchbar-containersss {
+  width: 25%;  
+  margin-right: 10px; 
+  margin-top: 10px; 
+  margin-left: 40px;
+}
+
+/* Search Input */
+.searchbar-containersss .search-inputss {
+  padding: 8px 18px 8px 36px; 
+  font-size: 14px;
+  height: 36px;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 30px;
+}
+
+/* Search Icon */
+.searchsss {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 30px;
+}
+
+.search-iconsss {
+  position: absolute;
+  left: 12px;
+  transform: translateY(-50%);
+  font-size: 14px;
+  pointer-events: none;
+  margin-top: 5%;
+}
+

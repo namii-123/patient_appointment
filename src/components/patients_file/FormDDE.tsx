@@ -4,7 +4,6 @@ import axios from "axios";
 import "../../assets/AllServices.css";
 import { getAuth } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-
 import { db } from "./firebase";
 import { collection, addDoc } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
@@ -23,25 +22,20 @@ interface FormData {
   citizenship: string;
   houseNo: string;
   street: string;
-
-  // ✅ add both name and code for each location
   province: string;
   provinceCode?: string;
   municipality: string;
   municipalityCode?: string;
   barangay: string;
   barangayCode?: string;
-
   email: string;
   contact: string;
 }
 
-
-
 interface NavigateData extends FormData {
   patientId: string;
   controlNo: string;
-   patientCode: string; 
+  patientCode: string;
 }
 
 interface Province {
@@ -63,12 +57,12 @@ interface Barangay {
 
 interface ServicesProps {
   onNavigate?: (
-    view: "allservices" | "calendar" | "radioservices",
+    view: "allservices" | "calendar" | "courtorder",
     data?: NavigateData
   ) => void;
 }
 
-const AllServices: React.FC<ServicesProps> = ({ onNavigate }) => {
+const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -110,8 +104,6 @@ const AllServices: React.FC<ServicesProps> = ({ onNavigate }) => {
 
     fetchUserData();
   }, []);
-
-  
 
   const [formData, setFormData] = useState<FormData>({
     requestDate: "",
@@ -235,127 +227,124 @@ const AllServices: React.FC<ServicesProps> = ({ onNavigate }) => {
     }
   }, [formData.province]);
 
-
-
-
-useEffect(() => {
-  if (formData.provinceCode) {
-    const fetchMunicipalities = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get(
-          `https://psgc.gitlab.io/api/provinces/${formData.provinceCode}/cities-municipalities/`
-        );
-        if (Array.isArray(response.data)) {
-          setMunicipalities(
-            response.data.map((item: any) => ({
-              code: item.code,
-              name: item.name,
-              provinceCode: formData.provinceCode!,
-            }))
+  useEffect(() => {
+    if (formData.provinceCode) {
+      const fetchMunicipalities = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const response = await axios.get(
+            `https://psgc.gitlab.io/api/provinces/${formData.provinceCode}/cities-municipalities/`
           );
-          setFormData((prev) => ({ ...prev, municipality: "", municipalityCode: "", barangay: "", barangayCode: "" }));
-          setBarangays([]);
+          if (Array.isArray(response.data)) {
+            setMunicipalities(
+              response.data.map((item: any) => ({
+                code: item.code,
+                name: item.name,
+                provinceCode: formData.provinceCode!,
+              }))
+            );
+            setFormData((prev) => ({
+              ...prev,
+              municipality: "",
+              municipalityCode: "",
+              barangay: "",
+              barangayCode: "",
+            }));
+            setBarangays([]);
+          }
+        } catch (error) {
+          console.error("Error fetching municipalities:", error);
+          setError("Failed to load municipalities. Please try again later.");
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching municipalities:", error);
-        setError("Failed to load municipalities. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMunicipalities();
-  }
-}, [formData.provinceCode]);
+      };
+      fetchMunicipalities();
+    }
+  }, [formData.provinceCode]);
 
-useEffect(() => {
-  if (formData.municipalityCode) {
-    const fetchBarangays = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get(
-          `https://psgc.gitlab.io/api/cities-municipalities/${formData.municipalityCode}/barangays/`
-        );
-        if (Array.isArray(response.data)) {
-          setBarangays(
-            response.data.map((item: any) => ({
-              code: item.code,
-              name: item.name,
-              cityCode: formData.municipalityCode!,
-            }))
+  useEffect(() => {
+    if (formData.municipalityCode) {
+      const fetchBarangays = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const response = await axios.get(
+            `https://psgc.gitlab.io/api/cities-municipalities/${formData.municipalityCode}/barangays/`
           );
-          setFormData((prev) => ({ ...prev, barangay: "", barangayCode: "" }));
+          if (Array.isArray(response.data)) {
+            setBarangays(
+              response.data.map((item: any) => ({
+                code: item.code,
+                name: item.name,
+                cityCode: formData.municipalityCode!,
+              }))
+            );
+            setFormData((prev) => ({ ...prev, barangay: "", barangayCode: "" }));
+          }
+        } catch (error) {
+          console.error("Error fetching barangays:", error);
+          setError("Failed to load barangays. Please try again later.");
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching barangays:", error);
-        setError("Failed to load barangays. Please try again later.");
-      } finally {
-        setLoading(false);
+      };
+      fetchBarangays();
+    }
+  }, [formData.municipalityCode]);
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+
+    if (name === "contact") {
+      const numericValue = value.replace(/\D/g, "");
+      if (numericValue.length <= 11) {
+        setFormData((prev) => ({
+          ...prev,
+          contact: numericValue,
+        }));
       }
-    };
-    fetchBarangays();
-  }
-}, [formData.municipalityCode]);
+      return;
+    }
 
-
-
-const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-  const { name, value } = e.target;
-
-
-  if (name === "contact") {
-  
-    const numericValue = value.replace(/\D/g, ""); 
-    
-    if (numericValue.length <= 11) {
+    if (name === "province") {
+      const selected = provinces.find((p) => p.code === value);
       setFormData((prev) => ({
         ...prev,
-        contact: numericValue,
+        province: selected ? selected.name : "",
+        provinceCode: value,
+        municipality: "",
+        barangay: "",
+      }));
+    } else if (name === "municipality") {
+      const selected = municipalities.find((m) => m.code === value);
+      setFormData((prev) => ({
+        ...prev,
+        municipality: selected ? selected.name : "",
+        municipalityCode: value,
+        barangay: "",
+      }));
+    } else if (name === "barangay") {
+      const selected = barangays.find((b) => b.code === value);
+      setFormData((prev) => ({
+        ...prev,
+        barangay: selected ? selected.name : "",
+        barangayCode: value,
+      }));
+    } else if (name === "birthdate") {
+      setFormData((prev) => ({
+        ...prev,
+        birthdate: value,
+        age: value ? calculateAge(value) : "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: name === "age" ? (value === "" ? "" : Number(value)) : value,
       }));
     }
-    return;
-  }
-
-  if (name === "province") {
-    const selected = provinces.find((p) => p.code === value);
-    setFormData((prev) => ({
-      ...prev,
-      province: selected ? selected.name : "",
-      provinceCode: value, 
-      municipality: "",
-      barangay: "",
-    }));
-  } else if (name === "municipality") {
-    const selected = municipalities.find((m) => m.code === value);
-    setFormData((prev) => ({
-      ...prev,
-      municipality: selected ? selected.name : "",
-      municipalityCode: value,
-      barangay: "",
-    }));
-  } else if (name === "barangay") {
-    const selected = barangays.find((b) => b.code === value);
-    setFormData((prev) => ({
-      ...prev,
-      barangay: selected ? selected.name : "",
-      barangayCode: value,
-    }));
-  } else if (name === "birthdate") {
-    setFormData((prev) => ({
-      ...prev,
-      birthdate: value,
-      age: value ? calculateAge(value) : "",
-    }));
-  } else {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "age" ? (value === "" ? "" : Number(value)) : value,
-    }));
-  }
-};
-
+  };
 
   const generateControlNumber = (): string => {
     const now = new Date();
@@ -365,63 +354,63 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       .padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}-${randomNum}`;
   };
 
+  const handleNext = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
 
-  
-
- const handleNext = async (e: MouseEvent<HTMLButtonElement>) => {
-  e.preventDefault();
-
-  if (!isFormComplete()) {
-    alert("⚠️ Please fill out all required fields before proceeding.");
-    return;
-  }
-
-  const confirmSave = window.confirm("Do you want to proceed and save this patient information?");
-  if (!confirmSave) {
-    return; 
-  }
-
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user) {
-    alert("❌ No authenticated user found. Please login.");
-    return;
-  }
-
-  try {
-    const newControlNo = generateControlNumber();
-    setFormData((prev) => ({ ...prev, controlNo: newControlNo }));
-
-    // 🔑 Generate short readable code for patient
-    const uid = new ShortUniqueId({ length: 6 });
-    const patientCode = `PAT-${uid.rnd()}`;
-
-    // Save patient doc (auto-generated Firestore ID)
-    const patientDocRef = await addDoc(collection(db, "Patients"), {
-      ...formData,
-      controlNo: newControlNo,
-      uid: user.uid, // Firebase Auth UID
-      patientCode,   // short readable
-      createdAt: new Date().toISOString(),
-    });
-
-    alert(`✅ Patient info saved! Patient Code: ${patientCode}`);
-
-    if (onNavigate) {
-      onNavigate("radioservices", {
-        ...formData,
-        patientId: patientDocRef.id, // 🔑 use Firestore auto-ID
-        controlNo: newControlNo,
-        patientCode, // pass along short code for UI
-      });
+    if (!isFormComplete()) {
+      alert("⚠️ Please fill out all required fields before proceeding.");
+      return;
     }
-  } catch (error) {
-    console.error("Error saving patient:", error);
-    alert("❌ Failed to save patient information. Please try again.");
-  }
-};
 
 
+    if (formData.contact.length !== 11) {
+  alert("⚠️ Contact number must be exactly 11 digits.");
+  return;
+}
+
+
+    const confirmSave = window.confirm("Do you want to proceed and save this patient information?");
+    if (!confirmSave) {
+      return;
+    }
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("❌ No authenticated user found. Please login.");
+      return;
+    }
+
+    try {
+      const newControlNo = generateControlNumber();
+      setFormData((prev) => ({ ...prev, controlNo: newControlNo }));
+
+      const uid = new ShortUniqueId({ length: 6 });
+      const patientCode = `PAT-${uid.rnd()}`;
+
+      const patientDocRef = await addDoc(collection(db, "Patients"), {
+        ...formData,
+        controlNo: newControlNo,
+        uid: user.uid,
+        patientCode,
+        createdAt: new Date().toISOString(),
+      });
+
+      alert(`✅ Patient info saved! Patient Code: ${patientCode}`);
+
+      if (onNavigate) {
+        onNavigate("courtorder", {
+          ...formData,
+          patientId: patientDocRef.id,
+          controlNo: newControlNo,
+          patientCode,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving patient:", error);
+      alert("❌ Failed to save patient information. Please try again.");
+    }
+  };
 
   const calculateAge = (birthdate: string): number => {
     const today = new Date();
@@ -458,14 +447,14 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             <img src="/logo.png" alt="DOH Logo" />
           </div>
           <div className="header-center">
-            <p>Republic of the Philippines</p>
             <p>Department of Health</p>
             <p>Treatment and Rehabilitation Center Argao</p>
-            <h3>OUTPATIENT REQUEST FORM</h3>
+            <h2>OUTPATIENT AND AFTERCARE DIVISION</h2>
+            <h3>REQUEST FORM FOR ASSESSMENT</h3>
           </div>
           <div className="header-right">
-            <p>Document No.: TRC-AOD-FM07</p>
-            <p>Effective Date: 14 October 2024</p>
+            <p>Document No.: TRC-AOD-FM03</p>
+            <p>Effective Date: 10 July 2023</p>
             <p>Revision No.: 1</p>
             <p>Page No.: Page 1 of 1</p>
           </div>
@@ -644,57 +633,54 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
           <div className="field-group">
             <div>
               <label htmlFor="province">Province</label>
-             <select
-  id="province"
-  name="province"
-  value={formData.provinceCode || ""}
-  onChange={handleChange}
-  required
->
-  <option value="">--Select Province--</option>
-  {provinces.map((province) => (
-    <option key={province.code} value={province.code}>
-      {province.name}
-    </option>
-  ))}
-</select>
-
+              <select
+                id="province"
+                name="province"
+                value={formData.provinceCode || ""}
+                onChange={handleChange}
+                required
+              >
+                <option value="">--Select Province--</option>
+                {provinces.map((province) => (
+                  <option key={province.code} value={province.code}>
+                    {province.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label htmlFor="municipality">Municipality/City</label>
               <select
-  id="municipality"
-  name="municipality"
-  value={formData?.municipalityCode || ""}
-  onChange={handleChange}
-  required
->
-  <option value="">--Select Municipality--</option>
-  {municipalities.map((municipality) => (
-    <option key={municipality.code} value={municipality.code}>
-      {municipality.name}
-    </option>
-  ))}
-</select>
-
+                id="municipality"
+                name="municipality"
+                value={formData.municipalityCode || ""}
+                onChange={handleChange}
+                required
+              >
+                <option value="">--Select Municipality--</option>
+                {municipalities.map((municipality) => (
+                  <option key={municipality.code} value={municipality.code}>
+                    {municipality.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label htmlFor="barangay">Barangay</label>
               <select
-  id="barangay"
-  name="barangay"
-  value={formData?.barangayCode || ""}
-  onChange={handleChange}
-  required
->
-  <option value="">--Select Barangay--</option>
-  {barangays.map((barangay) => (
-    <option key={barangay.code} value={barangay.code}>
-      {barangay.name}
-    </option>
-  ))}
-</select>
-
+                id="barangay"
+                name="barangay"
+                value={formData.barangayCode || ""}
+                onChange={handleChange}
+                required
+              >
+                <option value="">--Select Barangay--</option>
+                {barangays.map((barangay) => (
+                  <option key={barangay.code} value={barangay.code}>
+                    {barangay.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -733,4 +719,4 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   );
 };
 
-export default AllServices;
+export default FormDDE;

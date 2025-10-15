@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBell,
@@ -259,20 +260,19 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
         </div>
 
         <div className="content-wrapper">
-          <div className="filter-search-row">
-            <div className="search-section">
-              <div className="search-container">
-                <div className="search-bar-wrapper">
-                  <FaSearch className="search-icons" />
-                  <input
-                    type="text"
-                    placeholder="Search by Name or ID..."
-                    className="search-bar"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
+         <div className="filter-barss">
+                                        <div className="searchbar-containerss">
+                                          <div className="searchss">
+                                            <FaSearch className="search-iconss" />
+                                            <input
+                                              type="text"
+                                              placeholder="Search by Name or ID..."
+                                              className="search-input"
+                                              value={searchTerm}
+                                              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                                            />
+                                          </div>
+                                        
             </div>
             <div className="filters-container-manage">
               <div className="filter-manage">

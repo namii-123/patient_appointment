@@ -28,17 +28,17 @@ const Contacts: React.FC = () => {
           <div className="contact-card">
             <FaPhoneAlt className="contact-icon" />
             <h3>Phone</h3>
-            <p>(032) 123-4567</p>
+            <p>(032) 485-8815</p>
           </div>
           <div className="contact-card">
             <FaEnvelope className="contact-icon" />
             <h3>Email</h3>
-            <p>dohtrcargao@gmail.com</p>
+            <p>trcchief@trcargao.doh.gov.ph</p>
           </div>
           <div className="contact-card">
             <FaMapMarkerAlt className="contact-icon" />
             <h3>Address</h3>
-            <p>Argao, Cebu, Philippines</p>
+            <p>Candabong, Binlod, Argao, Cebu</p>
           </div>
           
             <a

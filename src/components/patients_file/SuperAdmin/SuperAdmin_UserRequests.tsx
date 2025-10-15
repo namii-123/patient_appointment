@@ -11,9 +11,10 @@ import {
   FaSignOutAlt,
   FaSearch,
 } from "react-icons/fa";
+import { toast } from "react-toastify";
 import "../../../assets/SuperAdmin_UserRequests.css";
 import logo from "/logo.png";
-import { getFirestore, collection, onSnapshot, updateDoc, doc, Timestamp, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, doc, Timestamp, setDoc, deleteDoc } from "firebase/firestore";
 import emailjs from "@emailjs/browser";
 
 interface Notification {
@@ -28,7 +29,7 @@ interface UserRequest {
   lastname: string;
   username: string;
   email: string;
-  status: "Pending" | "Approved" | "Rejected";
+  status: "Pending" | "Rejected";
   department?: string;
   createdAt?: string | Timestamp;
 }
@@ -39,7 +40,6 @@ const SuperAdmin_UserRequests: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [showAll, setShowAll] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedAction, setSelectedAction] = useState<"Approve" | "Reject" | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -78,8 +78,6 @@ const SuperAdmin_UserRequests: React.FC = () => {
           email: data.email || "",
           status: data.status === "pending"
             ? "Pending"
-            : data.status === "approved"
-            ? "Approved"
             : data.status === "rejected"
             ? "Rejected"
             : "Pending",
@@ -92,7 +90,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
       setUserRequests(requests);
     });
     return () => unsubscribe();
-  }, []);
+  }, [db]);
 
   const handleApprove = (id: string) => {
     setSelectedUserId(id);
@@ -113,89 +111,102 @@ const SuperAdmin_UserRequests: React.FC = () => {
     const userRequest = userRequests.find((req) => req.id === selectedUserId);
     const manageAdminsCollection = collection(db, "ManageAdmins");
 
-    if (selectedAction === "Approve") {
-      if (!selectedDept) {
-        alert("Please select a department before approving.");
-        return;
+    try {
+      if (selectedAction === "Approve") {
+        if (!selectedDept) {
+          toast.error("Please select a department before approving.", { position: "top-center" });
+          return;
+        }
+
+        let role = "";
+        switch (selectedDept) {
+          case "Dental": role = "Dental Admin"; break;
+          case "Medical": role = "Medical Admin"; break;
+          case "Clinical Laboratory": role = "Clinical Admin"; break;
+          case "Radiographic": role = "Radiographic Admin"; break;
+          case "DDE": role = "DDE Admin"; break;
+          default: role = "Staff";
+        }
+
+        await setDoc(doc(manageAdminsCollection, selectedUserId), {
+          uid: userRequest?.id,
+          adminId: userRequest?.adminId || "",
+          firstname: userRequest?.firstname || "",
+          lastname: userRequest?.lastname || "",
+          username: userRequest?.username || "",
+          email: userRequest?.email || "",
+          department: selectedDept,
+          role: role,
+          status: "approved",
+          isActive: true,
+          createdAt: userRequest?.createdAt || Timestamp.now(),
+        });
+        await deleteDoc(userDoc);
+
+        if (userRequest?.email) {
+          await emailjs.send(
+            "service_fvyid4o",
+            "template_o7mlooj",
+            {
+              to_email: userRequest.email,
+              user_name: `${userRequest.firstname} ${userRequest.lastname}`,
+              admin_id: userRequest.adminId,
+              department: selectedDept,
+              role: role,
+              message: `Department: ${selectedDept} \n\nCongratulations! Your request has been approved. You are assigned as ${role} under ${selectedDept} department.\nYou can now login to your account.`,
+            },
+            "gyNTIneY8SBg563r5"
+          );
+          toast.success("User approved and moved to Manage Admins.", { position: "top-center" });
+        }
+      } else if (selectedAction === "Reject") {
+        if (!rejectReason.trim()) {
+          toast.error("Please provide a reason for rejection.", { position: "top-center" });
+          return;
+        }
+
+        await setDoc(doc(manageAdminsCollection, selectedUserId), {
+          uid: userRequest?.id,
+          adminId: userRequest?.adminId || "",
+          firstname: userRequest?.firstname || "",
+          lastname: userRequest?.lastname || "",
+          username: userRequest?.username || "",
+          email: userRequest?.email || "",
+          department: "N/A",
+          role: "N/A",
+          status: "rejected",
+          reason: rejectReason,
+          isActive: false,
+          createdAt: userRequest?.createdAt || Timestamp.now(),
+        });
+        await deleteDoc(userDoc);
+
+        if (userRequest?.email) {
+          await emailjs.send(
+            "service_fvyid4o",
+            "template_o7mlooj",
+            {
+              to_email: userRequest.email,
+              user_name: `${userRequest.firstname} ${userRequest.lastname}`,
+              admin_id: userRequest.adminId,
+              reason: rejectReason,
+              message: `We regret to inform you that your request has been rejected. \n\nReason: ${rejectReason}`,
+            },
+            "gyNTIneY8SBg563r5"
+          );
+          toast.success("User rejected and moved to Manage Admins.", { position: "top-center" });
+        }
       }
 
-      let role = "";
-      switch (selectedDept) {
-        case "Dental": role = "Dental Admin"; break;
-        case "Medical": role = "Medical Admin"; break;
-        case "Clinical Laboratory": role = "Clinical Admin"; break;
-        case "Radiographic": role = "Radiographic Admin"; break;
-        case "DDE": role = "DDE Admin"; break;
-        default: role = "Staff";
-      }
-
-      
-      await setDoc(doc(manageAdminsCollection, selectedUserId), {
-        uid: userRequest?.id, 
-        adminId: userRequest?.adminId || "",
-        firstname: userRequest?.firstname || "",
-        lastname: userRequest?.lastname || "",
-        username: userRequest?.username || "",
-        email: userRequest?.email || "",
-        department: selectedDept,
-        role: role,
-        status: "approved", 
-        createdAt: userRequest?.createdAt || Timestamp.now(),
-      });
-      await deleteDoc(userDoc);
-
-      if (userRequest?.email) {
-        emailjs.send(
-          "service_fvyid4o",
-          "template_o7mlooj",
-          {
-            to_email: userRequest.email,
-            user_name: `${userRequest.firstname} ${userRequest.lastname}`,
-            admin_id: userRequest.adminId,
-            department: selectedDept,
-            role: role,
-            message: `Department: ${selectedDept} \n\nCongratulations! Your request has been approved. You are assigned as ${role} under ${selectedDept} department.\nYou can now login to your account.`,
-          },
-          "gyNTIneY8SBg563r5"
-        ).then(
-          (response) => console.log("Approval email sent successfully:", response),
-          (error) => console.error("Failed to send approval email:", error)
-        );
-      }
-    } else if (selectedAction === "Reject") {
-      if (!rejectReason.trim()) {
-        alert("Please provide a reason for rejection.");
-        return;
-      }
-
-      await updateDoc(userDoc, {
-        status: "rejected",
-        department: "NA",
-        role: "N/A",
-        reason: rejectReason,
-      });
-
-      if (userRequest?.email) {
-        emailjs.send(
-          "service_fvyid4o",
-          "template_o7mlooj",
-          {
-            to_email: userRequest.email,
-            user_name: `${userRequest.firstname} ${userRequest.lastname}`,
-            admin_id: userRequest.adminId,
-            reason: rejectReason,
-            message: `We regret to inform you that your request has been rejected. \n\nReason: ${rejectReason}`,
-          },
-          "gyNTIneY8SBg563r5"
-        );
-      }
+      setShowModal(false);
+      setSelectedAction(null);
+      setSelectedUserId(null);
+      setSelectedDept("");
+      setRejectReason("");
+    } catch (error) {
+      console.error("Error processing user request:", error);
+      toast.error("Failed to process user request. Please try again.", { position: "top-center" });
     }
-
-    setShowModal(false);
-    setSelectedAction(null);
-    setSelectedUserId(null);
-    setSelectedDept("");
-    setRejectReason("");
   };
 
   const availableMonths = [
@@ -263,10 +274,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  const displayedRequests =
-    rowsPerPage === filteredRequests.length
-      ? filteredRequests
-      : filteredRequests.slice(0, rowsPerPage);
+  const displayedRequests = filteredRequests.slice(0, rowsPerPage === -1 ? filteredRequests.length : rowsPerPage);
 
   return (
     <div className="dashboard">
@@ -376,67 +384,68 @@ const SuperAdmin_UserRequests: React.FC = () => {
 
         <div className="content-wrapper-requests">
           <div className="filter-barss">
-                               <div className="searchbar-containerss">
-                                 <div className="searchss">
-                                   <FaSearch className="search-iconss" />
-                                   <input
-                                     type="text"
-                                     placeholder="Search by Name or ID..."
-                                     className="search-input"
-                                     value={searchTerm}
-                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                                   />
-                                 </div>
-                               </div>
-                             
-                               <div className="filtersss">
-               <label>Year:</label>
-               <select
-                 className="status-dropdowns"
-                 value={yearFilter}
-                 onChange={(e) => setYearFilter(e.target.value)}
-                 onClick={handleYearClick} 
-               >
-                 <option value="All">All</option>
-                 {availableYears.map((year) => (
-                   <option key={year} value={year}>
-                     {year}
-                   </option>
-                 ))}
-               </select>
-             </div>
-                               <div className="filtersss">
-                                 <label>Month:</label>
-                                 <select
-                                   className="status-dropdowns"
-                                   value={monthFilter}
-                                   onChange={(e: ChangeEvent<HTMLSelectElement>) => setMonthFilter(e.target.value)}
-                                 >
-                                   <option value="All">All</option>
-                                   {availableMonths.map((month) => (
-                                     <option key={month} value={month}>
-                                       {month}
-                                     </option>
-                                   ))}
-                                 </select>
-                               </div>
-                               <div className="filtersss">
-                                 <label>Day:</label>
-                                 <select
-                                   className="status-dropdowns"
-                                   value={dayFilter}
-                                   onChange={(e: ChangeEvent<HTMLSelectElement>) => setDayFilter(e.target.value)}
-                                 >
-                                   <option value="All">All</option>
-                                   {availableDays.map((day) => (
-                                     <option key={day} value={day}>
-                                       {day}
-                                     </option>
-                                   ))}
-                                 </select>
-                               </div>
-                             </div>
-         
+            <div className="searchbar-containerss">
+              <div className="searchss">
+                <FaSearch className="search-iconss" />
+                <input
+                  type="text"
+                  placeholder="Search by Name or ID..."
+                  className="search-input"
+                  value={searchTerm}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+           
+
+            <div className="filtersss">
+              <label>Year:</label>
+              <select
+                className="status-dropdowns"
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                onClick={handleYearClick}
+              >
+                <option value="All">All</option>
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filtersss">
+              <label>Month:</label>
+              <select
+                className="status-dropdowns"
+                value={monthFilter}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setMonthFilter(e.target.value)}
+              >
+                <option value="All">All</option>
+                {availableMonths.map((month) => (
+                  <option key={month} value={month}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filtersss">
+              <label>Day:</label>
+              <select
+                className="status-dropdowns"
+                value={dayFilter}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setDayFilter(e.target.value)}
+              >
+                <option value="All">All</option>
+                {availableDays.map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <p className="user-request-header">All User Access Requests</p>
 
@@ -483,9 +492,6 @@ const SuperAdmin_UserRequests: React.FC = () => {
                           </button>
                         </div>
                       )}
-                      {req.status === "Approved" && (
-                        <span className="approved-label">✔ Approved</span>
-                      )}
                       {req.status === "Rejected" && (
                         <span className="rejected-label">✘ Rejected</span>
                       )}
@@ -502,17 +508,6 @@ const SuperAdmin_UserRequests: React.FC = () => {
             </tbody>
           </table>
 
-          {filteredRequests.length > rowsPerPage && (
-            <div className="view-more-container">
-              <button
-                className="view-more-btn"
-                onClick={() => setShowAll(!showAll)}
-              >
-                {showAll ? "View Less" : "View More"}
-              </button>
-            </div>
-          )}
-
           <div className="table-footer">
             <div className="rows-per-page">
               <label>Show </label>
@@ -521,12 +516,11 @@ const SuperAdmin_UserRequests: React.FC = () => {
                 onChange={(e) => setRowsPerPage(Number(e.target.value))}
                 className="rows-dropdown"
               >
-                {Array.from({ length: 100 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-                <option value={filteredRequests.length}>All</option>
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={-1}>All</option>
               </select>
             </div>
           </div>

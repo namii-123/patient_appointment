@@ -430,9 +430,10 @@ const CalendarClinicalLab: React.FC<CalendarClinicalLabProps> = ({
                 <span className="slots-info">
                   {isWeekend ? "Closed" : isPast ? "Past" : isDayClosed ? "Closed" : `${slots[day] || 0} slots`}
                 </span>
-                {isSelected && (
-                  <CheckCircle className="selected-checkmark" size={16} aria-hidden="true" />
-                )}
+                {isSelected && selectedSlot && (
+  <CheckCircle className="selected-checkmark" size={16} />
+)}
+
               </div>
             );
           })}

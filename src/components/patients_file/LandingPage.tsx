@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import "../../assets/LandingPage.css";
 import Login from "./Login";
 import Signup from "./Signup";
@@ -11,19 +11,18 @@ const LandingPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<
     "home" | "services" | "about" | "contact"
   >("home");
-
   const [activeView, setActiveView] = useState<
     "home" | "services" | "about" | "contact"
   >("home");
-
   const [modalView, setModalView] = useState<"login" | "signup" | null>(null);
+  const location = useLocation();
 
   const handleViewChange = (
     view: "home" | "services" | "about" | "contact"
   ) => {
     setCurrentView(view);
     setActiveView(view);
-    setModalView(null); // Close the modal when switching views
+    setModalView(null);
   };
 
   const handleModalOpen = (modal: "login" | "signup") => {
@@ -34,9 +33,15 @@ const LandingPage: React.FC = () => {
     setModalView(null);
   };
 
+  useEffect(() => {
+    if (location.pathname === "/contact") {
+      setCurrentView("contact");
+      setActiveView("contact");
+    }
+  }, [location]);
+
   return (
     <div className="landing-container">
-      {/* Navbar */}
       <nav className="navbar">
         <div className="logo">
           <Link to="#" onClick={() => handleViewChange("home")}>
@@ -77,7 +82,6 @@ const LandingPage: React.FC = () => {
         </ul>
       </nav>
 
-      {/* Main Content */}
       <div className="main-content">
         {currentView === "home" && (
           <section className="hero">
@@ -114,12 +118,14 @@ const LandingPage: React.FC = () => {
 
         {currentView === "contact" && (
           <section className="contact">
-            <ContactUs />
+            <ContactUs
+              onSignUpClick={() => handleModalOpen("signup")}
+              onLoginClick={() => handleModalOpen("login")}
+            />
           </section>
         )}
       </div>
 
-      {/* Modal */}
       {modalView && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -132,13 +138,15 @@ const LandingPage: React.FC = () => {
                 onSignUpClick={() => handleModalOpen("signup")}
               />
             ) : (
-              <Signup onLoginClick={() => handleModalOpen("login")} />
+              <Signup
+                onLoginClick={() => handleModalOpen("login")}
+                onClose={handleModalClose}
+              />
             )}
           </div>
         </div>
       )}
 
-      {/* Footer */}
       <footer className="footer">
         <div className="footer-content">
           <p>© 2025 DOH-TRC Argao. All Rights Reserved.</p>
