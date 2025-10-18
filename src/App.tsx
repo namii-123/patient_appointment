@@ -29,8 +29,8 @@ import LawyersRequestForm from './components/patients_file/LawyersRequestForm';
 import OfficialReceiptForm from './components/patients_file/OfficialReceiptForm';
 import ValidIDForm from './components/patients_file/ValidIDForm';
 import ConsentForm from './components/patients_file/ConsentForm';
-
-
+import About from './components/patients_file/About';
+import Notifications from './components/patients_file/Notifications';
 
 import LoginAdmin from './components/patients_file/LoginAdmin';
 import Register from './components/patients_file/Register';
@@ -107,7 +107,7 @@ const App: React.FC = () => {
           <Route path="/contact" element={<ContactUs />} />
 
 
-            {/* Admin dashboards also protected */}
+            
             <Route path="/loginadmin" element={<LoginAdmin />} />
             <Route path="/register" element={<Register />} />
            
@@ -175,6 +175,7 @@ const App: React.FC = () => {
           <Route element={<RequireAuth />}>
             <Route path="/home" element={<Home />} />
             <Route path="/contacts" element={<Contacts />} />
+            <Route path="/abouts" element={<About />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/editprofile" element={<EditProfile />} />
             <Route path="/transaction" element={<Transaction />} />
@@ -196,6 +197,7 @@ const App: React.FC = () => {
             <Route path="/officialreceipt" element={<OfficialReceiptForm/>} />
             <Route path="/validid" element={<ValidIDForm/>} />
             <Route path="/consentform" element={<ConsentForm/>} />
+            <Route path="/notifications" element={<Notifications/>} />
           
           </Route>
         </Routes>

@@ -1,5 +1,5 @@
-import React, { useContext, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useContext, useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import "../../assets/ContactUs.css";
 import {
   FaMapMarkerAlt,
@@ -8,25 +8,28 @@ import {
   FaPaperPlane,
   FaFacebookF,
 } from "react-icons/fa";
-import { db } from "./firebase"; // Import your Firebase config
+import { db, auth } from "./firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import type { User } from "firebase/auth";
 
-// Mock AuthContext for demonstration (replace with your actual auth context)
 interface AuthContextType {
   isLoggedIn: boolean;
 }
 const AuthContext = React.createContext<AuthContextType>({ isLoggedIn: false });
 
 interface ContactUsProps {
-  onSignUpClick?: () => void; // Prop to trigger Signup modal
-  onLoginClick?: () => void; // Prop to trigger Login modal
+  onSignUpClick?: () => void;
+  onLoginClick?: () => void;
 }
 
 const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) => {
   const { isLoggedIn } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // State for form inputs
   const [formData, setFormData] = useState({
     lastName: "",
     firstName: "",
@@ -34,31 +37,34 @@ const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) =>
     message: "",
   });
 
-  // State for dialog
   const [dialog, setDialog] = useState<{
     isOpen: boolean;
     message: string;
     onConfirm?: () => void;
   }>({ isOpen: false, message: "", onConfirm: undefined });
 
-  // Function to handle input changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
-  // Function to open dialog
   const openDialog = (message: string, onConfirm?: () => void) => {
     setDialog({ isOpen: true, message, onConfirm });
   };
 
-  // Function to close dialog
   const closeDialog = () => {
     setDialog({ isOpen: false, message: "", onConfirm: undefined });
   };
 
-  // Check if all fields are filled
   const isFormValid = () => {
     return (
       formData.lastName.trim() !== "" &&
@@ -68,37 +74,37 @@ const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) =>
     );
   };
 
-  // Check if email exists in Firestore Users collection
   const checkEmailExists = async (email: string) => {
     const usersRef = collection(db, "Users");
     const q = query(usersRef, where("email", "==", email));
     const querySnapshot = await getDocs(q);
-    return !querySnapshot.empty; // Returns true if email exists
+    return !querySnapshot.empty;
   };
 
-  const handleSendMessage = async () => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!isFormValid()) {
       openDialog("Please fill in all fields.");
       return;
     }
 
-    if (!isLoggedIn) {
+    if (!isLoggedIn && !user) {
       try {
         const emailExists = await checkEmailExists(formData.email);
         if (emailExists) {
           openDialog("This email is already registered. Please log in.", () => {
             if (onLoginClick) {
-              onLoginClick(); // Open Login modal
+              onLoginClick();
             } else {
-              navigate("/login"); // Fallback to login route
+              navigate("/login", { state: { from: location } });
             }
           });
         } else {
           openDialog("This email is not registered. Please sign up.", () => {
             if (onSignUpClick) {
-              onSignUpClick(); // Open Signup modal
+              onSignUpClick();
             } else {
-              navigate("/signup"); // Fallback to signup route
+              navigate("/signup", { state: { from: location } });
             }
           });
         }
@@ -109,22 +115,25 @@ const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) =>
       return;
     }
 
-    // If logged in and form is valid, proceed with sending message
-    openDialog("Message sent!", () => {
-      // Clear form fields on confirm
-      setFormData({ lastName: "", firstName: "", email: "", message: "" });
-    });
+    if (user) {
+      openDialog("Message sent!", () => {
+        setFormData({ lastName: "", firstName: "", email: "", message: "" });
+      });
+    }
   };
+
+  if (loading) {
+    return <div style={{ padding: 24 }}>Loading…</div>;
+  }
 
   return (
     <div className="contact-section">
-      <h2>Contact Us</h2>
+      <h1>Contact Us</h1>
       <p className="contact-description">
         We'd love to hear from you. Reach out via the options below or send us a message directly.
       </p>
 
       <div className="contact-grid">
-        {/* Contact Cards */}
         <div className="contact-cards-vertical">
           <div className="contact-card">
             <FaPhoneAlt className="contact-icon" />
@@ -153,10 +162,9 @@ const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) =>
           </a>
         </div>
 
-        {/* Message Form */}
         <div className="chat-form enhanced-form">
           <div className="chat-header">Send Us a Message</div>
-          <div className="chat-box">
+          <form className="chat-box" onSubmit={handleSubmit}>
             <input
               type="text"
               id="lastName"
@@ -190,17 +198,16 @@ const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) =>
               required
             />
             <button
-              onClick={handleSendMessage}
+              type="submit"
               disabled={!isFormValid()}
               className={isFormValid() ? "" : "disabled"}
             >
               <FaPaperPlane /> Send Message
             </button>
-          </div>
+          </form>
         </div>
       </div>
 
-      {/* Custom Dialog */}
       {dialog.isOpen && (
         <div className="dialog-overlay" role="dialog" aria-labelledby="dialog-message">
           <div className="dialog-content">

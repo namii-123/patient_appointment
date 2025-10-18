@@ -1,16 +1,17 @@
-/* RadiographicServices.css */
+/* ==================== BASE STYLES ==================== */
 .labservices-container {
   background-color: #ffffff;
-  border-radius: 0.75rem; /* rounded-xl */
+  border-radius: 0.75rem;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   max-width: 800px;
-  margin: 2rem auto; /* spacing top/bottom & center horizontally */
-  padding: 2rem; /* para dili dikit ang sulod */
-  min-height: calc(100vh - 8rem); 
+  margin: 2rem auto;
+  padding: 2rem;
+  min-height: calc(100vh - 8rem);
   display: flex;
   flex-direction: column;
-  justify-content: center; /* center vertically */
+  justify-content: center;
 }
+
 .labservices-container h2 {
   font-size: 1.8rem;
   font-weight: bold;
@@ -19,6 +20,7 @@
   color: #2c3e50;
 }
 
+/* ==================== CATEGORY SECTION ==================== */
 .category {
   margin-bottom: 25px;
 }
@@ -32,6 +34,7 @@
   padding-bottom: 5px;
 }
 
+/* ==================== SERVICES LIST ==================== */
 .services-list label {
   display: flex;
   align-items: center;
@@ -39,6 +42,7 @@
   font-size: 0.95rem;
   cursor: pointer;
   color: #333;
+  line-height: 1.4;
 }
 
 .services-list input[type="checkbox"],
@@ -48,9 +52,10 @@
   cursor: pointer;
 }
 
+/* ==================== NAVIGATION BUTTON ==================== */
 .labservices-navigation {
- display: flex;
- justify-content: flex-end;
+  display: flex;
+  justify-content: flex-end;
   margin-top: 25px;
 }
 
@@ -64,20 +69,13 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease;
-  justify-content: space-between;
-  
 }
 
 .labservices-navigation button:hover {
   background: #1a276d;
 }
 
-
-
-
-
-
-/* Complaint/History Section */
+/* ==================== COMPLAINT / HISTORY SECTION ==================== */
 .complaint-history {
   margin-top: 20px;
   padding: 15px;
@@ -99,9 +97,111 @@
   font-size: 0.95rem;
   color: #444;
   cursor: pointer;
+  line-height: 1.4;
 }
 
 .complaint-history label input[type="radio"] {
   margin-right: 8px;
   transform: scale(1.1);
+}
+
+/* ==================== RESPONSIVENESS ==================== */
+
+/* Medium screens (Tablets) */
+@media (max-width: 1024px) {
+  .labservices-container {
+    max-width: 90%;
+    padding: 1.8rem;
+  }
+
+  .labservices-container h2 {
+    font-size: 1.6rem;
+  }
+
+  .category h3 {
+    font-size: 1.1rem;
+  }
+
+  .labservices-navigation {
+    justify-content: center;
+  }
+
+  .labservices-navigation button {
+    width: 60%;
+    font-size: 0.95rem;
+    padding: 10px;
+  }
+}
+
+/* Small screens (Mobile) */
+@media (max-width: 768px) {
+  .labservices-container {
+    max-width: 95%;
+    padding: 1.5rem;
+    min-height: auto;
+  }
+
+  .labservices-container h2 {
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+
+  .category {
+    margin-bottom: 20px;
+  }
+
+  .category h3 {
+    font-size: 1rem;
+  }
+
+  .services-list label {
+    font-size: 0.9rem;
+  }
+
+  .labservices-navigation {
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  .labservices-navigation button {
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  .complaint-history {
+    padding: 12px;
+  }
+
+  .complaint-history h3 {
+    font-size: 1rem;
+  }
+
+  .complaint-history label {
+    font-size: 0.9rem;
+  }
+}
+
+/* Very small phones (≤480px) */
+@media (max-width: 480px) {
+  .labservices-container {
+    padding: 1.2rem;
+    border-radius: 0.5rem;
+  }
+
+  .labservices-container h2 {
+    font-size: 1.3rem;
+  }
+
+  .labservices-navigation button {
+    font-size: 0.85rem;
+    padding: 8px 16px;
+  }
+
+  .services-list label {
+    font-size: 0.85rem;
+  }
+
+  .complaint-history {
+    font-size: 0.85rem;
+  }
 }

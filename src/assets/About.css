@@ -1,0 +1,296 @@
+/* ================= HERO SECTION ================= */
+.about-heros {
+  background: url('../about.jpg') center/cover no-repeat;
+  height: 450px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-top: -5%;
+  margin-left: -15%;
+  margin-right: -15%;
+}
+
+.about-overlays {
+  background: rgba(5, 38, 89, 0.75);
+  padding: 50px 20px;
+  text-align: center;
+  color: #fff;
+  width: 100%;
+}
+
+.about-overlays h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+}
+
+.about-overlays p {
+  font-size: 1.3rem;
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.6;
+  color: #fff;
+}
+
+/* ================= INTRO SECTION ================= */
+.about-intros {
+  text-align: center;
+  padding: 60px 30px 30px;
+  background-color: #ffffff;
+  margin-left: -15%;
+  margin-right: -15%;
+}
+
+.about-intros h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #052659;
+}
+
+.about-intros p {
+  font-size: 1.05rem;
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.8;
+  color: #333;
+}
+
+/* ================= CONTENT SECTION ================= */
+.about-contents {
+  max-width: 1200px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+.about-grids {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+  justify-content: center;
+}
+
+.about-cards {
+  background: #fff;
+  padding: 20px 25px;
+  border-radius: 10px;
+  border-left: 6px solid #052659;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.about-cards:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+
+.about-cards h3 {
+  font-size: 1.4rem;
+  margin-bottom: 15px;
+  color: #052659;
+  font-weight: 700;
+}
+
+.about-cards p {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #444;
+}
+
+/* ================= CTA SECTION ================= */
+.about-ctas {
+  background: #f7f9fc;
+  padding: 60px 20px;
+  color: #052659;
+  text-align: center;
+  margin-left: -15%;
+  margin-right: -15%;
+}
+
+.cta-boxs {
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  padding: 40px 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.cta-boxs h2 {
+  font-size: 2.4rem;
+  margin-bottom: 20px;
+  font-weight: 700;
+}
+
+.cta-boxs p {
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+  line-height: 1.7;
+}
+
+.cta-buttons {
+  background-color: #052659;
+  color: white;
+  padding: 12px 26px;
+  border: none;
+  border-radius: 30px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cta-buttons:hover {
+  background-color: #06418f;
+  transform: translateY(-2px);
+}
+
+/* ================= FOOTER ================= */
+.footer {
+  background: #001f4d;
+  color: white;
+  text-align: center;
+  padding: 25px 10px;
+  margin-top: 60px;
+}
+
+.footer-content {
+  font-size: 0.9rem;
+  letter-spacing: 0.4px;
+}
+
+/* =========================================================
+   RESPONSIVE STYLES
+   ========================================================= */
+
+/* ===== Tablets (≤ 1024px) ===== */
+@media (max-width: 1024px) {
+  .about-overlays h1 {
+    font-size: 2.8rem;
+  }
+
+  .about-overlays p {
+    font-size: 1.1rem;
+  }
+
+  .about-grids {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+  }
+
+  .about-cards {
+    padding: 18px 20px;
+  }
+
+  .cta-boxs h2 {
+    font-size: 2rem;
+  }
+
+  .cta-boxs p {
+    font-size: 1rem;
+  }
+}
+
+/* ===== Mobile (≤ 768px) ===== */
+@media (max-width: 768px) {
+  .about-heros {
+    height: 350px;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+  }
+
+  .about-overlays {
+    padding: 40px 15px;
+  }
+
+  .about-overlays h1 {
+    font-size: 2.2rem;
+  }
+
+  .about-overlays p {
+    font-size: 1rem;
+    padding: 0 10px;
+  }
+
+  .about-intros {
+    padding: 40px 20px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .about-intros h2 {
+    font-size: 1.8rem;
+  }
+
+  .about-contents {
+    margin: 40px 0;
+  }
+
+  .about-grids {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+
+  .about-cards {
+    padding: 15px 18px;
+  }
+
+  .cta-boxs {
+    padding: 25px 20px;
+  }
+
+  .cta-boxs h2 {
+    font-size: 1.6rem;
+  }
+
+  .cta-boxs p {
+    font-size: 0.95rem;
+  }
+
+  .cta-buttons {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+
+  .footer {
+    padding: 20px 8px;
+  }
+}
+
+/* ===== Small Mobile (≤ 480px) ===== */
+@media (max-width: 480px) {
+  .about-overlays h1 {
+    font-size: 1.8rem;
+  }
+
+  .about-overlays p {
+    font-size: 0.9rem;
+  }
+
+  .about-intros h2 {
+    font-size: 1.5rem;
+  }
+
+  .about-intros p {
+    font-size: 0.9rem;
+  }
+
+  .about-cards h3 {
+    font-size: 1.2rem;
+  }
+
+  .about-cards p {
+    font-size: 0.9rem;
+  }
+
+  .cta-boxs h2 {
+    font-size: 1.4rem;
+  }
+
+  .cta-boxs p {
+    font-size: 0.85rem;
+  }
+}

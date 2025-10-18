@@ -295,11 +295,14 @@
 
   .signup-left {
     padding: 5px;
+     margin-top: -20%;
+ 
   }
-
+  
+  
   .signup-right {
     padding: 20px;
-    max-height: 85vh;
+   
   }
 
   .signup-right h2 {
@@ -324,4 +327,5 @@
   .login-redirect {
     font-size: 13px;
   }
+ 
 }

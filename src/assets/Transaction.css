@@ -67,7 +67,6 @@
   font-weight: bold;
   color: white;
   font-size: 0.9rem;
-  white-space: normal; /* allow wrapping */
 }
 
 .col.nos {
@@ -85,31 +84,26 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   text-align: left;
   padding: 12px 10px;
   font-size: 0.95rem;
+  word-break: break-word;
 }
 
-.detail-line {
-  margin-bottom: 4px;
-  color: #444;
-}
-
+/* ================= STATUS ================= */
 .col .status {
   display: inline-block;
-  padding: 8px 20px; 
+  padding: 8px 20px;
   border-radius: 12px;
   font-weight: bold;
   text-transform: uppercase;
-  white-space: nowrap;     
-  overflow: hidden;
-  text-overflow: ellipsis; 
-  max-width: 100%;         
   text-align: center;
+  word-wrap: break-word;
+  white-space: nowrap;
 }
 
-/* ================= STATUS COLORS ================= */
+/* STATUS COLORS */
 .status.pending {
   background-color: #fff3cd;
   color: #856404;
@@ -189,6 +183,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  justify-content: flex-start;
 }
 
 .service-badge {
@@ -197,34 +192,32 @@
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 0.85rem;
-  display: inline-block;
 }
 
 /* ================= FILTERS ================= */
 .filters {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 20px auto;
-  max-width: 450px;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin: 20px 0;
 }
 
 .filters label {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   font-weight: 500;
   color: midnightblue;
-  font-size: 13px;
 }
 
 .filters select {
-  padding: 6px 10px;
-  margin-top: 5px;
+  padding: 10px 15px;
+  margin-left: 5px;
   border: 1px solid #ccc;
   border-radius: 6px;
   background-color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   transition: 0.2s ease-in-out;
   color: midnightblue;
@@ -243,28 +236,37 @@
 
 /* ================= RESPONSIVE QUERIES ================= */
 
-/* Laptops / Tablets */
+/* Tablets */
 @media (max-width: 1024px) {
   .appointment-row,
   .appointment-row.header {
     grid-template-columns: 120px 1fr 150px 120px;
-    padding: 12px;
     font-size: 0.9rem;
   }
 
   .filters select {
-    font-size: 11px;
-    padding: 5px 8px;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .col.details {
+    font-size: 0.9rem;
   }
 }
 
-/* Small Tablets / Large Phones */
+/* Tablets and large phones */
 @media (max-width: 768px) {
   .appointment-row,
   .appointment-row.header {
-    grid-template-columns: 70px 1fr 100px 100px;
-    padding: 10px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 10px;
     font-size: 0.85rem;
+  }
+
+  .col {
+    border-right: none;
+    padding: 8px;
   }
 
   .col.details {
@@ -273,7 +275,7 @@
 
   .filters select {
     font-size: 11px;
-    padding: 5px 6px;
+    padding: 6px 8px;
   }
 
   .service-badge {
@@ -282,26 +284,70 @@
   }
 }
 
-/* Mobile */
+/* Phones */
 @media (max-width: 576px) {
-  .appointment-row,
-  .appointment-row.header {
-    grid-template-columns: 50px 1fr 80px 80px;
-    padding: 8px;
-    font-size: 0.8rem;
+  .appointment-table {
+    border: none;
+    box-shadow: none;
+    background: transparent;
   }
 
-  .col.details {
-    font-size: 0.8rem;
+  .appointment-row.header {
+    display: none; /* Hide table header on mobile */
+  }
+
+  .appointment-row {
+    display: block;
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    
+  }
+
+  .appointment-row .col {
+    display: block;
+    text-align: left;
+    border: none;
+    padding: 4px 0;
+    font-size: 14px;
+  }
+
+  .appointment-row .col.details {
+    margin-top: 6px;
+  }
+
+  .appointment-row .status {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+    padding: 10px 50px;
+    
+  }
+
+  .cancel-btn {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 10px;
+    font-size: 14px;
+    padding: 15px;
+    border-radius: 10px;
+  }
+
+   .filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filters label {
+    width: 100%;
+    justify-content: space-between;
+    font-size: 14px;
   }
 
   .filters select {
-    font-size: 10px;
-    padding: 4px 6px;
-  }
-
-  .service-badge {
-    font-size: 0.7rem;
-    padding: 2px 5px;
+    width: 55%;
+    font-size: 14px;
   }
 }

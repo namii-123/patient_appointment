@@ -51,7 +51,6 @@ const Services: React.FC = () => {
           </p>
         </div>
 
-        {/* NEW CARD - Medical Consultations */}
         <div className="service-card-home">
           <div className="service-icon">
             <FaStethoscope />

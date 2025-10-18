@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom"; // Added useNavigate
+import { auth } from "./firebase"; // Import Firebase auth
+import { onAuthStateChanged } from "firebase/auth";
 import "../../assets/LandingPage.css";
 import Login from "./Login";
 import Signup from "./Signup";
@@ -15,16 +17,42 @@ const LandingPage: React.FC = () => {
     "home" | "services" | "about" | "contact"
   >("home");
   const [modalView, setModalView] = useState<"login" | "signup" | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false); 
-  const handleViewChange = (
-  view: "home" | "services" | "about" | "contact"
-) => {
-  setCurrentView(view);
-  setActiveView(view);
-  setModalView(null); 
-  setMenuOpen(false); 
-};
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate(); // Added for redirection
+  const location = useLocation();
 
+  // Check authentication status and redirect if logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const loggedIn = !!user;
+      console.log("Auth state changed:", { loggedIn, user, path: location.pathname });
+      if (loggedIn) {
+        console.log("Redirecting to /home due to login");
+        navigate("/home"); // Redirect to /home for any path when logged in
+      } else {
+        // Sync view with route when not logged in
+        const pathToView: { [key: string]: typeof currentView } = {
+          "/": "home",
+          "/services": "services",
+          "/about": "about",
+          "/contact": "contact",
+        };
+        const view = pathToView[location.pathname] || "home";
+        setCurrentView(view);
+        setActiveView(view);
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate, location.pathname]);
+
+  const handleViewChange = (
+    view: "home" | "services" | "about" | "contact"
+  ) => {
+    setCurrentView(view);
+    setActiveView(view);
+    setModalView(null);
+    setMenuOpen(false);
+  };
 
   const handleModalOpen = (modal: "login" | "signup") => {
     setModalView(modal);
@@ -46,38 +74,32 @@ const LandingPage: React.FC = () => {
     <div className="landing-container">
       <nav className="navbar">
         <div className="logo">
-  <div className="logo-left">
-    <Link to="#" onClick={() => handleViewChange("home")}>
-      <img
-        className="landing-logo"
-        src="/logo.png"
-        alt="DOH Logo"
-        style={{ cursor: "pointer" }}
-      />
-    </Link>
-    <div className="logo-text">DOH-TRC Argao</div>
-  </div>
+          <div className="logo-left">
+            <Link to="#" onClick={() => handleViewChange("home")}>
+              <img
+                className="landing-logo"
+                src="/logo.png"
+                alt="DOH Logo"
+                style={{ cursor: "pointer" }}
+              />
+            </Link>
+            <div className="logo-text">DOH-TRC Argao</div>
+          </div>
 
-
-  <button
-  className={`hamburger ${menuOpen ? "active" : ""}`}
-  onClick={() => {
-    if (menuOpen) {
-      handleViewChange("home"); 
-    }
-    setMenuOpen(!menuOpen); 
-  }}
->
-  <span></span>
-  <span></span>
-  <span></span>
-</button>
-
-</div>
-
-       
-
-        
+          <button
+            className={`hamburger ${menuOpen ? "active" : ""}`}
+            onClick={() => {
+              if (menuOpen) {
+                handleViewChange("home");
+              }
+              setMenuOpen(!menuOpen);
+            }}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
 
         <ul className={`nav-links ${menuOpen ? "open" : ""}`}>
           <li
