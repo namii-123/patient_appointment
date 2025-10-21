@@ -520,17 +520,17 @@ const Home: React.FC = () => {
               </div>
             </div>
             <div className="click-button" style={{ display: "flex", gap: "10px" }}>
-              <button className="learn-more" onClick={() => setCurrentView("allservices")}>
-                Book For All Services
-              </button>
-              <button className="learn-more" onClick={() => setCurrentView("formdde")}>
-                Book For DDE
-              </button>
+            <button className={`learn-more ${currentView === ("allservices" as typeof currentView) ? "active" : ""}`}
+            onClick={() => { setCurrentView("allservices"); setMenuOpen(false);  window.scrollTo({ top: 0, behavior: "smooth" });
+            }}>Book For All Services</button>
+
+            <button className={`learn-more ${currentView === ("formdde" as typeof currentView) ? "active" : ""}`}
+            onClick={() => { setCurrentView("formdde"); setMenuOpen(false);  window.scrollTo({ top: 0, behavior: "smooth" });
+            }}>Book For DDE</button>
             </div>
           </section>
         </>
       )}
-
 
 {currentView === "notifications" && (
   <section className="notifications-section">
