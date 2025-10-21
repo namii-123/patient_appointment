@@ -250,18 +250,36 @@
   transition: transform 0.3s ease, box-shadow 0.3s;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
-.close-btn {
+
+  .close-btn {
   position: absolute;
+  background: crimson;
+  border: none;
+  border-radius: 50%;
+  height: 20px;
+  width: 20px;
+  font-size: 15px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ffffff;
+}
+
+.close-btn:hover {
+  background: #ff4d4d; 
+  color: #ffffff;
+}
+
+.close-btn-login {
   top: 10px;
   right: 10px;
-  background: transparent;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #888;
 }
-.close-btn:hover {
-  color: #333;
+
+.close-btn-signup {
+  top: 40px;
+  right: 5px;
 }
 
 /* ================= KEYFRAMES ================= */
@@ -279,6 +297,21 @@
   }
   .nav-links {
     gap: 20px;
+  }
+
+  .close-btn {
+    height: 18px;
+    width: 18px;
+  }
+
+  .close-btn-login {
+    top: 8px;
+    right: 8px;
+  }
+
+  .close-btn-signup {
+    top: 40px;
+    right: 6px;
   }
 }
 
@@ -300,6 +333,21 @@
   }
   .hero-content {
     max-width: 80%;
+  }
+
+  .close-btn {
+    height: 18px;
+    width: 18px;
+  }
+
+  .close-btn-login {
+    top: 8px;
+    right: 8px;
+  }
+
+  .close-btn-signup {
+    top: 28px;
+    right: 6px;
   }
   
 }
@@ -332,6 +380,21 @@
     width: 95%;
     max-width: 350px;
    
+  }
+
+  .close-btn {
+    height: 14px;
+    width: 14px;
+  }
+
+  .close-btn-login {
+    top: 5px;
+    right: 5px;
+  }
+
+  .close-btn-signup {
+    top: 30px;
+    right: 6px;
   }
 }
 
@@ -384,5 +447,20 @@
 
   .nav-links li {
     font-size: 1.5rem;
+  }
+
+  .close-btn {
+    height: 16px;
+    width: 16px;
+  }
+
+  .close-btn-login {
+    top: 6px;
+    right: 6px;
+  }
+
+  .close-btn-signup {
+    top: 15px;
+    right: 5px;
   }
 }

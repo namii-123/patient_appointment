@@ -405,8 +405,37 @@ const Home: React.FC = () => {
       {unreadCount > 0 && <span className="badge-mobile">{unreadCount}</span>}
     </li>
 
+          {/* ✅ MOBILE-ONLY PROFILE LINKS */}
+  <li
+    className={`home-link mobile-only ${currentView === "profile" ? "active" : ""}`}
+    onClick={() => {
+      setCurrentView("profile");
+      setMenuOpen(false);
+    }}
+  >
+    Profile
+  </li>
+  <li
+    className={`home-link mobile-only ${currentView === "transaction" ? "active" : ""}`}
+    onClick={() => {
+      setCurrentView("transaction");
+      setMenuOpen(false);
+    }}
+  >
+    Transactions
+  </li>
+  <li
+    className="home-link mobile-only"
+    onClick={() => {
+      handleLogout();
+      setMenuOpen(false);
+    }}
+  >
+    Sign Out
+  </li>
+
     {/* PROFILE DROPDOWN */}
-    <li className="profile-avatar-wrapper" ref={profileRef}>
+    <li className="profile-avatar-wrapper desktop-only" ref={profileRef}>
       <span className="nav-icon-profile">
         <img
           src={avatar}
@@ -518,17 +547,17 @@ const Home: React.FC = () => {
               </div>
             </div>
             <div className="click-button" style={{ display: "flex", gap: "10px" }}>
-              <button className="learn-more" onClick={() => setCurrentView("allservices")}>
-                Book For All Services
-              </button>
-              <button className="learn-more" onClick={() => setCurrentView("formdde")}>
-                Book For DDE
-              </button>
+            <button className={`learn-more ${currentView === ("allservices" as typeof currentView) ? "active" : ""}`}
+            onClick={() => { setCurrentView("allservices"); setMenuOpen(false);  window.scrollTo({ top: 0, behavior: "smooth" });
+            }}>Book For All Services</button>
+
+            <button className={`learn-more ${currentView === ("formdde" as typeof currentView) ? "active" : ""}`}
+            onClick={() => { setCurrentView("formdde"); setMenuOpen(false);  window.scrollTo({ top: 0, behavior: "smooth" });
+            }}>Book For DDE</button>
             </div>
           </section>
         </>
       )}
-
 
 {currentView === "notifications" && (
   <section className="notifications-section">

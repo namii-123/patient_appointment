@@ -9,7 +9,6 @@
 /* 📌 Login Page */
 .login-page {
     display: flex;
-    height: 75vh;
     justify-content: center;
     align-items: center;
     background: #f4f4f4;
@@ -228,25 +227,6 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
-/* 📌 Close Button */
-.close-btn {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    font-size: 28px;
-    background: none;
-    border: none;
-    color: #333;
-    cursor: pointer;
-    z-index: 1001;
-}
-
-/* Hover effect for close button */
-.close-btn:hover {
-    color: crimson;
-}
-
-
 .password-input-wrapper {
   position: relative;
 }
@@ -267,22 +247,27 @@
 
 /* 📱 Tablet & Below */
 @media (max-width: 1024px) {
+  .login-page {
+    min-height: 50vh;
+  }
+
     .login-container {
-      flex-direction: column;
-      max-width: 700px;
+      max-width: 750px;
+      min-height: 600px;
     }
   
     .login-left {
-      padding: 10px;
+      padding: 25px;
     }
 
     .login-right {
-      padding: 70px;
+      padding: 25px;
     }
 
+    .login-left h2,
     .login-right h2 {
-      margin-top: -10%;
-    }
+    font-size: 22px;
+  }
 
   }
   
@@ -290,17 +275,21 @@
   /* 📱 Mobile */
   @media (max-width: 768px) {
     .login-container {
+      flex-direction: column;
       width: 100%;
-      max-width: 500px;
-     
+      height: 100px;
+      max-width: 600px;
+      border-radius: 15px;
     }
   
     .login-left{
       padding: 5px;
+      border-bottom: 3px solid white;
     }
 
     .login-right {
       padding: 25px;
+      max-height: 80vh;
     }
   
     .login-right h2 {
@@ -308,7 +297,8 @@
     }
   
     .input-group input {
-      font-size: 13px;
+      flex-direction: column;
+      gap: 0;
     }
   
     .login-btn,
@@ -320,17 +310,21 @@
   
   /* 📱 Extra Small Phones */
   @media (max-width: 480px) {
-    .login-container {
+    .signup-container {
       width: 100%;
-      border-radius: 10px;
+      height: 100px;
+      box-shadow: none;
     }
 
     .login-left {
       padding: 5px;
+      margin-top: -20%;
+   
     }
 
     .login-right {
-      padding: 25px;
+      padding: 20px;
+     
     }
 
     .logo-container h2, .login-right h2 {
@@ -338,8 +332,17 @@
     }
 
     .login-right h2 {
-      margin-top: -10%;
+      font-size: 18px;
     }
+
+    .input-group label {
+      font-size: 13px;
+    }
+
+    .input-group input {
+    font-size: 13px;
+    padding: 8px;
+  }
 
     .logo-container img {
       width: 40px;
@@ -347,12 +350,6 @@
 
     .forgot-password, .signup-pill, .signup-text {
       font-size: 12px;
-    }
-  
-    .close-btn {
-      top: 10px;
-      right: 15px;
-      font-size: 24px;
     }
   
     .google-icon {

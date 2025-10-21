@@ -407,7 +407,7 @@ const ConsentForm: React.FC<ServicesProps> = ({ onNavigate, patientId, controlNo
             <img src="pilipinas.png" alt="Bagong Pilipinas Logo" className="bp-logo" />
           </div>
           <div className="header-centers">
-            <p>Republic of the Philippines</p>
+            <p className="republic-header" >Republic of the Philippines</p>
             <h2>Department of Health</h2>
             <h3>Treatment and Rehabilitation Center Argao</h3>
             <div className="header-contact-row">
