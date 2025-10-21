@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
-import type { ChangeEvent } from "react";
+import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
+import type { ChangeEvent } from "react";
 import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock } from "react-icons/fa";
 import "../../../assets/PatientRecords_Radiology.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
-
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
 import {
   collection,
   getDocs,
@@ -14,8 +15,9 @@ import {
   updateDoc,
   query,
   where,
-  
 } from "firebase/firestore";
+
+
 
 interface PatientRecord {
   id: string;
@@ -45,27 +47,29 @@ interface PatientRecord {
   status: "Approved" | "Rejected" | "Completed";
 }
 
-interface Notification {
+
+type Notification = {
   text: string;
   unread: boolean;
-}
+};
 
 const PatientRecords_Radiology: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [patientRecords, setPatientRecords] = useState<PatientRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+   const [loading, setLoading] = useState(false);
+   const [patientRecords, setPatientRecords] = useState<PatientRecord[]>([]);
+  // Modal States
+    const [showCompletedModal, setShowCompletedModal] = useState<boolean>(false);
+    const [showRecordModal, setShowRecordModal] = useState<boolean>(false);
+    const [selectedPatientRecord, setSelectedPatientRecord] = useState<PatientRecord | null>(null);
+  
 
-  const [showCompletedModal, setShowCompletedModal] = useState<boolean>(false);
-  const [showRecordModal, setShowRecordModal] = useState<boolean>(false);
-  const [selectedPatientRecord, setSelectedPatientRecord] = useState<PatientRecord | null>(null);
-
-
-  const [statusFilter, setStatusFilter] = useState<string>("All");
-const [yearFilter, setYearFilter] = useState<string>("All");
-const [monthFilter, setMonthFilter] = useState<string>("All");
-const [dayFilter, setDayFilter] = useState<string>("All");
-
+    
+      const [statusFilter, setStatusFilter] = useState<string>("All");
+    const [yearFilter, setYearFilter] = useState<string>("All");
+    const [monthFilter, setMonthFilter] = useState<string>("All");
+    const [dayFilter, setDayFilter] = useState<string>("All");
+    
 
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -84,106 +88,106 @@ const [dayFilter, setDayFilter] = useState<string>("All");
     navigate(path);
   };
 
-    useEffect(() => {
-      const fetchPatientRecords = async () => {
-        setLoading(true);
-        try {
-          // Modified query to include "Completed" status
-          const transQuery = query(
-            collection(db, "Transactions"),
-            where("purpose", "==", "Radiographic"),
-            where("status", "in", ["Approved", "Rejected", "Completed"]) // Include "Completed"
-          );
-          const transSnap = await getDocs(transQuery);
-          const loaded: PatientRecord[] = [];
-  
-          for (const t of transSnap.docs) {
-            const tData = t.data();
-  
-            let patientData: any = {
-              UserId: " ",
-              lastName: "Unknown",
-              firstName: "Unknown",
-              middleInitial: "Unknown",
-              age: 0,
-              gender: "",
-              patientCode: "",
-              controlNo: "",
-              birthdate: "",
-              citizenship: "",
-              houseNo: "",
-              street: "",
-              barangay: "",
-              municipality: "",
-              province: "",
-              email: "",
-              contact: "",
-            };
+      useEffect(() => {
+        const fetchPatientRecords = async () => {
+          setLoading(true);
+          try {
+           
+            const transQuery = query(
+              collection(db, "Transactions"),
+              where("purpose", "==", "Radiographic"),
+              where("status", "in", ["Approved", "Rejected", "Completed"]) 
+            );
+            const transSnap = await getDocs(transQuery);
+            const loaded: PatientRecord[] = [];
+    
+            for (const t of transSnap.docs) {
+              const tData = t.data();
+    
+              let patientData: any = {
+                UserId: " ",
+                lastName: "Unknown",
+                firstName: "Unknown",
+                middleInitial: "Unknown",
+                age: 0,
+                gender: "",
+                patientCode: "",
+                controlNo: "",
+                birthdate: "",
+                citizenship: "",
+                houseNo: "",
+                street: "",
+                barangay: "",
+                municipality: "",
+                province: "",
+                email: "",
+                contact: "",
+              };
 
-            let userId = " ";
-                            if (tData.uid) {
-                              const userRef = doc(db, "Users", tData.uid);
-                              const userSnap = await getDoc(userRef);
-                              if (userSnap.exists()) {
-                                userId = userSnap.data().UserId || " ";
+              let userId = " ";
+                              if (tData.uid) {
+                                const userRef = doc(db, "Users", tData.uid);
+                                const userSnap = await getDoc(userRef);
+                                if (userSnap.exists()) {
+                                  userId = userSnap.data().UserId || " ";
+                                }
                               }
-                            }
-            
-
-  
-            if (tData.patientId) {
-              const pRef = doc(db, "Patients", tData.patientId);
-              const pSnap = await getDoc(pRef);
-              if (pSnap.exists()) {
-                patientData = pSnap.data();
-                console.log(`Fetched patient data for ID ${tData.patientId}:`, patientData);
+              
+    
+              if (tData.patientId) {
+                const pRef = doc(db, "Patients", tData.patientId);
+                const pSnap = await getDoc(pRef);
+                if (pSnap.exists()) {
+                  patientData = pSnap.data();
+                  console.log(`Fetched patient data for ID ${tData.patientId}:`, patientData);
+                } else {
+                  console.warn(`No patient document found for patientId: ${tData.patientId}`);
+                }
               } else {
-                console.warn(`No patient document found for patientId: ${tData.patientId}`);
+                console.warn(`No patientId in transaction: ${t.id}`);
               }
-            } else {
-              console.warn(`No patientId in transaction: ${t.id}`);
+    
+              loaded.push({
+                id: t.id,
+                UserId: userId,
+                patientId: tData.patientId || "",
+                patientCode: patientData.patientCode || "",
+                lastName: patientData.lastName || "Unknown",
+                firstName: patientData.firstName || "Unknown",
+                middleInitial: patientData.middleInitial || "Unknown",
+                age: patientData.age || 0,
+                gender: patientData.gender || "",
+                services: Array.isArray(tData.services) ? tData.services : [],
+                controlNo: patientData.controlNo || "",
+                birthdate: patientData.birthdate || "",
+                citizenship: patientData.citizenship || "",
+                houseNo: patientData.houseNo || "",
+                street: patientData.street || "",
+                barangay: patientData.barangay || "",
+                municipality: patientData.municipality || "",
+                province: patientData.province || "",
+                email: patientData.email || "",
+                contact: patientData.contact || "",
+                date: tData.date || "",
+                slotTime: tData.slotTime || "",
+                slotID: tData.slotID || "",
+                purpose: tData.purpose || "",
+                status: tData.status || "Approved",
+              });
             }
-  
-            loaded.push({
-              id: t.id,
-              UserId: userId,
-              patientId: tData.patientId || "",
-              patientCode: patientData.patientCode || "",
-              lastName: patientData.lastName || "Unknown",
-              firstName: patientData.firstName || "Unknown",
-              middleInitial: patientData.middleInitial || "Unknown",
-              age: patientData.age || 0,
-              gender: patientData.gender || "",
-              services: Array.isArray(tData.services) ? tData.services : [],
-              controlNo: patientData.controlNo || "",
-              birthdate: patientData.birthdate || "",
-              citizenship: patientData.citizenship || "",
-              houseNo: patientData.houseNo || "",
-              street: patientData.street || "",
-              barangay: patientData.barangay || "",
-              municipality: patientData.municipality || "",
-              province: patientData.province || "",
-              email: patientData.email || "",
-              contact: patientData.contact || "",
-              date: tData.date || "",
-              slotTime: tData.slotTime || "",
-              slotID: tData.slotID || "",
-              purpose: tData.purpose || "",
-              status: tData.status || "Approved",
-            });
+    
+            console.log("Loaded patient records:", loaded);
+            setPatientRecords(loaded);
+          } catch (error) {
+            console.error("Error fetching patient records:", error);
+          } finally {
+            setLoading(false);
           }
+        };
+        fetchPatientRecords();
+      }, []);
+    
   
-          console.log("Loaded patient records:", loaded);
-          setPatientRecords(loaded);
-        } catch (error) {
-          console.error("Error fetching patient records:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchPatientRecords();
-    }, []);
-
 
   const handleAction = (action: string, patientRecord: PatientRecord) => {
     setSelectedPatientRecord(patientRecord);
@@ -196,44 +200,42 @@ const [dayFilter, setDayFilter] = useState<string>("All");
     }
   };
 
-    const confirmCompleted = async () => {
-      if (selectedPatientRecord) {
-        try {
-          const ref = doc(db, "Transactions", selectedPatientRecord.id);
-          await updateDoc(ref, { status: "Completed" });
+   const confirmCompleted = async () => {
+       if (selectedPatientRecord) {
+         try {
+           const ref = doc(db, "Transactions", selectedPatientRecord.id);
+           await updateDoc(ref, { status: "Completed" });
+   
+           // Update the local state to reflect the "Completed" status
+           setPatientRecords((prev) =>
+             prev.map((rec) =>
+               rec.id === selectedPatientRecord.id
+                 ? { ...rec, status: "Completed" }
+                 : rec
+             )
+           );
+   
+           console.log(`Marked as completed: ${selectedPatientRecord.id}`);
+         } catch (error) {
+           console.error("Error marking as completed:", error);
+           alert("❌ Error marking as completed. Please try again.");
+         }
+       }
+       setShowCompletedModal(false);
+       setSelectedPatientRecord(null);
+     };
+
   
-          // Update the local state to reflect the "Completed" status
-          setPatientRecords((prev) =>
-            prev.map((rec) =>
-              rec.id === selectedPatientRecord.id
-                ? { ...rec, status: "Completed" }
-                : rec
-            )
-          );
-  
-          console.log(`Marked as completed: ${selectedPatientRecord.id}`);
-        } catch (error) {
-          console.error("Error marking as completed:", error);
-          alert("❌ Error marking as completed. Please try again.");
-        }
-      }
-      setShowCompletedModal(false);
-      setSelectedPatientRecord(null);
-    };
 
-
-
-
-
-  const filteredPatientRecords = patientRecords.filter((rec) => {
+    const filteredPatientRecords = patientRecords.filter((rec) => {
   const fullName = `${rec.firstName} ${rec.lastName} ${rec.middleInitial}`.toLowerCase();
   const matchesSearch =
     fullName.includes(searchTerm.toLowerCase()) ||
      rec.patientCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rec.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rec.UserId.toLowerCase().includes(searchTerm.toLowerCase());
+      rec.UserId.toLowerCase().includes(searchTerm.toLowerCase())  ||
+    rec.patientId.toLowerCase().includes(searchTerm.toLowerCase());
 
-  
+  // Extract date parts (assume format YYYY-MM-DD)
   const [year, month, day] = rec.date.split("-");
 
   const matchesStatus =
@@ -245,7 +247,6 @@ const [dayFilter, setDayFilter] = useState<string>("All");
 
   return matchesSearch && matchesStatus && matchesYear && matchesMonth && matchesDay;
 });
-
 
 
  const [availableYears, setAvailableYears] = useState(() => {
@@ -263,9 +264,10 @@ const [dayFilter, setDayFilter] = useState<string>("All");
       }
     };
 
-    
+
   return (
     <div className="dashboards">
+      {/* Sidebar */}
       <aside className="sidebars">
         <div>
           <div
@@ -274,9 +276,10 @@ const [dayFilter, setDayFilter] = useState<string>("All");
             style={{ cursor: "pointer" }}
           >
             <img src={logo} alt="logo" className="logoss" />
-            <span className="logo-texts">Radiology</span>
+            <span className="logo-texts">RADIOLOGY</span>
           </div>
 
+          {/* Nav Links */}
           <nav className="nav-linkss">
             <div className="nav-item">
               <FaTachometerAlt className="nav-icon" />
@@ -295,41 +298,53 @@ const [dayFilter, setDayFilter] = useState<string>("All");
               <span>Patient Records</span>
             </div>
               <div className="nav-item">
-                          <FaClock className="nav-icon" />
-                         <span onClick={() => navigate("/manageslots_radiology")}>Manage Slots</span>
-                </div>
+                                      <FaClock className="nav-icon" />
+                                     <span onClick={() => navigate("/manageslots_radiology")}>Manage Slots</span>
+                                    </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_radiology")}>
-                Reports & Analyticss
+                Reports & Analytics
               </span>
             </div>
+            
           </nav>
         </div>
 
+        {/* User Info and Sign Out */}
         <div className="sidebar-bottom">
           <div className="user-box">
             <FaUser className="user-icon" />
             <span className="user-label">Admin</span>
           </div>
-           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin"); 
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+
+          <div className="signout-box">
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                     if (isConfirmed) {
+                                       try {
+                                         await signOut(auth);
+                                         navigate("/loginadmin", { replace: true });
+                                       } catch (error) {
+                                         console.error("Error signing out:", error);
+                                         alert("Failed to sign out. Please try again.");
+                                       }
+                                     }
+                                   }}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
+                               </div>
       </aside>
 
+      {/* Main Content */}
       <main className="main-content">
+        {/* Top Navbar */}
         <div className="top-navbar-radiology">
           <h2 className="navbar-title">Patient Records</h2>
           <div className="notification-wrapper">
@@ -338,6 +353,7 @@ const [dayFilter, setDayFilter] = useState<string>("All");
               onClick={() => setShowNotifications(!showNotifications)}
             />
             {unreadCount > 0 && <span className="notification-count">{unreadCount}</span>}
+
             {showNotifications && (
               <div className="notification-dropdown">
                 <div className="notification-header">
@@ -348,6 +364,7 @@ const [dayFilter, setDayFilter] = useState<string>("All");
                     </button>
                   )}
                 </div>
+
                 {notifications.length > 0 ? (
                   notifications.map((notif, index) => (
                     <div
@@ -366,30 +383,31 @@ const [dayFilter, setDayFilter] = useState<string>("All");
           </div>
         </div>
 
-        <div className="content-wrapper">
-           <div className="filter-barr">
-        <div className="search-containerrr">
-            <div className="search-bar-wrapper">
-              <FaSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search by Name or Number..."
-                className="search-bar"
-                value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-              />
-            </div>
-</div>
-            <div className="filter">
-              <label>Status:</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="status-dropdown">
-                <option value="All">All Status</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-                <option value="Completed">Completed</option>
-              </select>
-             </div>
-               <div className="filter">
+        {/* Search Bar */}
+      <div className="content-wrapper">
+        <div className="filter-barr">
+               <div className="search-containerrr">
+                   <div className="search-bar-wrapper">
+                     <FaSearch className="search-icon" />
+                     <input
+                       type="text"
+                       placeholder="Search by Name or Number..."
+                       className="search-bar"
+                       value={searchTerm}
+                       onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                     />
+                   </div>
+       </div>
+                   <div className="filter">
+                     <label>Status:</label>
+                     <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="status-dropdown">
+                       <option value="All">All Status</option>
+                       <option value="Approved">Approved</option>
+                       <option value="Rejected">Rejected</option>
+                       <option value="Completed">Completed</option>
+                     </select>
+                    </div>
+                       <div className="filter">
       <label>Year:</label>
       <select
         className="status-dropdown"
@@ -405,46 +423,47 @@ const [dayFilter, setDayFilter] = useState<string>("All");
         ))}
       </select>
     </div>
-            
-              <div className="filter">
-                 <label>Month:</label>
-              <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
-                <option value="All">All Months</option>
-                <option value="01">January</option>
-                <option value="02">February</option>
-                <option value="03">March</option>
-                <option value="04">April</option>
-                <option value="05">May</option>
-                <option value="06">June</option>
-                <option value="07">July</option>
-                <option value="08">August</option>
-                <option value="09">September</option>
-                <option value="10">October</option>
-                <option value="11">November</option>
-                <option value="12">December</option>
-              </select>
-            </div>
+                   
+                     <div className="filter">
+                        <label>Month:</label>
+                     <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
+                       <option value="All">All Months</option>
+                       <option value="01">January</option>
+                       <option value="02">February</option>
+                       <option value="03">March</option>
+                       <option value="04">April</option>
+                       <option value="05">May</option>
+                       <option value="06">June</option>
+                       <option value="07">July</option>
+                       <option value="08">August</option>
+                       <option value="09">September</option>
+                       <option value="10">October</option>
+                       <option value="11">November</option>
+                       <option value="12">December</option>
+                     </select>
+                   </div>
+       
+                    <div className="filter">
+                     <label>Day:</label>
+       
+                     <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
+                       
+                       <option value="All">All Days</option>
+                       {Array.from({ length: 31 }, (_, i) => (
+                         <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
+                           {i + 1}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                   </div>
+                 
+        {/* Subheading */}
+        <p className="appointments-heading">All Accepted Appointments</p>
 
-             <div className="filter">
-              <label>Day:</label>
-
-              <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
-                
-                <option value="All">All Days</option>
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
-            </div>
-            </div>
-          
-
-          <p className="appointments-heading">All Accepted and Rejected Appointments</p>
-
-          <div className="table-container">
-            <table className="appointments-table">
+        {/* Table */}
+        <div className="table-container">
+           <table className="appointments-table">
               <thead>
                 <tr>
                   <th>User ID</th>
@@ -484,14 +503,14 @@ const [dayFilter, setDayFilter] = useState<string>("All");
                         {rec.status === "Approved" && (
                           <button
                             onClick={() => handleAction("Completed", rec)}
-                            className="action-btn completed"
+                            className="action-btns completed"
                           >
                             Completed
                           </button>
                         )}
                         <button
                           onClick={() => handleAction("View Record", rec)}
-                          className="action-btn view"
+                          className="action-btns view"
                         >
                           View Record
                         </button>
@@ -507,11 +526,12 @@ const [dayFilter, setDayFilter] = useState<string>("All");
                 )}
               </tbody>
             </table>
-          </div>
         </div>
+      </div>
       </main>
 
-      {showCompletedModal && (
+      {/* Completed Modal */}
+     {showCompletedModal && (
         <div className="modal-overlay">
           <div className="modal-box">
             <h3>Mark as Completed</h3>
@@ -532,53 +552,55 @@ const [dayFilter, setDayFilter] = useState<string>("All");
         </div>
       )}
 
-      {showRecordModal && selectedPatientRecord && (
-        <div className="modal-overlay">
-          <div className="modal-boxs record-modal">
-             <button
-              className="modal-close-icon"
-              onClick={() => setShowRecordModal(false)}
-            >
-              <FaTimes />
-            </button>
-            <h3>Patient Information</h3>
-            <div className="modal-contentss">
-              <table className="info-table">
-                <tbody>
-                  <tr><th>User ID</th><td>{selectedPatientRecord.UserId}</td></tr>
-                  <tr><th>Patient ID</th><td>{selectedPatientRecord.patientCode}</td></tr>
-                  <tr><th>Control No.</th><td>{selectedPatientRecord.controlNo}</td></tr>
-                  <tr><th>Last Name</th><td>{selectedPatientRecord.lastName}</td></tr>
-                  <tr><th>First Name</th><td>{selectedPatientRecord.firstName}</td></tr>
-                  <tr><th>Middle Initial</th><td>{selectedPatientRecord.middleInitial || "N/A"}</td></tr>
-                  <tr><th>Birthdate</th><td>{selectedPatientRecord.birthdate}</td></tr>
-                  <tr><th>Age</th><td>{selectedPatientRecord.age}</td></tr>
-                  <tr><th>Gender</th><td>{selectedPatientRecord.gender}</td></tr>
-                  <tr><th>Citizenship</th><td>{selectedPatientRecord.citizenship}</td></tr>
-                  <tr className="section-header">
-                    <th colSpan={2}>Address</th>
-                  </tr>
-                  <tr><th>House No.</th><td>{selectedPatientRecord.houseNo}</td></tr>
-                  <tr><th>Street</th><td>{selectedPatientRecord.street}</td></tr>
-                  <tr><th>Barangay</th><td>{selectedPatientRecord.barangay}</td></tr>
-                  <tr><th>Municipality</th><td>{selectedPatientRecord.municipality}</td></tr>
-                  <tr><th>Province</th><td>{selectedPatientRecord.province}</td></tr>
-                  <tr><th>Email</th><td>{selectedPatientRecord.email}</td></tr>
-                  <tr><th>Contact</th><td>{selectedPatientRecord.contact}</td></tr>
-                   <tr><th>Department</th><td>{selectedPatientRecord.purpose}</td></tr>
-                  <tr><th>Services</th><td>{selectedPatientRecord.services.join(", ")}</td></tr>
-                  <tr><th>Appointment Date</th><td>{selectedPatientRecord.date}</td></tr>
-                   <tr><th>Slot ID</th><td>{selectedPatientRecord.slotID}</td></tr>
-                  <tr><th>Slot</th><td>{selectedPatientRecord.slotTime}</td></tr>
-                  <tr><th>Status</th><td>{selectedPatientRecord.status}</td></tr>
-                </tbody>
-              </table>
-            </div>
-            
-            
-          </div>
-        </div>
-      )}
+      {/* View Record Modal */}
+       {showRecordModal && selectedPatientRecord && (
+              <div className="modal-overlay">
+                <div className="modal-boxs record-modal">
+                   <button
+                    className="modal-close-icon"
+                    onClick={() => setShowRecordModal(false)}
+                  >
+                    <FaTimes />
+                  </button>
+                  <h3>Patient Information</h3>
+                  <div className="modal-contentss">
+                    <table className="info-table">
+                      <tbody>
+                        <tr><th>User ID</th><td>{selectedPatientRecord.UserId}</td></tr>
+                        <tr><th>Patient ID</th><td>{selectedPatientRecord.patientCode}</td></tr>
+                        <tr><th>Control No.</th><td>{selectedPatientRecord.controlNo}</td></tr>
+                        <tr><th>Last Name</th><td>{selectedPatientRecord.lastName}</td></tr>
+                        <tr><th>First Name</th><td>{selectedPatientRecord.firstName}</td></tr>
+                        <tr><th>Middle Initial</th><td>{selectedPatientRecord.middleInitial || "N/A"}</td></tr>
+                        <tr><th>Birthdate</th><td>{selectedPatientRecord.birthdate}</td></tr>
+                        <tr><th>Age</th><td>{selectedPatientRecord.age}</td></tr>
+                        <tr><th>Gender</th><td>{selectedPatientRecord.gender}</td></tr>
+                        <tr><th>Citizenship</th><td>{selectedPatientRecord.citizenship}</td></tr>
+                        <tr className="section-header">
+                          <th colSpan={2}>Address</th>
+                        </tr>
+                        <tr><th>House No.</th><td>{selectedPatientRecord.houseNo}</td></tr>
+                        <tr><th>Street</th><td>{selectedPatientRecord.street}</td></tr>
+                        <tr><th>Barangay</th><td>{selectedPatientRecord.barangay}</td></tr>
+                        <tr><th>Municipality</th><td>{selectedPatientRecord.municipality}</td></tr>
+                        <tr><th>Province</th><td>{selectedPatientRecord.province}</td></tr>
+                        <tr><th>Email</th><td>{selectedPatientRecord.email}</td></tr>
+                        <tr><th>Contact</th><td>{selectedPatientRecord.contact}</td></tr>
+                        <tr><th>Department</th><td>{selectedPatientRecord.purpose}</td></tr>
+                        <tr><th>Services</th><td>{selectedPatientRecord.services.join(", ")}</td></tr>
+                        <tr><th>Appointment Date</th><td>{selectedPatientRecord.date}</td></tr>
+                        <tr><th>Slot ID</th><td>{selectedPatientRecord.slotID}</td></tr>
+                        <tr><th>Slot</th><td>{selectedPatientRecord.slotTime}</td></tr>
+                        <tr><th>Status</th><td>{selectedPatientRecord.status}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  
+                </div>
+              </div>
+            )}
+
     </div>
   );
 };

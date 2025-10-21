@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
 import { sendEmail } from "../emailService";
 import {
   collection,
@@ -11,6 +13,8 @@ import {
   query,
   where,
   onSnapshot,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   FaBell,
@@ -28,6 +32,7 @@ import logo from "/logo.png";
 
 interface Appointment {
   id: string;
+  uid: string;
   UserId: string;
   patientId: string;
   patientCode: string;
@@ -147,6 +152,7 @@ useEffect(() => {
 
       loaded.push({
         id: t.id,
+        uid: tData.uid || "",
         UserId: userId,
         patientId: tData.patientId || "",
         patientCode: patientData.patientCode || "",
@@ -226,6 +232,18 @@ useEffect(() => {
         appointment.date,
         appointment.slotTime
       );
+
+      if (appointment.uid) {
+        const notifCollection = collection(db, "Users", appointment.uid, "notifications");
+        await addDoc(notifCollection, {
+          text: newStatus === "Approved" 
+            ? `Your appointment for ${appointment.date} at ${appointment.slotTime} has been approved.` 
+            : `Your appointment for ${appointment.date} at ${appointment.slotTime} has been rejected. Reason: ${rejectReason || "Not specified"}`,
+          read: false,
+          timestamp: serverTimestamp(),
+          type: newStatus === "Approved" ? "approved" : "rejected",
+        });
+      }
 
       alert(`Appointment ${newStatus} successfully!`);
     } catch (error) {
@@ -340,20 +358,29 @@ useEffect(() => {
             <FaUser className="user-icon" />
             <span className="user-label">Admin</span>
           </div>
+
+          
            <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin"); 
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
+  <FaSignOutAlt className="signout-icon" />
+  <span
+    onClick={async () => {
+      const isConfirmed = window.confirm("Are you sure you want to sign out?");
+      if (isConfirmed) {
+        try {
+          await signOut(auth);
+          navigate("/loginadmin", { replace: true });
+        } catch (error) {
+          console.error("Error signing out:", error);
+          alert("Failed to sign out. Please try again.");
+        }
+      }
+    }}
+    className="signout-label"
+    style={{ cursor: "pointer" }}
+  >
+    Sign Out
+  </span>
+</div>
         </div>
       </aside>
 

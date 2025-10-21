@@ -52,14 +52,14 @@
     text-transform: uppercase;
   }
   
-  /* Notification */
+ 
   .notification-wrapper {
     position: relative;
     margin-right: 1.5rem;
     cursor: pointer;
   }
   
-  /* Bell icon */
+ 
   .notification-bell {
     font-size: 1.4rem;
     color: #444;
@@ -70,7 +70,7 @@
     color: #007bff;
   }
   
-  /* Red count badge */
+  
   .notification-count {
     position: absolute;
     top: -6px;
@@ -83,21 +83,33 @@
     border-radius: 999px;
   }
   
-  /* Dropdown container */
-  .notification-dropdown {
-    position: absolute;
-    top: 42px; /* Just below bell */
-    right: 0;  /* Align to left of bell */
-    transform: translateY(-5px); /* Shift left side under bell */
-    width: 320px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    overflow: hidden;
-    z-index: 2000;
-    animation: fadeIn 0.25s ease-in-out;
-  }
-  
+ .notification-dropdowns {
+  position: absolute;
+  top: 35px;
+  right: 0;
+  width: 320px;
+  max-height: 400px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* add this */
+.notification-wrapper {
+  position: relative;
+  overflow: visible !important; 
+}
+
+
+
+
+
+
   /* Header with mark all */
   .notification-header {
     display: flex;
@@ -739,4 +751,114 @@
   border-radius: 40%;
   color: #ff0000;
   cursor: pointer;
+}
+
+.notification-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notification-text {
+  font-size: 0.9em;
+  color: #333;
+}
+
+.notification-time {
+  font-size: 0.75em;
+  color: #888;
+}
+
+.delete-notif-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.notification-item:hover .delete-notif-btn {
+  opacity: 1;
+}
+
+.delete-notif-btn:hover {
+  color: #ff4444;
+}
+
+.notification-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+}
+
+.notif-calendar-icon {
+  font-size: 1rem;
+  color: #007bff;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  font-size: 0.9em;
+  color: #333;
+  line-height: 1.4;
+}
+
+.notification-time {
+  font-size: 0.75em;
+  color: #888;
+  margin-top: 2px;
+}
+
+.notification-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  position: relative;
+}
+
+.notification-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.delete-notif-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.notification-item:hover .delete-notif-btn {
+  opacity: 1;
+}
+
+.delete-notif-btn:hover {
+  color: #ff4444;
+}
+
+.notification-badge {
+  background: #ff4444;
+  color: white;
+  font-size: 0.65em;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.notification-item.unread {
+  background-color: #f0f8ff;
+  font-weight: 600;
 }

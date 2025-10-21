@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaUser, FaFileAlt, FaSignOutAlt } from "react-icons/fa";
 import { signOut } from "firebase/auth";
-import { auth, db } from "./firebase"; // Import db for Firestore
+import { auth, db } from "./firebase"; 
 import { toast } from "react-toastify";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -39,22 +39,23 @@ import ConsentForm from "./ConsentForm";
 import About from "./About";
 import Notifications from "./Notifications";
 import { FaEnvelope, FaCalendarCheck, FaTools, FaInfoCircle } from "react-icons/fa";
-import { onAuthStateChanged } from "firebase/auth"; // Remove User from runtime import
-import type { User } from "firebase/auth"; // Add type-only import for User
-import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
+import { onAuthStateChanged } from "firebase/auth"; 
+import type { User } from "firebase/auth"; 
+import { doc, getDoc, collection, onSnapshot, updateDoc, deleteDoc } from "firebase/firestore"; 
 
 interface Notification {
-  id: number;
+  id: string;
   text: string;
   read: boolean;
   timestamp: Date;
   icon?: React.ReactNode;
+  type?: string;
 }
 
 const initialNotifications: Notification[] = [
-  { id: 1, text: "New message from admin", read: false, timestamp: new Date(), icon: <FaEnvelope /> },
-  { id: 2, text: "Your appointment is confirmed", read: true, timestamp: new Date(Date.now() - 3600000), icon: <FaCalendarCheck /> },
-  { id: 3, text: "System maintenance on Friday", read: false, timestamp: new Date(Date.now() - 86400000 * 2), icon: <FaTools /> },
+  { id: "1", text: "New message from admin", read: false, timestamp: new Date(), icon: <FaEnvelope /> },
+  { id: "2", text: "Your appointment is confirmed", read: true, timestamp: new Date(Date.now() - 3600000), icon: <FaCalendarCheck /> },
+  { id: "3", text: "System maintenance on Friday", read: false, timestamp: new Date(Date.now() - 86400000 * 2), icon: <FaTools /> },
 ];
 
 const Home: React.FC = () => {
@@ -141,12 +142,12 @@ const Home: React.FC = () => {
     setNotifDropdownOpen(false);
   };
 
-  const handleNotificationClick = (id: number) => {
-    setNotifications((prev) =>
-      prev.map((notif) =>
-        notif.id === id ? { ...notif, read: !notif.read } : notif
-      )
-    );
+  const handleNotificationClick = async (id: string) => {
+    const notif = notifications.find(n => n.id === id);
+    if (notif) {
+      const notifRef = doc(db, "Users", auth.currentUser!.uid, "notifications", id);
+      await updateDoc(notifRef, { read: !notif.read });
+    }
   };
 
   const handleLogout = async () => {
@@ -167,7 +168,7 @@ const Home: React.FC = () => {
 
   // Fetch user profile and avatar on auth state change
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
         try {
           const userRef = doc(db, "Users", user.uid);
@@ -179,6 +180,31 @@ const Home: React.FC = () => {
           } else {
             setAvatar(user.photoURL || "/default-img.jpg");
           }
+
+          // Listen to notifications
+          const notifCollection = collection(db, "Users", user.uid, "notifications");
+          const unsubscribeNotif = onSnapshot(notifCollection, (snap) => {
+            const notifs: Notification[] = snap.docs.map(doc => {
+              const data = doc.data();
+              let icon: React.ReactNode | undefined;
+              if (data.type === "approved") {
+                icon = <FaCalendarCheck />;
+              } else if (data.type === "rejected") {
+                icon = <FaEnvelope />;
+              }
+              return {
+                id: doc.id,
+                text: data.text,
+                read: data.read,
+                timestamp: data.timestamp?.toDate() || new Date(),
+                icon,
+                type: data.type,
+              };
+            });
+            setNotifications(notifs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
+          });
+
+          return () => unsubscribeNotif();
         } catch (err) {
           console.error("Error fetching profile avatar:", err);
           setAvatar("/default-img.jpg");
@@ -189,7 +215,7 @@ const Home: React.FC = () => {
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, [navigate]);
 
   useEffect(() => {
@@ -210,23 +236,24 @@ const Home: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const [openOptionsId, setOpenOptionsId] = useState<number | null>(null);
+  const [openOptionsId, setOpenOptionsId] = useState<string | null>(null);
 
-  const toggleOptions = (id: number) => {
+  const toggleOptions = (id: string) => {
     setOpenOptionsId((prev) => (prev === id ? null : id));
   };
 
-  const toggleReadStatus = (id: number) => {
-    setNotifications((prev) =>
-      prev.map((notif) =>
-        notif.id === id ? { ...notif, read: !notif.read } : notif
-      )
-    );
+  const toggleReadStatus = async (id: string) => {
+    const notif = notifications.find(n => n.id === id);
+    if (notif) {
+      const notifRef = doc(db, "Users", auth.currentUser!.uid, "notifications", id);
+      await updateDoc(notifRef, { read: !notif.read });
+    }
     setOpenOptionsId(null);
   };
 
-  const deleteNotification = (id: number) => {
-    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
+  const deleteNotification = async (id: string) => {
+    const notifRef = doc(db, "Users", auth.currentUser!.uid, "notifications", id);
+    await deleteDoc(notifRef);
     setOpenOptionsId(null);
   };
 
@@ -507,14 +534,8 @@ const Home: React.FC = () => {
   <section className="notifications-section">
     <Notifications
       notifications={notifications}
-      onMarkAsRead={(id: number) => {
-        setNotifications(prev =>
-          prev.map(n => (n.id === id ? { ...n, read: true } : n))
-        );
-      }}
-      onDelete={(id: number) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-      }}
+      onMarkAsRead={(id: string) => handleNotificationClick(id)}
+      onDelete={(id: string) => deleteNotification(id)}
       onNavigateBack={() => setCurrentView("home")}
     />
   </section>
@@ -526,8 +547,7 @@ const Home: React.FC = () => {
       {currentView === "contacts" && (
         <section className="contacts">
           <Contacts
-            onSignUpClick={() => navigate("/signup")}
-            onLoginClick={() => navigate("/login")}
+           
           />
         </section>
       )}

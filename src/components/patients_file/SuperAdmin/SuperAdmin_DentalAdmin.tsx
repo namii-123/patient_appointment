@@ -5,6 +5,9 @@ import "../../../assets/SuperAdmin_Clinical.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
 import { collection, query, onSnapshot, where } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
+
 
 // Types
 interface Admin {
@@ -210,11 +213,28 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
             <FaUser className="nav-icon" />
             <span className="user-label">Super Admin</span>
           </div>
-          <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span className="signout-label">Sign Out</span>
-          </div>
-        </div>
+        <div className="signout-box">
+                               <FaSignOutAlt className="signout-icon" />
+                               <span
+                                 onClick={async () => {
+                                   const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                   if (isConfirmed) {
+                                     try {
+                                       await signOut(auth);
+                                       navigate("/loginadmin", { replace: true });
+                                     } catch (error) {
+                                       console.error("Error signing out:", error);
+                                       alert("Failed to sign out. Please try again.");
+                                     }
+                                   }
+                                 }}
+                                 className="signout-label"
+                                 style={{ cursor: "pointer" }}
+                               >
+                                 Sign Out
+                               </span>
+                             </div>
+                             </div>
       </aside>
 
       {/* Main Content */}

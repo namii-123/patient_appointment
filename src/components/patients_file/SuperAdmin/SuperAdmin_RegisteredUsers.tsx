@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaUsers, FaSignOutAlt, FaArrowLeft, FaCalendarAlt, FaChartBar, FaSearch } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaUsers, FaSignOutAlt, FaArrowLeft, FaCalendarAlt, FaChartBar, FaSearch, FaEnvelope } from "react-icons/fa";
 import "../../../assets/SuperAdmin_RegisteredUsers.css";
 import logo from "/logo.png";
 import type { ChangeEvent } from "react";
 import { db } from "../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
+
 
 // Types
 interface User {
@@ -143,6 +146,12 @@ const filteredUsers = users.filter((u) => {
                 User Requests
               </span>
             </div>
+             <div className="nav-items">
+                          <FaEnvelope className="nav-icon" />
+                          <span onClick={() => handleNavigation("/superadmin_messages")}>
+                            Messages
+                          </span>
+                        </div>
             <div className="nav-item">
               <FaCalendarAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_manageadmins")}>
@@ -163,10 +172,27 @@ const filteredUsers = users.filter((u) => {
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span className="signout-label">Sign Out</span>
-          </div>
-        </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                     if (isConfirmed) {
+                                       try {
+                                         await signOut(auth);
+                                         navigate("/loginadmin", { replace: true });
+                                       } catch (error) {
+                                         console.error("Error signing out:", error);
+                                         alert("Failed to sign out. Please try again.");
+                                       }
+                                     }
+                                   }}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
+                               </div>
       </aside>
 
       {/* Main Content */}

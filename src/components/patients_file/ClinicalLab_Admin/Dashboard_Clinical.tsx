@@ -13,7 +13,8 @@ import {
   where,
   onSnapshot,
 } from "firebase/firestore";
-
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
 
 
 
@@ -287,20 +288,27 @@ const fetchPatients = async () => {
           </div>
 
            <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin"); 
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+                                  <FaSignOutAlt className="signout-icon" />
+                                  <span
+                                    onClick={async () => {
+                                      const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                      if (isConfirmed) {
+                                        try {
+                                          await signOut(auth);
+                                          navigate("/loginadmin", { replace: true });
+                                        } catch (error) {
+                                          console.error("Error signing out:", error);
+                                          alert("Failed to sign out. Please try again.");
+                                        }
+                                      }
+                                    }}
+                                    className="signout-label"
+                                    style={{ cursor: "pointer" }}
+                                  >
+                                    Sign Out
+                                  </span>
+                                </div>
+                                </div>
       </aside>
 
       {/* Main content */}
@@ -471,4 +479,3 @@ const fetchPatients = async () => {
 };
 
 export default Dashboard_Clinical;
-

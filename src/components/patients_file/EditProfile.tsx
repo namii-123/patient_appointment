@@ -355,7 +355,7 @@ const EditProfile: React.FC<EditProfileProps> = ({ onNavigate }) => {
   };
 
   // Handle form input changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+ const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     console.log("Input changed:", name, value);
     if (name === "province") {
@@ -367,15 +367,32 @@ const EditProfile: React.FC<EditProfileProps> = ({ onNavigate }) => {
         municipality: "",
         municipalityCode: "",
         barangay: "",
+        zipcode: "",
       }));
       setFormErrors((prev) => ({ ...prev, province: "", municipality: "", barangay: "" }));
     } else if (name === "municipality") {
       const selectedCity = cities.find((city) => city.name === value);
+      
+      // Fetch zipcode from PSGC API
+      let zipcode = "";
+      if (selectedCity?.code) {
+        try {
+          const cityData = await fetchWithRetry(
+            `https://psgc.gitlab.io/api/cities-municipalities/${selectedCity.code}/`
+          );
+          zipcode = cityData?.zipcode || "";
+          console.log("Fetched zipcode:", zipcode);
+        } catch (err) {
+          console.error("Error fetching zipcode:", err);
+        }
+      }
+      
       setFormData((prev) => ({
         ...prev,
         municipality: value,
         municipalityCode: selectedCity?.code || "",
         barangay: "",
+        zipcode: zipcode,
       }));
       setFormErrors((prev) => ({ ...prev, municipality: "", barangay: "" }));
     } else {
@@ -383,6 +400,8 @@ const EditProfile: React.FC<EditProfileProps> = ({ onNavigate }) => {
       setFormErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
+
+  
 
   // Validate form
   const validateForm = (): boolean => {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FormEvent } from "react";
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, updatePassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import "../../assets/LoginAdmin.css";
 import logo from "/logo.png";
 import { Eye, EyeOff } from "lucide-react";
@@ -18,16 +19,10 @@ const LoginAdmin: React.FC = () => {
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [email, setEmail] = useState<string>("");
   const [otpTimeLeft, setOtpTimeLeft] = useState<number>(0);
-  const [showResetForm, setShowResetForm] = useState(false);
-  const [newPassword, setNewPassword] = useState<string>("");
-  const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [resetOtp, setResetOtp] = useState<string>("");
-  const [enteredResetOtp, setEnteredResetOtp] = useState<string>("");
 
   const auth = getAuth();
   const db = getFirestore();
+  const functions = getFunctions();
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -45,7 +40,6 @@ const LoginAdmin: React.FC = () => {
         { to_email: userEmail, user_name: userName, otp: generatedOtp },
         "Sua8ZigqntncFkBCw"
       );
-      console.log("OTP email sent successfully");
       toast.success("OTP sent to your email.", { position: "top-center" });
     } catch (error) {
       console.error("Failed to send OTP email:", error);
@@ -56,25 +50,19 @@ const LoginAdmin: React.FC = () => {
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
 
-    if ((showOtpInput || showResetForm) && otpTimeLeft > 0) {
+    if (showOtpInput && otpTimeLeft > 0) {
       interval = setInterval(() => {
         setOtpTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else if (otpTimeLeft === 0 && (showOtpInput || showResetForm)) {
+    } else if (otpTimeLeft === 0 && showOtpInput) {
       setOtp("");
-      setResetOtp("");
       toast.error("Your OTP has expired. Please request a new one.", { position: "top-center" });
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [otpTimeLeft, showOtpInput, showResetForm]);
-
-  const validatePasswordStrength = (password: string): boolean => {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    return passwordRegex.test(password);
-  };
+  }, [otpTimeLeft, showOtpInput]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -124,22 +112,39 @@ const LoginAdmin: React.FC = () => {
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        if (userData.status === "pending") {
-          toast.error("Your account is pending approval. Please wait for super admin approval.", {
-            position: "top-center",
-          });
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
-        if (userData.status !== "approved") {
-          toast.error("Your account has been rejected or is not approved yet.", {
-            position: "top-center",
-          });
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
+       
+if (userData.status === "pending") {
+  toast.error("Your account is pending approval…");
+  await auth.signOut();
+  setLoading(false);
+  return;
+}
+if (userData.status !== "approved") {
+  toast.error("Your account has been rejected or is not approved yet.");
+  await auth.signOut();
+  setLoading(false);
+  return;
+}
+
+
+if (userData.status === "pending") {
+  toast.error("Your account is pending approval. Please wait for super admin approval.", {
+    position: "top-center",
+  });
+  await auth.signOut();
+  setLoading(false);
+  return;
+}
+
+
+if (!["approved", "Active"].includes(userData.status)) {
+  toast.error("Your account is not active or has been rejected.", {
+    position: "top-center",
+  });
+  await auth.signOut();
+  setLoading(false);
+  return;
+}
 
         const generatedOtp = generateOtp();
         setOtp(generatedOtp);
@@ -283,79 +288,20 @@ const LoginAdmin: React.FC = () => {
     }
 
     try {
-      const generatedOtp = generateOtp();
-      setResetOtp(generatedOtp);
-      setEmail(userEmail);
-      setOtpTimeLeft(5 * 60);
-      await sendOtpEmail(userEmail, "Admin", generatedOtp);
-      setShowResetForm(true);
-    } catch (error) {
-      toast.error("Failed to initiate password reset. Please try again.", { position: "top-center" });
-    }
-  };
-
-  const handleResetPasswordSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-
-    if (enteredResetOtp !== resetOtp) {
-      toast.error("Invalid OTP. Please try again.", { position: "top-center" });
-      setLoading(false);
-      return;
-    }
-
-    if (!validatePasswordStrength(newPassword)) {
-      toast.error(
-        "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.",
-        { position: "top-center" }
-      );
-      setLoading(false);
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match.", { position: "top-center" });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        await updatePassword(user, newPassword);
-        toast.success("Password updated successfully! Please log in with your new password.", {
-          position: "top-center",
-        });
-        setShowResetForm(false);
-        setNewPassword("");
-        setConfirmPassword("");
-        setEnteredResetOtp("");
-        setResetOtp("");
-        await auth.signOut();
-      } else {
-        // Fallback to email-based reset if user is not authenticated
-        await sendPasswordResetEmail(auth, email);
-        toast.success("Password reset email sent! Please check your inbox.", { position: "top-center" });
-        setShowResetForm(false);
-        setNewPassword("");
-        setConfirmPassword("");
-        setEnteredResetOtp("");
-        setResetOtp("");
-      }
+      await sendPasswordResetEmail(auth, userEmail);
+      toast.success("Password reset email sent! Please check your inbox.", { position: "top-center" });
     } catch (error) {
       const err = error as { code?: string; message?: string };
-      let errorMessage = "Failed to reset password. Please try again.";
+      let errorMessage = "Failed to send reset email. Please try again.";
       switch (err.code) {
-        case "auth/requires-recent-login":
-          errorMessage = "Session expired. Please log in again to reset your password.";
-          break;
         case "auth/invalid-email":
-          errorMessage = "Invalid email address.";
+          errorMessage = "Please enter a valid email address.";
+          break;
+        case "auth/user-not-found":
+          errorMessage = "No account found with that email.";
           break;
       }
       toast.error(errorMessage, { position: "top-center" });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -365,56 +311,10 @@ const LoginAdmin: React.FC = () => {
         <div className="login-header">
           <img src={logo} alt="Logo" className="login-logo-centered" />
           <h2 className="login-app-title">DOH-TRC Argao</h2>
-          <h3 className="login-subtitle">
-            {showResetForm ? "Reset Password" : "Welcome, Admin"}
-          </h3>
+          <h3 className="login-subtitle">{showOtpInput ? "Enter OTP" : "Welcome, Admin"}</h3>
         </div>
 
-        {!showOtpInput && !showResetForm ? (
-          <form className="login-forms" onSubmit={handleSubmit}>
-            <label htmlFor="username" className="login-labels">
-              Email or Username
-            </label>
-            <div className="input-wrapper">
-              <input
-                type="text"
-                id="username"
-                name="username"
-                className="login-input"
-                placeholder="Enter your email or username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <label htmlFor="password" className="login-labels">
-              Password
-            </label>
-            <div className="password-wrapper">
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                name="password"
-                className="login-input"
-                placeholder="Enter your password"
-                required
-              />
-              <button
-                type="button"
-                className="eye-toggles"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-
-            <button type="submit" className="login-button" disabled={loading}>
-              {loading ? "Signing In..." : "Sign In"}
-            </button>
-          </form>
-        ) : showOtpInput ? (
+        {showOtpInput ? (
           <form className="login-forms" onSubmit={handleOtpSubmit}>
             <label htmlFor="otp" className="login-labels">
               Enter OTP (Expires in {Math.floor(otpTimeLeft / 60)}:
@@ -462,108 +362,53 @@ const LoginAdmin: React.FC = () => {
             </button>
           </form>
         ) : (
-          <form className="login-forms" onSubmit={handleResetPasswordSubmit}>
-            <label htmlFor="reset-otp" className="login-labels">
-              Enter OTP (Expires in {Math.floor(otpTimeLeft / 60)}:
-              {("0" + (otpTimeLeft % 60)).slice(-2)})
+          <form className="login-forms" onSubmit={handleSubmit}>
+            <label htmlFor="username" className="login-labels">
+              Email or Username
             </label>
             <div className="input-wrapper">
               <input
                 type="text"
-                id="reset-otp"
-                name="reset-otp"
+                id="username"
+                name="username"
                 className="login-input"
-                placeholder="Enter the OTP sent to your email"
-                value={enteredResetOtp}
-                onChange={(e) => setEnteredResetOtp(e.target.value)}
+                placeholder="Enter your email or username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
 
-            <label htmlFor="new-password" className="login-labels">
-              New Password
+            <label htmlFor="password" className="login-labels">
+              Password
             </label>
             <div className="password-wrapper">
               <input
-                type={showNewPassword ? "text" : "password"}
-                id="new-password"
-                name="new-password"
+                type={showPassword ? "text" : "password"}
+                id="password"
+                name="password"
                 className="login-input"
-                placeholder="Enter new password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter your password"
                 required
               />
               <button
                 type="button"
                 className="eye-toggles"
-                onClick={() => setShowNewPassword(!showNewPassword)}
+                onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
               >
-                {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-
-            <label htmlFor="confirm-password" className="login-labels">
-              Confirm Password
-            </label>
-            <div className="password-wrapper">
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                id="confirm-password"
-                name="confirm-password"
-                className="login-input"
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="eye-toggles"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                tabIndex={-1}
-              >
-                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
 
             <button type="submit" className="login-button" disabled={loading}>
-              {loading ? "Resetting..." : "Reset Password"}
-            </button>
-
-            <button
-              type="button"
-              className="login-button secondary"
-              onClick={async () => {
-                const newOtp = generateOtp();
-                setResetOtp(newOtp);
-                setOtpTimeLeft(5 * 60);
-                await sendOtpEmail(email, "Admin", newOtp);
-              }}
-            >
-              Resend OTP
-            </button>
-
-            <button
-              type="button"
-              className="login-button secondary"
-              onClick={() => {
-                setShowResetForm(false);
-                setNewPassword("");
-                setConfirmPassword("");
-                setEnteredResetOtp("");
-                setResetOtp("");
-                auth.signOut();
-              }}
-            >
-              Cancel
+              {loading ? "Signing In..." : "Sign In"}
             </button>
           </form>
         )}
 
         <div className="login-links">
-          {!showOtpInput && !showResetForm && (
+          {!showOtpInput && (
             <>
               <p
                 className="forgot-link"

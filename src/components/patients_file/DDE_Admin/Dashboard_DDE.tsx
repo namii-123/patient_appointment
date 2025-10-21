@@ -11,7 +11,8 @@ import {
   where,
   onSnapshot,
 } from "firebase/firestore";
-
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"
 
 
 
@@ -289,18 +290,25 @@ const fetchPatients = async () => {
            <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
             <span
-              onClick={() => {
+              onClick={async () => {
                 const isConfirmed = window.confirm("Are you sure you want to sign out?");
                 if (isConfirmed) {
-                  navigate("/loginadmin"); 
+                  try {
+                    await signOut(auth);
+                    navigate("/loginadmin", { replace: true });
+                  } catch (error) {
+                    console.error("Error signing out:", error);
+                    alert("Failed to sign out. Please try again.");
+                  }
                 }
               }}
               className="signout-label"
+              style={{ cursor: "pointer" }}
             >
               Sign Out
             </span>
           </div>
-        </div>
+                  </div>
       </aside>
 
       {/* Main content */}

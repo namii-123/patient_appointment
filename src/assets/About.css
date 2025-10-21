@@ -1,4 +1,7 @@
 /* ================= HERO SECTION ================= */
+.aboutss{
+  padding-bottom: 70px;
+}
 .about-heros {
   background: url('../about.jpg') center/cover no-repeat;
   height: 450px;
@@ -9,6 +12,7 @@
   margin-top: -5%;
   margin-left: -15%;
   margin-right: -15%;
+  
 }
 
 .about-overlays {
@@ -116,6 +120,7 @@
   padding: 40px 30px;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+ 
 }
 
 .cta-boxs h2 {
@@ -147,19 +152,7 @@
   transform: translateY(-2px);
 }
 
-/* ================= FOOTER ================= */
-.footer {
-  background: #001f4d;
-  color: white;
-  text-align: center;
-  padding: 25px 10px;
-  margin-top: 60px;
-}
 
-.footer-content {
-  font-size: 0.9rem;
-  letter-spacing: 0.4px;
-}
 
 /* =========================================================
    RESPONSIVE STYLES

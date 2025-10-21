@@ -6,7 +6,8 @@ import "../../../assets/Appointments_Dental.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
 import { sendEmail } from "../emailService";
-
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
 import {
   collection,
   getDocs,
@@ -16,6 +17,8 @@ import {
   query,
   where,
   onSnapshot,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 
 
@@ -23,6 +26,7 @@ import {
 // Types
 interface Appointment {
   id: string;
+  uid: string;
   patientId: string;
   patientCode: string;
   UserId: string;
@@ -150,6 +154,7 @@ const Appointments_Medical: React.FC = () => {
   
         loaded.push({
           id: t.id,
+          uid: tData.uid || "",
           UserId: userId,
           patientId: tData.patientId || "",
           patientCode: patientData.patientCode || "",
@@ -232,6 +237,18 @@ const Appointments_Medical: React.FC = () => {
         appointment.date,
         appointment.slotTime
       );
+
+      if (appointment.uid) {
+        const notifCollection = collection(db, "Users", appointment.uid, "notifications");
+        await addDoc(notifCollection, {
+          text: newStatus === "Approved" 
+            ? `Your appointment for ${appointment.date} at ${appointment.slotTime} has been approved.` 
+            : `Your appointment for ${appointment.date} at ${appointment.slotTime} has been rejected. Reason: ${rejectReason || "Not specified"}`,
+          read: false,
+          timestamp: serverTimestamp(),
+          type: newStatus === "Approved" ? "approved" : "rejected",
+        });
+      }
 
       alert(`Appointment ${newStatus} successfully!`);
     } catch (error) {
@@ -364,21 +381,28 @@ const Appointments_Medical: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
 
-           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin"); 
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+            <div className="signout-box">
+             <FaSignOutAlt className="signout-icon" />
+             <span
+               onClick={async () => {
+                 const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                 if (isConfirmed) {
+                   try {
+                     await signOut(auth);
+                     navigate("/loginadmin", { replace: true });
+                   } catch (error) {
+                     console.error("Error signing out:", error);
+                     alert("Failed to sign out. Please try again.");
+                   }
+                 }
+               }}
+               className="signout-label"
+               style={{ cursor: "pointer" }}
+             >
+               Sign Out
+             </span>
+           </div>
+           </div>
       </aside>
 
       {/* Main content */}
@@ -394,7 +418,6 @@ const Appointments_Medical: React.FC = () => {
             {unreadCount > 0 && (
               <span className="notification-count">{unreadCount}</span>
             )}
-
             {showNotifications && (
               <div className="notification-dropdown">
                 <div className="notification-header">
@@ -408,7 +431,6 @@ const Appointments_Medical: React.FC = () => {
                     </button>
                   )}
                 </div>
-
                 {notifications.length > 0 ? (
                   notifications.map((notif, index) => (
                     <div

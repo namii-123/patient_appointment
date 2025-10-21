@@ -191,3 +191,27 @@
   border: none;
   cursor: pointer;
 }
+
+
+
+.password-strength {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333; 
+}
+
+
+.strength-weak {
+  color: #e74c3c; 
+}
+
+.strength-medium {
+  color: #f39c12; 
+}
+
+.strength-strong {
+  color: #08b450; 
+  font-weight: bold;
+}
+

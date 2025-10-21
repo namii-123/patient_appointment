@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaArrowLeft } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaArrowLeft, FaEnvelope } from "react-icons/fa";
 import "../../../assets/SuperAdmin_Clinical.css"; 
 import logo from "/logo.png";
 import { db } from "../firebase";
 import { collection, query, onSnapshot, where } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
+
 
 // Types
 interface Admin {
@@ -169,14 +172,41 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
           <div className="nav-linkss">
             <div className="nav-item active"><FaTachometerAlt className="nav-icon" /> Dashboard</div>
             <div className="nav-item"><FaUsers className="nav-icon" /><span onClick={() => handleNavigation("/superadmin_userrequests")}>User Requests</span></div>
+             <div className="nav-items">
+                          <FaEnvelope className="nav-icon" />
+                          <span onClick={() => handleNavigation("/superadmin_messages")}>
+                            Messages
+                          </span>
+                        </div>
             <div className="nav-item"><FaCalendarAlt className="nav-icon" /><span onClick={() => handleNavigation("/superadmin_manageadmins")}>Manage Admins</span></div>
             <div className="nav-item"><FaChartBar className="nav-icon" /><span onClick={() => handleNavigation("/superadmin_reports")}>Reports & Analytics</span></div>
           </div>
         </div>
         <div className="sidebar-bottom">
           <div className="user-box"><FaUser className="nav-icon" /><span className="user-label">Super Admin</span></div>
-          <div className="signout-box"><FaSignOutAlt className="signout-icon" /><span className="signout-label">Sign Out</span></div>
-        </div>
+          <div className="signout-box">
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                     if (isConfirmed) {
+                                       try {
+                                         await signOut(auth);
+                                         navigate("/loginadmin", { replace: true });
+                                       } catch (error) {
+                                         console.error("Error signing out:", error);
+                                         alert("Failed to sign out. Please try again.");
+                                       }
+                                     }
+                                   }}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
+                               </div>
+       
       </aside>
 
       {/* Main Content */}

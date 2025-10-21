@@ -9,12 +9,16 @@ import {
   FaChartBar,
   FaSignOutAlt,
   FaArrowLeft,
+  FaEnvelope,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "../../../assets/SuperAdmin_Clinical.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
 import { collection, query, onSnapshot, where } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
+
 
 // Types
 interface Admin {
@@ -160,6 +164,12 @@ const SuperAdmin_RejectedAdmins: React.FC = () => {
                 User Requests
               </span>
             </div>
+             <div className="nav-items">
+                          <FaEnvelope className="nav-icon" />
+                          <span onClick={() => handleNavigation("/superadmin_messages")}>
+                            Messages
+                          </span>
+                        </div>
             <div className="nav-item">
               <FaCalendarAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_manageadmins")}>
@@ -179,23 +189,28 @@ const SuperAdmin_RejectedAdmins: React.FC = () => {
             <FaUser className="nav-icon" />
             <span className="user-label">Super Admin</span>
           </div>
-          <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm(
-                  "Are you sure you want to sign out?"
-                );
-                if (isConfirmed) {
-                  navigate("/loginadmin");
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+         <div className="signout-box">
+                                <FaSignOutAlt className="signout-icon" />
+                                <span
+                                  onClick={async () => {
+                                    const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                    if (isConfirmed) {
+                                      try {
+                                        await signOut(auth);
+                                        navigate("/loginadmin", { replace: true });
+                                      } catch (error) {
+                                        console.error("Error signing out:", error);
+                                        alert("Failed to sign out. Please try again.");
+                                      }
+                                    }
+                                  }}
+                                  className="signout-label"
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  Sign Out
+                                </span>
+                              </div>
+                              </div>
       </aside>
 
       {/* Main Content */}

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
 import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction, addDoc, deleteDoc } from "firebase/firestore";
@@ -440,7 +439,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
           throw new Error(`${department} slot unavailable`);
         }
 
-     
+        // Update slot counts
         currentSlots[slotIndex].remaining -= 1;
         const newTotal = currentSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
         transaction.update(slotRef, {
@@ -449,7 +448,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
           updatedAt: new Date().toISOString(),
         });
 
-        
+        // Restore previous slot if it exists and is not closed
         if (previousSlotSnap && previousSlotSnap.exists() && !previousSlotSnap.data().closed && previousSlotId) {
           const previousSlots = previousSlotSnap.data().slots || [];
           const previousSlotIndex = previousSlots.findIndex((s: any) => s.slotID === previousSlotId);
@@ -788,7 +787,8 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
             </div>
             <div>
               <label>Time of Request</label>
-              <input type="time" value={safeFormData.requestDate} readOnly />
+              {/* Fix: Changed from requestDate to requestTime */}
+              <input type="time" value={safeFormData.requestTime} readOnly />
             </div>
             <div>
               <label>Control No.</label>

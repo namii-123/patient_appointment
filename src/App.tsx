@@ -88,10 +88,14 @@ import SuperAdmin_MedicalAdmin from './components/patients_file/SuperAdmin/Super
 import SuperAdmin_DDEAdmin from './components/patients_file/SuperAdmin/SuperAdmin_DDEAdmin';
 import SuperAdmin_RegisteredUsers from './components/patients_file/SuperAdmin/SuperAdmin_RegisteredUsers';
 import SuperAdmin_RejectedAdmins from './components/patients_file/SuperAdmin/SuperAdmin_RejectedAdmins';
+import SuperAdmin_Messages from './components/patients_file/SuperAdmin/SuperAdmin_Messages';
+
+
 
 
 import { ToastContainer } from "react-toastify";
 import RequireAuth from "./components/patients_file/RequireAuth";
+import RequireAuths from "./components/patients_file/RequireAuths";
 
 const App: React.FC = () => {
   return (
@@ -107,17 +111,25 @@ const App: React.FC = () => {
           <Route path="/contact" element={<ContactUs />} />
 
 
-            
+            {/* Public routes  Admin*/}
             <Route path="/loginadmin" element={<LoginAdmin />} />
             <Route path="/register" element={<Register />} />
-           
-           {/*dental*/}
+          
+
+            {/* Protected routes admin */}
+            <Route element={<RequireAuths />}>
+            {/*dental*/}
             <Route path="/dashboard_dental" element={<Dashboard_Dental />} />
             <Route path="/appointments_dental" element={<Appointments_Dental />} />
             <Route path="/patientrecords_dental" element={<PatientRecords_Dental />} />
             <Route path="/reports&analytics_dental" element={<ReportsAnalytics_Dental />} />
             <Route path="/manageslots_dental" element={<ManageSlots_Dental />} />
 
+            {/*dde*/}
+            <Route path="/dashboard_dde" element={<Dashboard_DDE />} />
+            <Route path="/appointments_dde" element={<Appointments_DDE />} />
+            <Route path="/patientrecords_dde" element={<PatientRecords_DDE />} />
+            <Route path="/reports&analytics_dde" element={<ReportsAnalytics_DDE />} />
 
             {/*radiology*/}
             <Route path="/dashboard_radiology" element={<Dashboard_Radiology />} />
@@ -135,12 +147,7 @@ const App: React.FC = () => {
             <Route path="/manageslots_clinical" element={<ManageSlots_Clinical />} />
 
 
-            {/*dde*/}
-            <Route path="/dashboard_dde" element={<Dashboard_DDE />} />
-            <Route path="/appointments_dde" element={<Appointments_DDE />} />
-            <Route path="/patientrecords_dde" element={<PatientRecords_DDE />} />
-            <Route path="/reports&analytics_dde" element={<ReportsAnalytics_DDE />} />
-
+            
 
             {/*medical*/}
             <Route path="/dashboard_medical" element={<Dashboard_Medical />} />
@@ -150,8 +157,7 @@ const App: React.FC = () => {
             <Route path="/manageslots_medical" element={<ManageSlots_Medical />} />
 
 
-
-            {/*superadmin*/}
+             {/*superadmin*/}
             <Route path="/superadmin_dashboard" element={<SuperAdmin_Dashboard/>} />
             <Route path="/superadmin_userrequests" element={<SuperAdmin_UserRequests/>} />
             <Route path="/superadmin_manageadmins" element={<SuperAdmin_ManageAdmins/>} />
@@ -168,6 +174,12 @@ const App: React.FC = () => {
             <Route path="/superadmin_ddeadmin" element={<SuperAdmin_DDEAdmin/>} />
             <Route path="/superadmin_registeredusers" element={<SuperAdmin_RegisteredUsers/>} />
             <Route path="/superadmin_rejectedadmins" element={<SuperAdmin_RejectedAdmins/>} />
+            <Route path="/superadmin_messages" element={<SuperAdmin_Messages/>} />
+
+
+          </Route>
+
+
 
 
 

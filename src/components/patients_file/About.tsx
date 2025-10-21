@@ -35,6 +35,7 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
   return (
     <>
       {/* Hero Section */}
+      <div className="aboutss">
       <div className="about-pages">
         <section className="about-heros">
           <div className="about-overlays">
@@ -101,6 +102,7 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
           </button>
         </div>
       </section>
+      </div>
     </>
   );
 };

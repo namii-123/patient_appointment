@@ -11,12 +11,17 @@ import {
   FaSignOutAlt,
   FaArrowLeft,
   FaTimes,
+  FaEnvelope,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "../../../assets/SuperAdmin_Clinical.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
 import { collection, query, onSnapshot, where, doc, getDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
+
+
 
 interface FileItem {
   base64: string;
@@ -50,6 +55,7 @@ interface Appointment {
   contact?: string;
   purpose?: string;
   slotID?: string;
+  createdAt?: string;
   validIDData?: { validIDFiles?: FileItem[] | null } | null;
   courtOrderData?: { courtFiles?: FileItem[] | null } | null;
   paoData?: { paoFiles?: FileItem[] | null } | null;
@@ -205,6 +211,7 @@ const SuperAdmin_DDE: React.FC = () => {
             contact: patientData.contact || "",
             purpose: tData.purpose || "",
             slotID: tData.slotID || "",
+            createdAt: tData.createdAt || "",
             validIDData: mapFileData(tData.validIDFiles, "validIDFiles"),
             courtOrderData: mapFileData(tData.courtOrderData, "courtFiles"),
             paoData: mapFileData(tData.paoData, "paoFiles"),
@@ -384,6 +391,12 @@ const SuperAdmin_DDE: React.FC = () => {
                 User Requests
               </span>
             </div>
+             <div className="nav-items">
+                          <FaEnvelope className="nav-icon" />
+                          <span onClick={() => handleNavigation("/superadmin_messages")}>
+                            Messages
+                          </span>
+                        </div>
             <div className="nav-item">
               <FaCalendarAlt className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_manageadmins")}>
@@ -404,20 +417,27 @@ const SuperAdmin_DDE: React.FC = () => {
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin");
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                     if (isConfirmed) {
+                                       try {
+                                         await signOut(auth);
+                                         navigate("/loginadmin", { replace: true });
+                                       } catch (error) {
+                                         console.error("Error signing out:", error);
+                                         alert("Failed to sign out. Please try again.");
+                                       }
+                                     }
+                                   }}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
+                               </div>
       </aside>
 
       {/* Main Content */}
@@ -601,7 +621,7 @@ const SuperAdmin_DDE: React.FC = () => {
                     <td>{a.age}</td>
                     <td>{a.gender}</td>
                     <td>{a.services.join(", ") || "N/A"}</td>
-                    <td>{a.appointmentDate}</td>
+                    <td>{a.status === "Rejected" ? (a.createdAt || "N/A") : a.appointmentDate}</td>
                     <td>{a.slot}</td>
                     <td>
                       <span className={`status-badge ${a.status.toLowerCase()}`}>

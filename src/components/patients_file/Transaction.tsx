@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from "react";
 import { db, auth } from "./firebase";
-import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, deleteDoc, runTransaction, addDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, runTransaction } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import "../../assets/Transaction.css";
 
@@ -56,6 +55,7 @@ interface TransactionItem {
   empData?: any;
   lawyersRequestData?: any;
   receiptData?: any;
+  createdAt?: string; // Added createdAt field
 }
 
 interface NavigateData {
@@ -138,6 +138,7 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
             empData: docData?.empData || null,
             lawyersRequestData: docData?.lawyersRequestData || null,
             receiptData: docData?.receiptData || null,
+            createdAt: docData?.createdAt ? (docData.createdAt.toDate ? docData.createdAt.toDate().toISOString().split("T")[0] : docData.createdAt) : "", // Handle createdAt
           };
         });
         setTransactions(data);
@@ -167,6 +168,19 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
 
         const transactionData = transactionSnap.data();
         const { purpose, date, slotID, reservationId, status } = transactionData;
+        // === ADD THIS BLOCK INSIDE runTransaction ===
+const adminNotifRef = collection(db, "admin_notifications");
+await addDoc(adminNotifRef, {
+  type: "appointment_cancelled",
+  message: `Appointment cancelled by patient: ${transactionData.lastName}, ${transactionData.firstName} on ${transactionData.date} at ${transactionData.slotTime}`,
+  patientName: `${transactionData.firstName} ${transactionData.lastName}`,
+  date: transactionData.date,
+  slotTime: transactionData.slotTime,
+  purpose: transactionData.purpose,
+  transactionId: transactionId,
+  timestamp: new Date().toISOString(),
+  read: false,
+});
 
         if (status === "Cancelled") {
           console.warn("Transaction already cancelled:", transactionId);
@@ -214,10 +228,11 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
           }
         }
 
-        transaction.update(transactionRef, {
-          status: "Cancelled",
-          updatedAt: new Date().toISOString(),
-        });
+        // AFTER updating status to "Cancelled"
+transaction.update(transactionRef, {
+  status: "Cancelled",
+  updatedAt: new Date().toISOString(),
+});
       });
 
       alert("Your appointment has been cancelled, and the slot is now available.");
@@ -280,7 +295,7 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
   return (
     <div className="appointment-container">
       <div className="appointment-header">
-        <h2 className="section-title">TRANSACTIONS</h2>
+        <h2  className="section-title">TRANSACTIONS</h2>
         <div className="filters">
           <label style={{ marginRight: "10px" }}>
             Department:
@@ -391,10 +406,18 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
                 <div className="detail-line">
                   <strong>Control No.:</strong> {item.controlNo || "N/A"}
                 </div>
-                {(item.purpose !== "DDE" || item.status !== "Pending") && item.date && (
-                  <div className="detail-line">
-                    <strong>Appointment Date:</strong> {item.date}
-                  </div>
+                {item.purpose === "DDE" && item.status === "Rejected" ? (
+                  item.createdAt && (
+                    <div className="detail-line">
+                      <strong>Appointment Date:</strong> {item.createdAt}
+                    </div>
+                  )
+                ) : (
+                  (item.purpose !== "DDE" || item.status !== "Pending") && item.date && (
+                    <div className="detail-line">
+                      <strong>Appointment Date:</strong> {item.date}
+                    </div>
+                  )
                 )}
                 {(item.purpose !== "DDE" || item.status !== "Pending") && item.slotID && (
                   <div className="detail-line">

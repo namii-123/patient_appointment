@@ -10,12 +10,15 @@ import {
   FaChartBar,
   FaSignOutAlt,
   FaSearch,
+  FaEnvelope,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "../../../assets/SuperAdmin_UserRequests.css";
 import logo from "/logo.png";
 import { getFirestore, collection, onSnapshot, doc, Timestamp, setDoc, deleteDoc } from "firebase/firestore";
 import emailjs from "@emailjs/browser";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
 
 interface Notification {
   text: string;
@@ -137,7 +140,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
           email: userRequest?.email || "",
           department: selectedDept,
           role: role,
-          status: "approved",
+          status: "Active",
           isActive: true,
           createdAt: userRequest?.createdAt || Timestamp.now(),
         });
@@ -301,6 +304,12 @@ const SuperAdmin_UserRequests: React.FC = () => {
               <span>User Requests</span>
             </div>
             <div className="nav-items">
+                                      <FaEnvelope className="nav-icon" />
+                                      <span onClick={() => handleNavigation("/superadmin_messages")}>
+                                        Messages
+                                      </span>
+                                    </div>
+            <div className="nav-items">
               <FaUsers className="nav-icon" />
               <span onClick={() => handleNavigation("/superadmin_manageadmins")}>
                 Manage Admins
@@ -321,20 +330,27 @@ const SuperAdmin_UserRequests: React.FC = () => {
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin");
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                     if (isConfirmed) {
+                                       try {
+                                         await signOut(auth);
+                                         navigate("/loginadmin", { replace: true });
+                                       } catch (error) {
+                                         console.error("Error signing out:", error);
+                                         alert("Failed to sign out. Please try again.");
+                                       }
+                                     }
+                                   }}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
+                               </div>
       </aside>
 
       <main className="main-contents">

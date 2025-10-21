@@ -16,6 +16,8 @@ import {
 import "../../../assets/SuperAdmin_ManageAdmins.css";
 import logo from "/logo.png";
 import { getFirestore, collection, onSnapshot, updateDoc, doc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
 
 type Notification = {
   text: string;
@@ -200,20 +202,27 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin");
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                     if (isConfirmed) {
+                                       try {
+                                         await signOut(auth);
+                                         navigate("/loginadmin", { replace: true });
+                                       } catch (error) {
+                                         console.error("Error signing out:", error);
+                                         alert("Failed to sign out. Please try again.");
+                                       }
+                                     }
+                                   }}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
+                               </div>
       </aside>
 
       <main className="main-content">
@@ -401,7 +410,7 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
       cursor: admin.status === "Not Active" ? "not-allowed" : "pointer",
     }}
   >
-    <FaTrash /> Remove
+    <FaTrash /> Deactivate
   </button>
 </td>
 

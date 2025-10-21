@@ -347,6 +347,7 @@
   padding: 4rem 2rem;
   background-color: #fff;
   text-align: center;
+  
 }
 
 .services-homes h2 {
@@ -444,9 +445,13 @@
   background: #001f3f;
   color: white;
   text-align: center;
-  padding: 25px 10px;
-  margin-top: auto;
+  padding: 20px 10px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
 }
+
 .footer-content-home {
   display: flex;
   flex-direction: column;

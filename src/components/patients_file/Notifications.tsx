@@ -1,19 +1,15 @@
+// Notifications.tsx
 import React, { useState } from "react";
 import { FaInfoCircle, FaEnvelopeOpenText } from "react-icons/fa";
+// In any component that needs the type
+// In any component that needs the type
+import type { Notification } from "./types/Notification";
 import "../../assets/Notifications.css";
-
-interface Notification {
-  id: number;
-  text: string;
-  read: boolean;
-  timestamp: Date;
-  icon?: React.ReactNode;
-}
 
 interface NotificationsProps {
   notifications?: Notification[];
-  onMarkAsRead?: (id: number) => void;
-  onDelete?: (id: number) => void;
+  onMarkAsRead?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onNavigateBack?: () => void;
 }
 
@@ -28,14 +24,14 @@ const Notifications: React.FC<NotificationsProps> = ({
       ? notifications
       : [
           {
-            id: 1,
+            id: "1",
             text: "Your appointment has been approved!",
             read: false,
             timestamp: new Date(),
             icon: <FaInfoCircle />,
           },
           {
-            id: 2,
+            id: "2",
             text: "Reminder: You have an appointment tomorrow.",
             read: true,
             timestamp: new Date(Date.now() - 3600000),
@@ -44,10 +40,10 @@ const Notifications: React.FC<NotificationsProps> = ({
         ]
   );
 
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"ALL" | "UNREAD">("ALL");
 
-  const handleMarkAsRead = (id: number) => {
+  const handleMarkAsRead = (id: string) => {
     setLocalNotifs((prev) =>
       prev.map((notif) =>
         notif.id === id ? { ...notif, read: !notif.read } : notif
@@ -57,13 +53,13 @@ const Notifications: React.FC<NotificationsProps> = ({
     setOpenMenuId(null);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     setLocalNotifs((prev) => prev.filter((notif) => notif.id !== id));
     onDelete(id);
     setOpenMenuId(null);
   };
 
-  const toggleMenu = (id: number) => {
+  const toggleMenu = (id: string) => {
     setOpenMenuId(openMenuId === id ? null : id);
   };
 
@@ -91,7 +87,6 @@ const Notifications: React.FC<NotificationsProps> = ({
         </h2>
       </div>
 
-      {/* Filter Tabs */}
       <div className="tab-buttons">
         <button
           className={activeTab === "ALL" ? "tab active" : "tab"}
@@ -125,7 +120,7 @@ const Notifications: React.FC<NotificationsProps> = ({
 
               <div className="notif-options">
                 <div className="notif-dots" onClick={() => toggleMenu(notif.id)}>
-                  ⋮
+                  ...
                 </div>
 
                 {openMenuId === notif.id && (

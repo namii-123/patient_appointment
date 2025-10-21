@@ -5,6 +5,8 @@ import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, Fa
 import "../../../assets/PatientRecords_Radiology.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
 
 import {
   collection,
@@ -317,21 +319,28 @@ const PatientRecords_Medical: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
 
-           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={() => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  navigate("/loginadmin"); 
-                }
-              }}
-              className="signout-label"
-            >
-              Sign Out
-            </span>
-          </div>
-        </div>
+             <div className="signout-box">
+                                  <FaSignOutAlt className="signout-icon" />
+                                  <span
+                                    onClick={async () => {
+                                      const isConfirmed = window.confirm("Are you sure you want to sign out?");
+                                      if (isConfirmed) {
+                                        try {
+                                          await signOut(auth);
+                                          navigate("/loginadmin", { replace: true });
+                                        } catch (error) {
+                                          console.error("Error signing out:", error);
+                                          alert("Failed to sign out. Please try again.");
+                                        }
+                                      }
+                                    }}
+                                    className="signout-label"
+                                    style={{ cursor: "pointer" }}
+                                  >
+                                    Sign Out
+                                  </span>
+                                </div>
+                                </div>
       </aside>
 
       {/* Main Content */}

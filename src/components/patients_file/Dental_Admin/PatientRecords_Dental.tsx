@@ -15,6 +15,9 @@ import {
 } from "react-icons/fa";
 import "../../../assets/PatientRecords_Radiology.css";
 import { db } from "../firebase";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase"; 
+
 import {
   collection,
   getDocs,
@@ -302,21 +305,28 @@ const PatientRecords_Dental: React.FC = () => {
             <FaUser className="user-icon" />
             <span className="user-label">Admin</span>
           </div>
-           <div className="signout-box">
+             <div className="signout-box">
             <FaSignOutAlt className="signout-icon" />
             <span
-              onClick={() => {
+              onClick={async () => {
                 const isConfirmed = window.confirm("Are you sure you want to sign out?");
                 if (isConfirmed) {
-                  navigate("/loginadmin"); 
+                  try {
+                    await signOut(auth);
+                    navigate("/loginadmin", { replace: true });
+                  } catch (error) {
+                    console.error("Error signing out:", error);
+                    alert("Failed to sign out. Please try again.");
+                  }
                 }
               }}
               className="signout-label"
+              style={{ cursor: "pointer" }}
             >
               Sign Out
             </span>
           </div>
-        </div>
+          </div>
       </aside>
 
       <main className="main-content">
