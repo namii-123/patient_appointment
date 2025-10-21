@@ -176,9 +176,15 @@ const LandingPage: React.FC = () => {
       {modalView && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="close-btn" onClick={handleModalClose}>
-              ×
-            </button>
+          <button
+  className={`close-btn ${
+    modalView === "login" ? "close-btn-login" : "close-btn-signup"
+  }`}
+  onClick={handleModalClose}
+>
+  ×
+</button>
+
             {modalView === "login" ? (
               <Login
                 onClose={handleModalClose}

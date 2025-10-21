@@ -7,7 +7,6 @@
   scroll-behavior: smooth;
 }
 
-
 .landing-container-homes {
   background: #f5f5f5;
 }
@@ -577,7 +576,7 @@
     position: absolute;
     top: 70px;
     right: 0;
-    width: 60%;
+    width: 40%;
     background: white;
     flex-direction: column;
     align-items: flex-start;
@@ -642,6 +641,10 @@
     margin-left: 6px;
     vertical-align: middle;
   }
+
+  .profile-avatar-wrapper.desktop-only {
+    display: none;
+  }
 }
 
 
@@ -654,6 +657,12 @@
 
   .mobile-only {
     display: none !important;
+  }
+
+  .profile-avatar-wrapper.desktop-only {
+    display: flex !important;
+    align-items: center;
+    position: relative;
   }
 }
 

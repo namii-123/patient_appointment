@@ -42,11 +42,13 @@
   font-family: Arial, sans-serif;
 }
 
-.header-centers p {
+.republic-header {
   margin: 2px 0;
   font-size: 10pt;
   font-weight: 500;
   color: #000;
+  transform: translateX(180px);
+  
 }
 
 .header-centers h2 {
@@ -56,6 +58,7 @@
   text-transform: uppercase;
   color: #000;
   text-align: left;
+  transform: translateX(148px);
 }
 
 .header-centers h3 {
@@ -64,15 +67,17 @@
   font-weight: 600;
   text-transform: uppercase;
   color: #000;
+  transform: translateX(80px);
 }
 
 .header-contact-row {
   display: flex;
-  justify-content: center;
+  justify-content: left;
   gap: 25px;
   margin-top: 6px;
   font-size: 9pt;
   color: #000;
+  transform: translateX(-10px);
 }
 
 .header-contact-row p {
@@ -328,8 +333,6 @@ background: #0f2e19;
 .header-leftss img {
   max-width: 100px; 
   height: auto;
-
-  
 }
 
 
@@ -339,7 +342,7 @@ background: #0f2e19;
 
 .header-centerss p {
   margin: 0;
-  font-size: 11pt;
+  font-size: 10pt;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -348,7 +351,7 @@ background: #0f2e19;
 
 .header-centerss h3 {
   margin: 8px 0;
-  font-size: 13pt;
+  font-size: 8pt;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -358,7 +361,7 @@ background: #0f2e19;
 
 .header-centerss h2 {
   margin: 8px 0;
-  font-size: 15pt;
+  font-size: 8pt;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -368,7 +371,7 @@ background: #0f2e19;
 
 .header-rightss {
   text-align: right;
-  font-size: 10pt;
+  font-size: 9pt;
   color: #333;
   line-height: 1.5;
 }
@@ -481,3 +484,250 @@ background: #0f2e19;
   font-size: 15px;
   text-transform: uppercase;
 }
+
+/* ----------- ≥649px ----------- */
+@media (min-width: 649px) {
+  .form-headers {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .header-lefts {
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .doh-logo, .bp-logo {
+    max-width: 60px;
+  }
+
+  .header-centers {
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .republic-header {
+    transform: none;
+    font-size: 9pt;
+  }
+
+  .header-centers h2 {
+    transform: none;
+    font-size: 12pt;
+    text-align: center;
+  }
+
+  .header-centers h3 {
+    transform: none;
+    font-size: 10pt;
+    text-align: center;
+  }
+
+  .header-contact-row {
+    gap: 5px;
+    justify-content: center;
+    transform: translateX(2px);
+    margin-top: 8px;
+    font-size: 9pt;
+  }
+}
+
+/* ----------- ≤879px ----------- */
+@media (max-width: 879px) {
+  .form-services-container {
+    padding: 15px;
+    margin: 15px;
+  }
+
+  .form-headerss {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 10px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .header-leftss img {
+    margin: 0 auto;
+    max-width: 60px;
+  }
+
+  .header-rightss {
+    text-align: center;
+  }
+
+  .form-bodys,
+  .form-bodys tbody,
+  .form-bodys tr {
+    display: contents; /* flatten the table so only cells remain */
+  }
+
+  .form-bodys td {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .form-bodys strong {
+    font-size: 10.5pt;
+    margin-bottom: 4px;
+  }
+
+  .form-bodys input {
+    width: 100%;
+    padding: 8px;
+    font-size: 13px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+}
+
+/* ----------- ≤648px ----------- */
+@media (max-width: 648px) {
+  .form-headers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .header-lefts {
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .doh-logo, .bp-logo {
+    max-width: 60px;
+  }
+
+  .header-centers {
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .republic-header {
+    transform: none;
+    font-size: 9pt;
+  }
+
+  .header-centers h2 {
+    transform: none;
+    font-size: 12pt;
+    text-align: center;
+  }
+
+  .header-centers h3 {
+    transform: none;
+    font-size: 10pt;
+    text-align: center;
+  }
+
+  .header-contact-row {
+    flex-direction: column;
+    gap: 5px;
+    justify-content: center;
+    transform: translateX(55px);
+    margin-top: 8px;
+    font-size: 9pt;
+  }
+
+  .requirements-checklist li {
+    font-size: 10pt;
+  }
+
+  .signatories-grid {
+    grid-template-columns: 1fr; /* stack vertically */
+  }
+
+  .sign-box {
+    font-size: 9.5pt;
+    padding: 8px;
+  }
+  
+}
+
+/* ----------- ≤768px ----------- */
+@media (max-width: 768px) {
+  .button-container-consent2 {
+    flex-direction: column;
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .download-button-consent2,
+  .next-button-consent2 {
+    width: 100%;
+    font-size: 13px;
+    padding: 12px 0;
+  }
+}
+
+/* ----------- ≤480px ----------- */
+@media (max-width: 480px) {
+  .doh-logo, .bp-logo {
+    max-width: 50px;
+  }
+
+  .header-centers h2 {
+    font-size: 11pt;
+  }
+
+  .header-centers h3 {
+    font-size: 9pt;
+  }
+
+  .header-contact-row {
+    font-size: 8.5pt;
+  }
+
+  .header-leftss img {
+    max-width: 50px;
+  }
+
+  .header-centerss h2 {
+    font-size: 10.5pt;
+  }
+
+  .header-centerss h3 {
+    font-size: 8.5pt;
+  }
+
+  .header-rightss {
+    font-size: 8pt;
+  }
+
+  .download-button-consent2 {
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .download-button-consent2,
+  .next-button-consent2 {
+    font-size: 12px;
+    padding: 10px 0;
+  }
+
+  .form-bodys input {
+    font-size: 10pt;
+    padding: 4px;
+  }
+
+  .requirements-checklist h4 {
+    font-size: 12pt;
+  }
+
+  .requirements-checklist li {
+    font-size: 9pt;
+  }
+
+  .sign-box {
+    font-size: 9pt;
+  }
+}
+
