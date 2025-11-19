@@ -1,7 +1,7 @@
 import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import type { ChangeEvent } from "react";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock, FaStethoscope } from "react-icons/fa";
 import "../../../assets/PatientRecords_Radiology.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
@@ -16,6 +16,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { X } from "lucide-react";
 
 
 
@@ -68,7 +69,7 @@ const PatientRecords_Radiology: React.FC = () => {
       const [statusFilter, setStatusFilter] = useState<string>("All");
     const [yearFilter, setYearFilter] = useState<string>("All");
     const [monthFilter, setMonthFilter] = useState<string>("All");
-    const [dayFilter, setDayFilter] = useState<string>("All");
+    
     
 
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
@@ -227,25 +228,63 @@ const PatientRecords_Radiology: React.FC = () => {
 
   
 
-    const filteredPatientRecords = patientRecords.filter((rec) => {
-  const fullName = `${rec.firstName} ${rec.lastName} ${rec.middleInitial}`.toLowerCase();
+     
+useEffect(() => {
+  const today = new Date();
+  setYearFilter(today.getFullYear().toString());
+  setMonthFilter(String(today.getMonth() + 1).padStart(2, "0")); // e.g., "11" for November
+}, []);
+
+
+// 1. Human sa imong existing filter (kini naa nimo na)
+const filteredPatientRecords = patientRecords.filter((rec) => {
+  const fullName = `${rec.firstName} ${rec.lastName} ${rec.middleInitial || ""}`.trim().toLowerCase();
+  const searchLower = searchTerm.toLowerCase();
+
   const matchesSearch =
-    fullName.includes(searchTerm.toLowerCase()) ||
-     rec.patientCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rec.UserId.toLowerCase().includes(searchTerm.toLowerCase())  ||
-    rec.patientId.toLowerCase().includes(searchTerm.toLowerCase());
+    fullName.includes(searchLower) ||
+    rec.patientCode.toLowerCase().includes(searchLower) ||
+    rec.UserId.toLowerCase().includes(searchLower) ||
+    rec.patientId.toLowerCase().includes(searchLower);
 
-  // Extract date parts (assume format YYYY-MM-DD)
-  const [year, month, day] = rec.date.split("-");
+  const [year, month] = rec.date.split("-");
 
-  const matchesStatus =
-    statusFilter === "All" || rec.status === statusFilter;
-
+  const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
   const matchesYear = yearFilter === "All" || year === yearFilter;
   const matchesMonth = monthFilter === "All" || month === monthFilter;
-  const matchesDay = dayFilter === "All" || day === dayFilter;
 
-  return matchesSearch && matchesStatus && matchesYear && matchesMonth && matchesDay;
+  return matchesSearch && matchesStatus && matchesYear && matchesMonth;
+});
+
+
+ const [showInfoModal, setShowInfoModal] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+const [customModalMessage, setCustomModalMessage] = useState("");
+const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+
+const openCustomModal = (
+  message: string,
+  type: "success" | "error" | "confirm" = "success",
+  onConfirm?: () => void
+) => {
+  setCustomModalMessage(message);
+  setCustomModalType(type);
+  if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+  setShowCustomModal(true);
+};
+
+const closeCustomModal = () => {
+  setShowCustomModal(false);
+  setOnCustomModalConfirm(() => {});
+};
+
+
+// 2. I-ADD LANG NI NGA LINE DIRE (human sa filter, sa wala pa ang return)
+const sortedAndFilteredRecords = [...filteredPatientRecords].sort((a, b) => {
+  // Sort by date: newest first (2025-11-19 comes before 2025-10-01)
+  return b.date.localeCompare(a.date);
 });
 
 
@@ -264,6 +303,43 @@ const PatientRecords_Radiology: React.FC = () => {
       }
     };
 
+
+    const [currentPage, setCurrentPage] = useState<number>(1);
+const recordsPerPage = 5;
+// PAGINATION LOGIC - Ibutang human sa sortedAndFilteredRecords
+const indexOfLastRecord = currentPage * recordsPerPage;
+const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+const currentRecords = sortedAndFilteredRecords.slice(indexOfFirstRecord, indexOfLastRecord);
+
+// Calculate total pages
+const totalPages = Math.ceil(sortedAndFilteredRecords.length / recordsPerPage);
+
+// Generate page numbers (max 5 visible, with ellipsis if needed)
+const getPageNumbers = () => {
+  const pages: (number | string)[] = [];
+  if (totalPages <= 5) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push("...");
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push("...");
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push("...");
+      pages.push(currentPage - 1);
+      pages.push(currentPage);
+      pages.push(currentPage + 1);
+      pages.push("...");
+      pages.push(totalPages);
+    }
+  }
+  return pages;
+};
 
   return (
     <div className="dashboards">
@@ -301,6 +377,12 @@ const PatientRecords_Radiology: React.FC = () => {
                                       <FaClock className="nav-icon" />
                                      <span onClick={() => navigate("/manageslots_radiology")}>Manage Slots</span>
                                     </div>
+                                    <div className="nav-item">
+                                        <FaStethoscope className="nav-icon" />
+                                        <span onClick={() => handleNavigation("/services_radiology")}>
+                                          Services
+                                        </span>
+                                      </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_radiology")}>
@@ -318,27 +400,30 @@ const PatientRecords_Radiology: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
 
-          <div className="signout-box">
-                                 <FaSignOutAlt className="signout-icon" />
-                                 <span
-                                   onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
-                                   className="signout-label"
-                                   style={{ cursor: "pointer" }}
-                                 >
-                                   Sign Out
-                                 </span>
-                               </div>
+         <div className="signout-box">
+                                          <FaSignOutAlt className="signout-icon" />
+                                          <span
+                                            onClick={async () => {
+           openCustomModal(
+             "Are you sure you want to sign out?",
+             "confirm",
+             async () => {
+               try {
+                 await signOut(auth);
+                 navigate("/loginadmin", { replace: true });
+               } catch (error) {
+                 console.error("Error signing out:", error);
+                 openCustomModal("Failed to sign out. Please try again.", "error");
+               }
+             }
+           );
+         }}
+                                            className="signout-label"
+                                            style={{ cursor: "pointer" }}
+                                          >
+                                            Sign Out
+                                          </span>
+                                        </div>
                                </div>
       </aside>
 
@@ -346,7 +431,7 @@ const PatientRecords_Radiology: React.FC = () => {
       <main className="main-content">
         {/* Top Navbar */}
         <div className="top-navbar-radiology">
-          <h2 className="navbar-title">Patient Records</h2>
+          <h5 className="navbar-title">Patient Records</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -407,55 +492,86 @@ const PatientRecords_Radiology: React.FC = () => {
                        <option value="Completed">Completed</option>
                      </select>
                     </div>
-                       <div className="filter">
-      <label>Year:</label>
-      <select
-        className="status-dropdown"
-        value={yearFilter}
-        onChange={(e) => setYearFilter(e.target.value)}
-        onClick={handleYearClick} 
-      >
-        <option value="All Years">All Years</option>
-        {availableYears.map((year) => (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        ))}
-      </select>
-    </div>
+                      <div className="filter">
+  <label>Year:</label>
+  <select
+    className="status-dropdown"
+    value={yearFilter}
+    onChange={(e) => setYearFilter(e.target.value)}
+  >
+    {(() => {
+      const currentYear = new Date().getFullYear();
+      const startYear = 2025;
+      const endYear = currentYear + 20;
+
+      const years = [];
+      for (let y = endYear; y >= startYear; y--) {
+        years.push(y);
+      }
+
+      return (
+        <>
+          {years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+          <option value="All">All</option>
+        </>
+      );
+    })()}
+  </select>
+</div>
                    
-                     <div className="filter">
-                        <label>Month:</label>
-                     <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
-                       <option value="All">All Months</option>
-                       <option value="01">January</option>
-                       <option value="02">February</option>
-                       <option value="03">March</option>
-                       <option value="04">April</option>
-                       <option value="05">May</option>
-                       <option value="06">June</option>
-                       <option value="07">July</option>
-                       <option value="08">August</option>
-                       <option value="09">September</option>
-                       <option value="10">October</option>
-                       <option value="11">November</option>
-                       <option value="12">December</option>
-                     </select>
-                   </div>
-       
                     <div className="filter">
-                     <label>Day:</label>
+  <label>Month:</label>
+  <select
+    className="status-dropdown"
+    value={monthFilter}
+    onChange={(e) => setMonthFilter(e.target.value)}
+  >
+    {(() => {
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+
+      const currentMonthIdx = new Date().getMonth();
+      const recent: { name: string; value: string }[] = [];
+
+      // Current month + last 2 months una (priority)
+      for (let i = 0; i < 3; i++) {
+        const idx = (currentMonthIdx - i + 12) % 12;
+        const monthNum = String(idx + 1).padStart(2, "0");
+        recent.push({ name: monthNames[idx], value: monthNum });
+      }
+
+      return (
+        <>
+          {/* Current + last 2 months una */}
+          {recent.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.name} 
+            </option>
+          ))}
+          {/* Uban nga months */}
+          {monthNames.map((name, i) => {
+            const val = String(i + 1).padStart(2, "0");
+            if (recent.some((r) => r.value === val)) return null;
+            return (
+              <option key={val} value={val}>
+                {name}
+              </option>
+            );
+          })}
+          <option value="All">All</option>
+        </>
+      );
+    })()}
+  </select>
+</div>
        
-                     <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
-                       
-                       <option value="All">All Days</option>
-                       {Array.from({ length: 31 }, (_, i) => (
-                         <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-                           {i + 1}
-                         </option>
-                       ))}
-                     </select>
-                   </div>
+                    
                    </div>
                  
         {/* Subheading */}
@@ -470,9 +586,8 @@ const PatientRecords_Radiology: React.FC = () => {
                   <th>Patient ID</th>
                   <th>Lastname</th>
                   <th>Firstname</th>
-                  <th>Middle Initial</th>
-                  <th>Age</th>
-                  <th>Gender</th>
+                
+                 
                   <th>Services</th>
                   <th>Appointment Date</th>
                   <th>Slot</th>
@@ -481,51 +596,87 @@ const PatientRecords_Radiology: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredPatientRecords.length > 0 ? (
-                  filteredPatientRecords.map((rec) => (
-                    <tr key={rec.id}>
-                      <td>{rec.UserId}</td>
-                      <td>{rec.patientCode}</td>
-                      <td>{rec.lastName}</td> 
-                      <td>{rec.firstName}</td> 
-                      <td>{rec.middleInitial}</td>
-                      <td>{rec.age}</td>
-                      <td>{rec.gender}</td>
-                      <td>{rec.services.join(", ")}</td>
-                      <td>{rec.date}</td>
-                      <td>{rec.slotTime}</td>
-                      <td>
-                        <span className={`status-text ${rec.status.toLowerCase()}`}>
-                          {rec.status}
-                        </span>
-                      </td>
-                      <td>
-                        {rec.status === "Approved" && (
-                          <button
-                            onClick={() => handleAction("Completed", rec)}
-                            className="action-btns completed"
-                          >
-                            Completed
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleAction("View Record", rec)}
-                          className="action-btns view"
-                        >
-                          View Record
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="no-records">
-                      No records found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
+  {currentRecords.length > 0 ? (
+    currentRecords.map((rec) => (
+      <tr key={rec.id}>
+        <td>{rec.UserId}</td>
+        <td>{rec.patientCode}</td>
+        <td>{rec.lastName}</td>
+        <td>{rec.firstName}</td>
+        <td>{rec.services.join(", ")}</td>
+        <td>{rec.date}</td>
+        <td>{rec.slotTime}</td>
+        <td>
+          <span className={`status-text ${rec.status.toLowerCase()}`}>
+            {rec.status}
+          </span>
+        </td>
+        <td>
+          {rec.status === "Approved" && (
+            <button
+              onClick={() => handleAction("Completed", rec)}
+              className="action-btns completed"
+            >
+              Completed
+            </button>
+          )}
+          <button
+            onClick={() => handleAction("View Record", rec)}
+            className="action-btns view"
+          >
+            View More
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={9} className="no-records">
+        No records found.
+      </td>
+    </tr>
+  )}
+</tbody>
             </table>
+
+
+            {/* PAGINATION - Ibutang after </table> pero inside .table-container */}
+<div className="pagination-wrapper">
+  <div className="pagination-info">
+    Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, sortedAndFilteredRecords.length)} of {sortedAndFilteredRecords.length} records
+  </div>
+  
+  <div className="pagination-controls">
+    <button
+      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+      className="pagination-btn prev-btn"
+    >
+      Previous
+    </button>
+
+    {getPageNumbers().map((page, index) => (
+      <button
+        key={index}
+        onClick={() => typeof page === "number" && setCurrentPage(page)}
+        className={`pagination-btn page-num ${
+          page === currentPage ? "active" : ""
+        } ${page === "..." ? "ellipsis" : ""}`}
+        disabled={page === "..."}
+      >
+        {page}
+      </button>
+    ))}
+
+    <button
+      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages || totalPages === 0}
+      className="pagination-btn next-btn"
+    >
+      Next
+    </button>
+  </div>
+</div>
         </div>
       </div>
       </main>
@@ -551,6 +702,58 @@ const PatientRecords_Radiology: React.FC = () => {
           </div>
         </div>
       )}
+
+        {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+{showCustomModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+    </audio>
+    <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+      <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="radiology-modal-header">
+          <img src={logo} alt="Logo" className="radiology-modal-logo" />
+          <h3 className="radiology-modal-title">
+            {customModalType === "success" && "SUCCESS"}
+            {customModalType === "error" && "ERROR"}
+            {customModalType === "confirm" && "CONFIRM ACTION"}
+          </h3>
+          <button className="radiology-modal-close" onClick={closeCustomModal}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="radiology-modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+            {customModalMessage}
+          </p>
+        </div>
+        <div className="radiology-modal-footer">
+          {customModalType === "confirm" && (
+            <>
+              <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                No, Cancel
+              </button>
+              <button
+                className="radiology-modal-btn confirm"
+                onClick={() => {
+                  closeCustomModal();
+                  onCustomModalConfirm();
+                }}
+              >
+                Yes, Proceed
+              </button>
+            </>
+          )}
+          {(customModalType === "success" || customModalType === "error") && (
+            <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+              {customModalType === "success" ? "Done" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}
 
       {/* View Record Modal */}
        {showRecordModal && selectedPatientRecord && (

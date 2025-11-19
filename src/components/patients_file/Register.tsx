@@ -122,8 +122,8 @@ const Register: React.FC = () => {
       <div className="register-card">
         <div className="register-header">
           <img src={logo} alt="Logo" className="register-logo-centered" />
-          <h2 className="register-app-title">DOH-TRC Argao</h2>
-          <h3 className="register-subtitle">Create Account</h3>
+          <h5 className="register-app-title">DOH-TRC Argao</h5>
+          <h5 className="register-subtitle">Create Account</h5>
         </div>
 
         <form className="register-form" onSubmit={handleSubmit}>

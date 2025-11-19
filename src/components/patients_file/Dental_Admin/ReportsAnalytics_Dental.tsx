@@ -9,6 +9,7 @@ import {
   FaChartBar,
   FaSignOutAlt,
   FaClock,
+  FaStethoscope,
 } from "react-icons/fa";
 import {
   LineChart,
@@ -357,6 +358,13 @@ pdfContainer.appendChild(summary);
                 Manage Slots
               </span>
             </div>
+                        
+                         <div className="nav-item">
+                             <FaStethoscope className="nav-icon" />
+                                   <span onClick={() => navigate("/services_clinical")}>
+                                      Services
+                                   </span>
+                         </div>
             <div className="nav-item active">
               <FaChartBar className="nav-icon" />
               <span>Reports & Analytics</span>
@@ -398,7 +406,7 @@ pdfContainer.appendChild(summary);
       {/* Main content */}
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Reports and Analytics</h2>
+          <h5 className="navbar-title">Reports and Analytics</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -511,7 +519,7 @@ pdfContainer.appendChild(summary);
           </div>
 
           {/* Appointment Trends Graph */}
-          <h3 className="section-title center">Appointment Trends</h3>
+          <h5 className="section-title center">Appointment Trends</h5>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart
               data={filteredData}

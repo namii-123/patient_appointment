@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaClock, } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaClock, FaStethoscope, } from "react-icons/fa";
 import "../../../assets/Appointments_Dental.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
@@ -20,6 +20,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { X } from "lucide-react";
 
 // Types
 interface Appointment {
@@ -61,8 +62,8 @@ const Appointments_Radiology: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [yearFilter, setYearFilter] = useState("All");
-  const [monthFilter, setMonthFilter] = useState("All");
+ const [filterYear, setFilterYear] = useState<string>("All");
+const [filterMonth, setFilterMonth] = useState<string>("All");
   const [dayFilter, setDayFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
 
@@ -72,6 +73,27 @@ const Appointments_Radiology: React.FC = () => {
 
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+const [customModalMessage, setCustomModalMessage] = useState("");
+const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+
+const openCustomModal = (
+  message: string,
+  type: "success" | "error" | "confirm" = "success",
+  onConfirm?: () => void
+) => {
+  setCustomModalMessage(message);
+  setCustomModalType(type);
+  if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+  setShowCustomModal(true);
+};
+
+const closeCustomModal = () => {
+  setShowCustomModal(false);
+  setOnCustomModalConfirm(() => {});
+};
+
 
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -199,17 +221,15 @@ const Appointments_Radiology: React.FC = () => {
         setAppointments((prev) => prev.filter((appt) => appt.id !== id));
   
         if (!appointment.email) {
-          console.warn(`No email address for appointment ${id}`);
-          alert("⚠️ Cannot send email: No email address provided.");
-          return;
-        }
+  openCustomModal("Cannot send email: No email address provided.", "error");
+  return;
+}
   
-        const isValidEmail = /\S+@\S+\.\S+/.test(appointment.email);
-        if (!isValidEmail) {
-          console.error(`Invalid email format for appointment ${id}:`, appointment.email);
-          alert("⚠️ Cannot send email: Invalid email format.");
-          return;
-        }
+       const isValidEmail = /\S+@\S+\.\S+/.test(appointment.email);
+if (!isValidEmail) {
+  openCustomModal("Cannot send email: Invalid email format.", "error");
+  return;
+}
   
         console.log(`Sending email for appointment ${id} to: ${appointment.email}`);
         const message =
@@ -237,10 +257,10 @@ const Appointments_Radiology: React.FC = () => {
           });
         }
   
-        alert(`Appointment ${newStatus} successfully!`);
+        openCustomModal(`Appointment ${newStatus} successfully!`);
       } catch (error) {
         console.error(`Error updating status for appointment ${id}:`, error);
-        alert("❌ Error updating appointment status. Please try again.");
+        openCustomModal("❌ Error updating appointment status. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -267,35 +287,74 @@ const Appointments_Radiology: React.FC = () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const availableDays = Array.from({ length: 31 }, (_, index) => index + 1);
+  useEffect(() => {
+  const today = new Date();
+  setFilterYear(today.getFullYear().toString());
+  setFilterMonth(String(today.getMonth() + 1).padStart(2, "0")); // e.g., "06" for June
+}, []);
 
- const filteredAppointments = appointments.filter((appt) => {
-  const matchesSearch =
-    appt.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.UserId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.patientCode.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const appointmentDate = new Date(appt.date);
-  const matchesYear =
-    yearFilter === "All" || appointmentDate.getFullYear() === parseInt(yearFilter);
-  const matchesMonth =
-    monthFilter === "All" ||
-    availableMonths[appointmentDate.getMonth()] === monthFilter;
-  const matchesDay =
-    dayFilter === "All" || appointmentDate.getDate() === parseInt(dayFilter);
-  const matchesStatus =
-    statusFilter === "All" || appt.status === statusFilter;
 
-  return (
-    matchesSearch &&
-    matchesYear &&
-    matchesMonth &&
-    matchesDay &&
-    matchesStatus
-  );
-});
+ const filteredAppointments = appointments
+  .filter((appt) => {
+    const matchesSearch =
+      appt.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appt.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appt.patientCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appt.UserId.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const [year, month] = appt.date.split("-"); // assuming date is "2025-06-15"
+
+    const matchesYear = filterYear === "All" || year === filterYear;
+    const matchesMonth = filterMonth === "All" || month === filterMonth;
+    const matchesStatus = statusFilter === "All" || appt.status === statusFilter;
+
+    return matchesSearch && matchesYear && matchesMonth && matchesStatus;
+  })
+  // Sort: Pending first, then by date (latest first)
+  .sort((a, b) => {
+    if (a.status === "Pending" && b.status !== "Pending") return -1;
+    if (b.status === "Pending" && a.status !== "Pending") return 1;
+    return b.date.localeCompare(a.date); // Latest date first
+  });
+
+  
+const [currentPage, setCurrentPage] = useState<number>(1);
+const recordsPerPage = 5;
+
+// PAGINATION LOGIC - Ibutang dire human sa filteredAppointments
+const indexOfLastRecord = currentPage * recordsPerPage;
+const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+const currentAppointments = filteredAppointments.slice(indexOfFirstRecord, indexOfLastRecord);
+
+const totalPages = Math.ceil(filteredAppointments.length / recordsPerPage);
+
+// Page numbers with ellipsis (same sa Patient Records)
+const getPageNumbers = () => {
+  const pages: (number | string)[] = [];
+  if (totalPages <= 5) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push("...");
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push("...");
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push("...");
+      pages.push(currentPage - 1);
+      pages.push(currentPage);
+      pages.push(currentPage + 1);
+      pages.push("...");
+      pages.push(totalPages);
+    }
+  }
+  return pages;
+};
 
 
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
@@ -306,6 +365,7 @@ const Appointments_Radiology: React.FC = () => {
 
   return (
     <div className="dashboards">
+      
       <aside className="sidebars">
         <div>
           <div
@@ -338,6 +398,12 @@ const Appointments_Radiology: React.FC = () => {
                           <FaClock className="nav-icon" />
                          <span onClick={() => navigate("/manageslots_radiology")}>Manage Slots</span>
                         </div>
+                        <div className="nav-item">
+                            <FaStethoscope className="nav-icon" />
+                            <span onClick={() => handleNavigation("/services_radiology")}>
+                              Services
+                            </span>
+                          </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_radiology")}>
@@ -356,17 +422,20 @@ const Appointments_Radiology: React.FC = () => {
                                  <FaSignOutAlt className="signout-icon" />
                                  <span
                                    onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
+  openCustomModal(
+    "Are you sure you want to sign out?",
+    "confirm",
+    async () => {
+      try {
+        await signOut(auth);
+        navigate("/loginadmin", { replace: true });
+      } catch (error) {
+        console.error("Error signing out:", error);
+        openCustomModal("Failed to sign out. Please try again.", "error");
+      }
+    }
+  );
+}}
                                    className="signout-label"
                                    style={{ cursor: "pointer" }}
                                  >
@@ -378,7 +447,7 @@ const Appointments_Radiology: React.FC = () => {
 
       <main className="main-content">
         <div className="top-navbar-radiology">
-          <h2 className="navbar-title">Appointments</h2>
+          <h5 className="navbar-title">Appointments</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -441,55 +510,76 @@ const Appointments_Radiology: React.FC = () => {
                                                      <option value="Cancelled">Cancelled</option>
                                                    </select>
                                                  </div>
-                          <div className="filter">
-                 <label>Year:</label>
-                 <select
-                   className="status-dropdown"
-                   value={yearFilter}
-                   onChange={(e) => setYearFilter(e.target.value)}
-                   onClick={handleYearClick} 
-                 >
-                   <option value="All Years">All Years</option>
-                   {availableYears.map((year) => (
-                     <option key={year} value={year}>
-                       {year}
-                     </option>
-                   ))}
-                 </select>
-               </div>
-                       
+                     <div className="filter">
+  <label>Year:</label>
+  <select
+    className="status-dropdown"
+    value={filterYear}
+    onChange={(e) => setFilterYear(e.target.value)}
+  >
+    {(() => {
+      const currentYear = new Date().getFullYear();
+      const startYear = 2025;
+      const endYear = currentYear + 20; // +20 years into the future
+
+      const years = [];
+      for (let y = endYear; y >= startYear; y--) {
+        years.push(y);
+      }
+
+      return (
+        <>
+          {years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+          <option value="All">All Years</option>
+        </>
+      );
+    })()}
+  </select>
+</div>
                          <div className="filter">
-                            <label>Month:</label>
-                         <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
-                           <option value="All">All Months</option>
-                           <option value="01">January</option>
-                           <option value="02">February</option>
-                           <option value="03">March</option>
-                           <option value="04">April</option>
-                           <option value="05">May</option>
-                           <option value="06">June</option>
-                           <option value="07">July</option>
-                           <option value="08">August</option>
-                           <option value="09">September</option>
-                           <option value="10">October</option>
-                           <option value="11">November</option>
-                           <option value="12">December</option>
-                         </select>
-                       </div>
-           
-                        <div className="filter">
-                         <label>Day:</label>
-           
-                         <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
-                           
-                           <option value="All">All Days</option>
-                           {Array.from({ length: 31 }, (_, i) => (
-                             <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-                               {i + 1}
-                             </option>
-                           ))}
-                         </select>
-                       </div>
+  <label>Month:</label>
+  <select
+    className="status-dropdown"
+    value={filterMonth}
+    onChange={(e) => setFilterMonth(e.target.value)}
+  >
+    {(() => {
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+
+      const currentMonthIdx = new Date().getMonth();
+      const recent: { name: string; value: string; }[] = [];
+
+      // Show current + last 2 months first
+      for (let i = 0; i < 3; i++) {
+        const idx = (currentMonthIdx - i + 12) % 12;
+        const monthNum = String(idx + 1).padStart(2, "0");
+        recent.push({ name: monthNames[idx], value: monthNum });
+      }
+
+      return (
+        <>
+          {recent.map(m => (
+            <option key={m.value} value={m.value}>{m.name}</option>
+          ))}
+          {monthNames.map((name, i) => {
+            const val = String(i + 1).padStart(2, "0");
+            if (recent.some(r => r.value === val)) return null;
+            return <option key={val} value={val}>{name}</option>;
+          })}
+          <option value="All">All</option>
+        </>
+      );
+    })()}
+  </select>
+</div>
+                        
                        </div>
                      
           <p className="appointments-header">All Patient Appointment Requests</p>
@@ -510,117 +600,149 @@ const Appointments_Radiology: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredAppointments.length > 0 ? (
-                filteredAppointments.map((appt) => (
-                  <tr key={appt.id}>
-                    <td>{appt.UserId}</td>
-                    <td>{appt.patientCode}</td>
-                    <td>{appt.lastName}</td>
-                    <td>{appt.firstName}</td>
-                    <td>{appt.services.join(", ")}</td>
-                    <td>{appt.date}</td>
-                    <td>{appt.slotTime}</td>
-                    <td>
-                      <span className={`status-text ${appt.status.toLowerCase()}`}>
-                        {appt.status}
-                      </span>
-                    </td>
-                    <td>
-                      {appt.status === "Pending" && (
-                        <>
-                          <button
-                            className="action-btn accept"
-                            onClick={async () => {
-                              if (appt.patientId) {
-                                const pRef = doc(db, "Patients", appt.patientId);
-                                const pSnap = await getDoc(pRef);
-                                if (pSnap.exists()) {
-                                  const patientData = pSnap.data();
-                                  console.log("Patient data for accept:", patientData);
-                                  if (!patientData.email) {
-                                    alert("⚠️ No email address found for this patient.");
-                                    return;
-                                  }
-                                  setSelectedAppointment({
-                                    ...appt,
-                                    ...patientData,
-                                  });
-                                  setShowAcceptModal(true);
-                                } else {
-                                  console.warn("No patient data for patientId:", appt.patientId);
-                                  alert("⚠️ No patient data found.");
-                                }
-                              } else {
-                                alert("⚠️ No patientId found for this appointment.");
-                              }
-                            }}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            className="action-btn reject"
-                            onClick={async () => {
-                              if (appt.patientId) {
-                                const pRef = doc(db, "Patients", appt.patientId);
-                                const pSnap = await getDoc(pRef);
-                                if (pSnap.exists()) {
-                                  const patientData = pSnap.data();
-                                  console.log("Patient data for reject:", patientData);
-                                  if (!patientData.email) {
-                                    alert("⚠️ No email address found for this patient.");
-                                    return;
-                                  }
-                                  setSelectedAppointment({
-                                    ...appt,
-                                    ...patientData,
-                                  });
-                                  setShowRejectModal(true);
-                                } else {
-                                  console.warn("No patient data for patientId:", appt.patientId);
-                                  alert("⚠️ No patient data found.");
-                                }
-                              } else {
-                                alert("⚠️ No patientId found for this appointment.");
-                              }
-                            }}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="view-more-btn"
-                        onClick={async () => {
-                          if (appt.patientId) {
-                            const pRef = doc(db, "Patients", appt.patientId);
-                            const pSnap = await getDoc(pRef);
-                            if (pSnap.exists()) {
-                              const patientData = pSnap.data();
-                              setSelectedPatient({
-                                ...appt,
-                                ...patientData
-                              });
-                              setShowInfoModal(true);
-                            }
-                          }
-                        }}
-                      >
-                        View More
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} className="no-records">
-                    No records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
+  {currentAppointments.length > 0 ? (
+    currentAppointments.map((appt) => (
+      <tr key={appt.id}>
+        <td>{appt.UserId}</td>
+        <td>{appt.patientCode}</td>
+        <td>{appt.lastName}</td>
+        <td>{appt.firstName}</td>
+        <td>{appt.services.join(", ")}</td>
+        <td>{appt.date}</td>
+        <td>{appt.slotTime}</td>
+        <td>
+          <span className={`status-text ${appt.status.toLowerCase()}`}>
+            {appt.status}
+          </span>
+        </td>
+        <td>
+          {appt.status === "Pending" && (
+            <>
+              <button
+                className="action-btn accept"
+                onClick={async () => {
+                  if (appt.patientId) {
+                    const pRef = doc(db, "Patients", appt.patientId);
+                    const pSnap = await getDoc(pRef);
+                    if (pSnap.exists()) {
+                      const patientData = pSnap.data();
+                      if (!patientData.email) {
+                        openCustomModal("No email address found for this patient.");
+                        return;
+                      }
+                      setSelectedAppointment({
+                        ...appt,
+                        ...patientData,
+                      });
+                      setShowAcceptModal(true);
+                    } else {
+                      openCustomModal("No patient data found.");
+                    }
+                  } else {
+                    openCustomModal("No patientId found for this appointment.");
+                  }
+                }}
+              >
+                Accept
+              </button>
+              <button
+                className="action-btn reject"
+                onClick={async () => {
+                  if (appt.patientId) {
+                    const pRef = doc(db, "Patients", appt.patientId);
+                    const pSnap = await getDoc(pRef);
+                    if (pSnap.exists()) {
+                      const patientData = pSnap.data();
+                      if (!patientData.email) {
+                        openCustomModal("No email address found for this patient.");
+                        return;
+                      }
+                      setSelectedAppointment({
+                        ...appt,
+                        ...patientData,
+                      });
+                      setShowRejectModal(true);
+                    } else {
+                      openCustomModal("No patient data found.");
+                    }
+                  } else {
+                    openCustomModal("No patientId found for this appointment.");
+                  }
+                }}
+              >
+                Reject
+              </button>
+            </>
+          )}
+        </td>
+        <td>
+          <button
+            className="view-more-btn"
+            onClick={async () => {
+              if (appt.patientId) {
+                const pRef = doc(db, "Patients", appt.patientId);
+                const pSnap = await getDoc(pRef);
+                if (pSnap.exists()) {
+                  const patientData = pSnap.data();
+                  setSelectedPatient({
+                    ...appt,
+                    ...patientData
+                  });
+                  setShowInfoModal(true);
+                }
+              }
+            }}
+          >
+            View More
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={10} className="no-records">
+        No appointment requests found.
+      </td>
+    </tr>
+  )}
+</tbody>
           </table>
+
+          {/* PAGINATION */}
+<div className="pagination-wrapper">
+  <div className="pagination-info">
+    Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredAppointments.length)} of {filteredAppointments.length} appointments
+  </div>
+  
+  <div className="pagination-controls">
+    <button
+      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+      className="pagination-btn prev-btn"
+    >
+      Previous
+    </button>
+
+    {getPageNumbers().map((page, index) => (
+      <button
+        key={index}
+        onClick={() => typeof page === "number" && setCurrentPage(page)}
+        className={`pagination-btn page-num ${page === currentPage ? "active" : ""} ${page === "..." ? "ellipsis" : ""}`}
+        disabled={page === "..."}
+      >
+        {page}
+      </button>
+    ))}
+
+    <button
+      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages || totalPages === 0}
+      className="pagination-btn next-btn"
+    >
+      Next
+    </button>
+  </div>
+</div>
 
           {showInfoModal && selectedPatient && (
             <div className="modal-overlayss">
@@ -673,6 +795,60 @@ const Appointments_Radiology: React.FC = () => {
             </div>
           )}
 
+
+
+          {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+{showCustomModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+    </audio>
+    <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+      <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="radiology-modal-header">
+          <img src={logo} alt="Logo" className="radiology-modal-logo" />
+          <h3 className="radiology-modal-title">
+            {customModalType === "success" && "SUCCESS"}
+            {customModalType === "error" && "ERROR"}
+            {customModalType === "confirm" && "CONFIRM ACTION"}
+          </h3>
+          <button className="radiology-modal-close" onClick={closeCustomModal}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="radiology-modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+            {customModalMessage}
+          </p>
+        </div>
+        <div className="radiology-modal-footer">
+          {customModalType === "confirm" && (
+            <>
+              <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                No, Cancel
+              </button>
+              <button
+                className="radiology-modal-btn confirm"
+                onClick={() => {
+                  closeCustomModal();
+                  onCustomModalConfirm();
+                }}
+              >
+                Yes, Proceed
+              </button>
+            </>
+          )}
+          {(customModalType === "success" || customModalType === "error") && (
+            <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+              {customModalType === "success" ? "Done" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}
+
           {showRejectModal && (
             <div className="modal-overlay">
               <div className="modal-box">
@@ -704,9 +880,9 @@ const Appointments_Radiology: React.FC = () => {
                           selectedAppointment,
                           rejectReason
                         );
-                        alert(`Appointment rejected.\nReason: ${rejectReason}`);
+                        openCustomModal(`Appointment rejected.\nReason: ${rejectReason}`);
                       } else {
-                        alert("⚠️ Cannot reject appointment: No valid email address.");
+                        openCustomModal("⚠️ Cannot reject appointment: No valid email address.");
                       }
                       setShowRejectModal(false);
                       setRejectReason("");
@@ -756,9 +932,9 @@ const Appointments_Radiology: React.FC = () => {
                           "Approved",
                           selectedAppointment
                         );
-                        alert(`Appointment for ${selectedAppointment.lastName}, ${selectedAppointment.firstName} accepted.`);
+                        openCustomModal(`Appointment for ${selectedAppointment.lastName}, ${selectedAppointment.firstName} accepted.`);
                       } else {
-                        alert("⚠️ Cannot accept appointment: No valid email address.");
+                        openCustomModal("⚠️ Cannot accept appointment: No valid email address.");
                       }
                       setShowAcceptModal(false);
                       setSelectedAppointment(null);

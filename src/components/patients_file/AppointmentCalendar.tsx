@@ -39,6 +39,7 @@ const predefinedSlots: { time: string; capacity: number }[] = [
   { time: "14:00 PM - 15:00 PM", capacity: 2 },
 ];
 
+
 const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   formData,
   onConfirm,
@@ -58,8 +59,35 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   const [reservationId, setReservationId] = useState<string | null>(null);
   const [maxYear, setMaxYear] = useState(today.getFullYear() + 20);
   const [error, setError] = useState<string | null>(null);
+  const [showTimeModal, setShowTimeModal] = useState(false);   
+const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showModals, setShowModals] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [onConfirms, setOnConfirm] = useState<() => void>(() => {});
+const [onConfirmAction, setOnConfirmAction] = useState<() => void>(() => {});
+
+
 
   const department = formData?.department || "Radiographic";
+
+
+  const openModal = (
+  msg: string,
+  type: "confirm" | "error" | "success",
+  callback?: () => void
+) => {
+  setModalMessage(msg);
+  setModalType(type);
+  if (callback) setOnConfirmAction(() => callback);
+  setShowConfirmModal(true); // ← GAMITON NI PARA SA CONFIRM
+};
+
+const closeConfirmModal = () => {
+  setShowConfirmModal(false);
+  setOnConfirmAction(() => {});
+};
+
 
   useEffect(() => {
     console.log("📌 AppointmentCalendar: Component mounted, formData:", formData);
@@ -215,6 +243,8 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
     setTimeSlots(slotsData);
     setSelectedSlot(null);
     setShowModal(true);
+    setShowTimeModal(true); 
+  setShowConfirmModal(false); 
   };
 
   const handleSelectSlot = async (slotTime: string) => {
@@ -359,7 +389,7 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   };
 
   return (
-    <div className="calendar-container">
+    <div className="calendar-container pb-24">
       <h2>Select Appointment Date ({department})</h2>
       {error && <div className="error-message text-red-500 mb-4">{error}</div>}
 
@@ -484,16 +514,18 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
                   transition: "background-color 0.2s ease-in-out",
                 }}
                 disabled={!selectedSlot}
-                onClick={() => {
-                  if (selectedSlot) {
-                    const confirmBooking = window.confirm(
-                      `Are you sure you want to book this slot?\n${selectedSlot.time} - You can change this later if needed.`
-                    );
-                    if (confirmBooking) {
-                      handleSelectSlot(selectedSlot.time);
-                    }
-                  }
-                }}
+               onClick={() => {
+  if (selectedSlot) {
+    openModal(
+      `Confirm your slot?\n${selectedSlot.time}\nYou can change this later.`,
+      "confirm",
+      () => {
+        handleSelectSlot(selectedSlot.time);
+        setShowTimeModal(false); 
+      }
+    );
+  }
+}}
               >
                 OK
               </button>
@@ -506,55 +538,90 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   <div className="nav-right">
     <button
       className={`next-btn ${!selectedDate || !selectedSlot ? "disabled" : ""}`}
-      onClick={() => {
-        if (!selectedDate || !selectedSlot) {
-          alert("⚠️ Please select and confirm a time slot before proceeding.");
-          return;
-        }
+    onClick={() => {
+  if (!selectedDate || !selectedSlot) {
+    openModal("Please select a date and time slot first.", "error");
+    return;
+  }
 
-        const confirmNext = window.confirm(
-          formData?.fromReview
-            ? "Are you sure you want to update the appointment slot and return to the review page?"
-            : `Are you sure you want to continue to the ${
-                department === "Radiographic"
-                  ? "Clinical Laboratory"
-                  : department
-              } appointment step?`
-        );
+  const message = formData?.fromReview
+    ? `Update appointment?\n\n${selectedDate} | ${selectedSlot.time}\n\nReturn to review?`
+    : `Proceed to next page?\n\n${selectedDate} | ${selectedSlot.time}`;
 
-        if (!confirmNext) return;
+  openModal(message, "confirm", () => {
+    const navigateData = {
+      ...formData,
+      radiographicDate: selectedDate,
+      radiographicSlotId: selectedSlot.slotID,
+      radiographicSlotTime: selectedSlot.time,
+      radiographicReservationId: reservationId || "",
+    };
 
-        const navigateData = {
-          ...formData,
-          [`${department.toLowerCase()}Date`]: selectedDate,
-          [`${department.toLowerCase()}SlotId`]: selectedSlot.slotID,
-          [`${department.toLowerCase()}SlotTime`]: selectedSlot.time,
-          [`${department.toLowerCase()}ReservationId`]: reservationId || "",
-          previousDate: formData?.previousDate,
-          previousSlotId: formData?.previousSlotId,
-          previousSlotTime: formData?.previousSlotTime,
-          previousReservationId: formData?.previousReservationId,
-        };
-
-        if (formData?.fromReview) {
-          onNavigate?.("review", navigateData);
-        } else {
-          const nextView =
-            department === "Radiographic"
-              ? "labservices"
-              : department === "Clinical Laboratory"
-              ? "dental"
-              : department === "Dental"
-              ? "medical"
-              : "review";
-          onNavigate?.(nextView, navigateData);
-        }
-      }}
+    if (formData?.fromReview) {
+      onNavigate?.("review", navigateData);
+    } else {
+      onNavigate?.("labservices", navigateData);
+    }
+  });
+}}
     >
       Next ➡
     </button>
   </div>
+
+
+ 
 </div>
+{showConfirmModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+    </audio>
+
+    <div className="modal-overlay-servicess" onClick={closeConfirmModal}>
+      <div className="modal-content-servicess" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header-servicess">
+          <img src="/logo.png" alt="DOH" className="modal-logo" />
+          <h5>
+            {modalType === "success" && "SUCCESS"}
+            {modalType === "error" && "ERROR"}
+            {modalType === "confirm" && "CONFIRM ACTION"}
+          </h5>
+        </div>
+
+        <div className="modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center", fontWeight: "600" }}>
+            {modalMessage}
+          </p>
+        </div>
+
+        <div className="modal-footer">
+          {modalType === "confirm" && (
+            <>
+              <button className="modal-btn cancel" onClick={closeConfirmModal}>
+                Cancel
+              </button>
+              <button
+                className="modal-btn confirm"
+                onClick={() => {
+                  closeConfirmModal();
+                  onConfirmAction();
+                }}
+              >
+                Confirm
+              </button>
+            </>
+          )}
+          {(modalType === "error" || modalType === "success") && (
+            <button className="modal-btn ok" onClick={closeConfirmModal}>
+              OK
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}
 
     </div>
   );

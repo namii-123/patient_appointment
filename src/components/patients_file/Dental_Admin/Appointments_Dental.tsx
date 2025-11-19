@@ -26,6 +26,7 @@ import {
   FaSignOutAlt,
   FaSearch,
   FaClock,
+  FaStethoscope,
 } from "react-icons/fa";
 import "../../../assets/Appointments_Dental.css";
 import logo from "/logo.png";
@@ -347,6 +348,12 @@ useEffect(() => {
                           <FaClock className="nav-icon" />
                          <span onClick={() => navigate("/manageslots_dental")}>Manage Slots</span>
                         </div>
+                        <div className="nav-item">
+                                        <FaStethoscope className="nav-icon" />
+                                        <span onClick={() => navigate("/services_clinical")}>
+                                          Services
+                                        </span>
+                                      </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => navigate("/reports&analytics_dental")}>Reports & Analytics</span>
@@ -386,7 +393,7 @@ useEffect(() => {
 
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Appointments</h2>
+          <h5 className="navbar-title">Appointments</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"

@@ -41,6 +41,9 @@
   object-fit: contain;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+.cardss h5{
+  font-size: 24px;
+}
 
 .logoss:hover {
   transform: scale(1.1);

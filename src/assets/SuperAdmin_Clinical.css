@@ -455,7 +455,7 @@ html, body {
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
   }
   
-  .summary-card h3 {
+  .summary-card h5 {
     font-size: 28px;
     font-weight: bold;
     margin-bottom: 8px;
@@ -494,7 +494,7 @@ html, body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   }
   
-  .section-title {
+  .section-title h5 {
     font-size: 18px;
     font-weight: 600;
     margin-bottom: 12px;

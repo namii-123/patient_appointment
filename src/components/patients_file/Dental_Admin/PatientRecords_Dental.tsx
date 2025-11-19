@@ -12,6 +12,7 @@ import {
   FaSearch,
   FaTimes,
   FaClock,
+  FaStethoscope,
 } from "react-icons/fa";
 import "../../../assets/PatientRecords_Radiology.css";
 import { db } from "../firebase";
@@ -293,6 +294,14 @@ const PatientRecords_Dental: React.FC = () => {
               <FaClock className="nav-icon" />
              <span onClick={() => navigate("/manageslots_dental")}>Manage Slots</span>
             </div>
+
+
+             <div className="nav-item">
+                 <FaStethoscope className="nav-icon" />
+                       <span onClick={() => navigate("/services_clinical")}>
+                          Services
+                       </span>
+              </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => navigate("/reports&analytics_dental")}>Reports & Analytics</span>
@@ -331,7 +340,7 @@ const PatientRecords_Dental: React.FC = () => {
 
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Patient Records</h2>
+          <h5 className="navbar-title">Patient Records</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -458,9 +467,7 @@ const PatientRecords_Dental: React.FC = () => {
                   <th>Patient ID</th>
                   <th>Lastname</th>
                   <th>Firstname</th>
-                  <th>Middle Initial</th>
-                  <th>Age</th>
-                  <th>Gender</th>
+                  
                   <th>Services</th>
                   <th>Appointment Date</th>
                   <th>Slot</th>
@@ -476,9 +483,7 @@ const PatientRecords_Dental: React.FC = () => {
                       <td>{rec.patientCode}</td>
                       <td>{rec.lastName}</td>
                       <td>{rec.firstName}</td>
-                      <td>{rec.middleInitial}</td>
-                      <td>{rec.age}</td>
-                      <td>{rec.gender}</td>
+                     
                       <td>{rec.services.join(", ")}</td>
                       <td>{rec.date}</td>
                       <td>{rec.slotTime}</td>
@@ -500,7 +505,7 @@ const PatientRecords_Dental: React.FC = () => {
                           onClick={() => handleAction("View Record", rec)}
                           className="action-btns view"
                         >
-                          View Record
+                          View More
                         </button>
                       </td>
                     </tr>

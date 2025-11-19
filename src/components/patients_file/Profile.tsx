@@ -6,6 +6,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 interface ProfileData {
+  photoURL?: string;
   lastName: string;
   firstName: string;
   middleName: string;
@@ -22,7 +23,7 @@ interface ProfileData {
   municipalityCode: string;
   barangay: string;
   zipcode: string;
-  photoBase64?: string; // Add photoBase64 to the interface
+  photoBase64?: string; 
 }
 
 interface ProfileProps {
@@ -35,34 +36,62 @@ const Profile: React.FC<ProfileProps> = ({ onNavigate }) => {
   const [avatar, setAvatar] = useState<string>("/default-img.jpg");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  // Fetch profile data from Firestore on login
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          // Get user profile from Firestore
-          const userRef = doc(db, "Users", user.uid);
-          const docSnap = await getDoc(userRef);
 
-          if (docSnap.exists()) {
-            const data = docSnap.data() as ProfileData;
-            setProfileData(data);
-            // Prioritize photoBase64 from Firestore, then user.photoURL, then default
-            setAvatar(data.photoBase64 || user.photoURL || "/default-img.jpg");
-          } else {
-            console.error("Profile data not found in Firestore");
-            setAvatar(user.photoURL || "/default-img.jpg");
-          }
-        } catch (err) {
-          console.error("Error fetching profile:", err);
+ useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      try {
+        const userRef = doc(db, "Users", user.uid);
+        const docSnap = await getDoc(userRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data() as ProfileData;
+          setProfileData(data);
+
+          
+          const photo = data.photoBase64 
+            ? data.photoBase64 
+            : data.photoURL 
+              ? data.photoURL 
+              : "/default-img.jpg";
+
+          setAvatar(photo);
+        } else {
+      
+          setAvatar(user.photoURL || "/default-img.jpg");
+          setProfileData({
+            lastName: "",
+            firstName: "",
+            middleName: "",
+            email: user.email || "",
+            gender: "",
+            birthdate: "",
+            age: "",
+            contactNumber: "",
+            houseNo: "",
+            street: "",
+            province: "",
+            provinceCode: "",
+            municipality: "",
+            municipalityCode: "",
+            barangay: "",
+            zipcode: "",
+            photoBase64: undefined,  
+            photoURL: user.photoURL || undefined,
+          });
         }
-      } else {
-        navigate("/"); // If not logged in, go back to login
+      } catch (err) {
+        console.error("Error:", err);
+        setAvatar(user?.photoURL || "/default-img.jpg");
       }
-    });
+    } else {
+      navigate("/");
+    }
+  });
 
-    return () => unsubscribe();
-  }, [navigate]);
+  return () => unsubscribe();
+}, [navigate]);
+
 
   const formatBirthdate = (date: string): string => {
     if (!date) return "";
@@ -122,11 +151,11 @@ const Profile: React.FC<ProfileProps> = ({ onNavigate }) => {
               title="View larger image"
             />
           </div>
-          <h2 className="profile-name">
-            <span className="first-name">{profileData?.firstName || "First"}</span>{" "}
+          <h1 className="profile-name">
+            <span className="first-names">{profileData?.firstName || "First"}</span>{" "}
             <span className="middle-name">{profileData?.middleName || ""}</span>{" "}
             <span className="last-name">{profileData?.lastName || "Last"}</span>
-          </h2>
+          </h1>
           <p className="profile-email">{profileData?.email || "email@example.com"}</p>
           <button onClick={handleEditProfile} className="edit-btn">Edit Profile</button>
         </div>

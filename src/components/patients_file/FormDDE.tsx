@@ -133,7 +133,6 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
       "controlNo",
       "lastName",
       "firstName",
-      "middleInitial",
       "age",
       "birthdate",
       "gender",
@@ -163,6 +162,24 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
   const [barangays, setBarangays] = useState<Barangay[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ADD THIS BEFORE return() - MODAL SYSTEM
+const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+
+const openModal = (msg: string, type: "confirm" | "error" | "success", callback?: () => void) => {
+  setModalMessage(msg);
+  setModalType(type);
+  if (callback) setOnConfirm(() => callback);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setOnConfirm(() => {});
+};
 
   useEffect(() => {
     const fetchProvinces = async () => {
@@ -354,63 +371,69 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
       .padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}-${randomNum}`;
   };
 
-  const handleNext = async (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+ const handleNext = async (e: MouseEvent<HTMLButtonElement>) => {
+  e.preventDefault();
 
-    if (!isFormComplete()) {
-      alert("⚠️ Please fill out all required fields before proceeding.");
-      return;
-    }
+  // 1. Check if form is complete
+  if (!isFormComplete()) {
+    openModal("Please fill out all required fields before proceeding.", "error");
+    return;
+  }
 
+  // 2. Check contact number length
+  if (formData.contact.length !== 11) {
+    openModal("Contact number must be exactly 11 digits.", "error");
+    return;
+  }
 
-    if (formData.contact.length !== 11) {
-  alert("⚠️ Contact number must be exactly 11 digits.");
-  return;
-}
+  // 3. Confirm save
+  openModal(
+    "Do you want to save this patient information and proceed?",
+    "confirm",
+    async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
 
-
-    const confirmSave = window.confirm("Do you want to proceed and save this patient information?");
-    if (!confirmSave) {
-      return;
-    }
-
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      alert("❌ No authenticated user found. Please login.");
-      return;
-    }
-
-    try {
-      const newControlNo = generateControlNumber();
-      setFormData((prev) => ({ ...prev, controlNo: newControlNo }));
-
-      const uid = new ShortUniqueId({ length: 6 });
-      const patientCode = `PAT-${uid.rnd()}`;
-
-      const patientDocRef = await addDoc(collection(db, "Patients"), {
-        ...formData,
-        controlNo: newControlNo,
-        uid: user.uid,
-        patientCode,
-        createdAt: new Date().toISOString(),
-      });
-
-      alert(`✅ Patient info saved! Patient Code: ${patientCode}`);
-
-      if (onNavigate) {
-        onNavigate("courtorder", {
-          ...formData,
-          patientId: patientDocRef.id,
-          controlNo: newControlNo,
-          patientCode,
-        });
+      if (!user) {
+        openModal("No authenticated user found. Please login again.", "error");
+        return;
       }
-    } catch (error) {
-      console.error("Error saving patient:", error);
-      alert("❌ Failed to save patient information. Please try again.");
+
+      try {
+        const newControlNo = generateControlNumber();
+        const uid = new ShortUniqueId({ length: 6 });
+        const patientCode = `PAT-${uid.rnd()}`;
+
+        const patientDocRef = await addDoc(collection(db, "Patients"), {
+          ...formData,
+          controlNo: newControlNo,
+          uid: user.uid,
+          patientCode,
+          createdAt: new Date().toISOString(),
+        });
+
+        // Success modal
+        openModal(`Patient saved successfully!\nPatient Code: ${patientCode}`, "success");
+
+        // Navigate after 2 seconds
+        setTimeout(() => {
+          if (onNavigate) {
+            onNavigate("courtorder", {
+              ...formData,
+              patientId: patientDocRef.id,
+              controlNo: newControlNo,
+              patientCode,
+            });
+          }
+        }, 2000);
+
+      } catch (error) {
+        console.error("Error saving patient:", error);
+        openModal("Failed to save patient. Please try again.", "error");
+      }
     }
-  };
+  );
+};
 
   const calculateAge = (birthdate: string): number => {
     const today = new Date();
@@ -449,8 +472,8 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
           <div className="header-center">
             <p>Department of Health</p>
             <p>Treatment and Rehabilitation Center Argao</p>
-            <h2>OUTPATIENT AND AFTERCARE DIVISION</h2>
-            <h3>REQUEST FORM FOR ASSESSMENT</h3>
+            <h5>OUTPATIENT AND AFTERCARE DIVISION</h5>
+            <h5>REQUEST FORM FOR ASSESSMENT</h5>
           </div>
           <div className="header-right">
             <p>Document No.: TRC-AOD-FM03</p>
@@ -510,6 +533,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 id="lastName"
                 name="lastName"
                 value={formData.lastName}
+                placeholder="Last Name"
                 onChange={handleChange}
                 required
               />
@@ -521,6 +545,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 id="firstName"
                 name="firstName"
                 value={formData.firstName}
+                placeholder="First Name"
                 onChange={handleChange}
                 required
               />
@@ -533,6 +558,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 name="middleInitial"
                 value={formData.middleInitial}
                 onChange={handleChange}
+                placeholder="Optional"
                 maxLength={1}
               />
             </div>
@@ -547,6 +573,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 name="birthdate"
                 value={formData.birthdate}
                 onChange={handleChange}
+                placeholder="Birthdate"
                 required
               />
             </div>
@@ -558,8 +585,10 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 name="age"
                 value={formData.age}
                 onChange={handleChange}
+                placeholder="Age"
                 required
                 min={0}
+                readOnly
               />
             </div>
             <div>
@@ -593,19 +622,21 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
             </div>
           )}
 
-          <div>
+         
+
+          <div className="house-street-group">
+             <div>
             <label htmlFor="citizenship">Citizenship</label>
             <input
               type="text"
               id="citizenship"
               name="citizenship"
               value={formData.citizenship}
+              placeholder="Citizenship"
               onChange={handleChange}
               required
             />
           </div>
-
-          <div className="house-street-group">
             <div>
               <label htmlFor="houseNo">House No.</label>
               <input
@@ -613,6 +644,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 id="houseNo"
                 name="houseNo"
                 value={formData.houseNo}
+                placeholder="House No."
                 onChange={handleChange}
                 required
               />
@@ -623,6 +655,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 type="text"
                 id="street"
                 name="street"
+                placeholder="Street"
                 value={formData.street}
                 onChange={handleChange}
                 required
@@ -637,6 +670,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
                 id="province"
                 name="province"
                 value={formData.provinceCode || ""}
+              
                 onChange={handleChange}
                 required
               >
@@ -684,6 +718,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
             </div>
           </div>
 
+          <div className="field-groups">
           <div>
             <label htmlFor="email">Email Address</label>
             <input
@@ -691,6 +726,7 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
               id="email"
               name="email"
               value={formData.email}
+              placeholder="Email"
               onChange={handleChange}
               required
               readOnly
@@ -704,9 +740,11 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
               id="contact"
               name="contact"
               value={formData.contact}
+              placeholder="Contact Number"
               onChange={handleChange}
               required
             />
+          </div>
           </div>
           <div className="button-containerss">
             <button type="button" className="next-buttons" onClick={handleNext}>
@@ -714,9 +752,63 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
             </button>
           </div>
         </form>
+
+{/* MODAL - SAME SA AllServices */}
+        {showModal && (
+          <>
+            <audio autoPlay className="modal-sound">
+              <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+            </audio>
+
+            <div className="modal-overlay-services" onClick={closeModal}>
+              <div className="modal-content-services" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header-services">
+                  <img src="/logo.png" alt="DOH" className="modal-logo" />
+                  <h5>
+                    {modalType === "success" && "SUCCESS"}
+                    {modalType === "error" && "ERROR"}
+                    {modalType === "confirm" && "CONFIRM ACTION"}
+                  </h5>
+                </div>
+
+                <div className="modal-body">
+                  <p>{modalMessage}</p>
+                </div>
+
+                <div className="modal-footer">
+                  {modalType === "confirm" && (
+                    <>
+                      <button className="modal-btn cancel" onClick={closeModal}>
+                        Cancel
+                      </button>
+                      <button
+                        className="modal-btn confirm"
+                        onClick={() => {
+                          closeModal();
+                          onConfirm();
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  )}
+                  {(modalType === "error" || modalType === "success") && (
+                    <button className="modal-btn ok" onClick={closeModal}>
+                      {modalType === "success" ? "Continue" : "OK"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
+        
+     
+
+  
 
 export default FormDDE;

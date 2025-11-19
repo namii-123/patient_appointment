@@ -126,6 +126,52 @@ const ConsentForm: React.FC<ServicesProps> = ({ onNavigate, patientId, controlNo
     assessmentForm: false,
   });
 
+  const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [onModalConfirm, setOnModalConfirm] = useState<() => void>(() => {});
+
+const openModal = (
+  msg: string,
+  type: "confirm" | "error" | "success",
+  callback?: () => void
+) => {
+  setModalMessage(msg);
+  setModalType(type);
+  if (callback) setOnModalConfirm(() => callback);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setOnModalConfirm(() => {});
+};
+ 
+  // === ADD THIS FUNCTION BEFORE html2canvas ===
+const replaceInputsWithText = (container: HTMLElement) => {
+  const inputs = container.querySelectorAll('input, textarea, select');
+  inputs.forEach((input) => {
+    const value = (input as HTMLInputElement).value;
+    if (value) {
+      const span = document.createElement('span');
+      span.textContent = value;
+      span.style.cssText = window.getComputedStyle(input).cssText;
+      span.style.fontFamily = window.getComputedStyle(input).fontFamily;
+      span.style.fontSize = window.getComputedStyle(input).fontSize;
+      span.style.color = window.getComputedStyle(input).color;
+      span.style.backgroundColor = 'transparent';
+      span.style.border = 'none';
+      span.style.padding = '0';
+      span.style.margin = '0';
+      span.style.display = 'inline-block';
+      span.style.minWidth = '1ch';
+
+      // Replace input with span
+      input.parentNode?.replaceChild(span, input);
+    }
+  });
+};
+
   useEffect(() => {
     const fetchPatientData = async () => {
       try {
@@ -259,158 +305,156 @@ const ConsentForm: React.FC<ServicesProps> = ({ onNavigate, patientId, controlNo
   };
 
   const handleNext = async (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    // Check if both PDFs have been downloaded
-    if (!downloads.consentForm || !downloads.assessmentForm) {
-      const missingForms = [];
-      if (!downloads.consentForm) missingForms.push("Consent Form");
-      if (!downloads.assessmentForm) missingForms.push("Assessment Request Form");
-      alert(
-        `❌ Please download the following form(s) before proceeding: ${missingForms.join(" and ")}.`
-      );
-      return;
-    }
+  // 1. Check downloads
+  if (!downloads.consentForm || !downloads.assessmentForm) {
+    const missingForms = [];
+    if (!downloads.consentForm) missingForms.push("Consent Form");
+    if (!downloads.assessmentForm) missingForms.push("Assessment Request Form");
+    openModal(
+      `Please download the following form(s) before proceeding:\n${missingForms.join(" and ")}.`,
+      "error"
+    );
+    return;
+  }
 
-    const confirmSave = window.confirm("Do you want to proceed and save this patient information?");
-    if (!confirmSave) {
-      return;
-    }
-
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-      alert("❌ No authenticated user found. Please login.");
-      return;
-    }
-
-    try {
-      let effectivePatientId = patientId || initialFormData?.patientId;
-      let effectiveControlNo = controlNo || formData.controlNo || initialFormData?.controlNo;
-      if (!effectiveControlNo) {
-        effectiveControlNo = generateControlNumber();
+  // 2. Confirm save
+  openModal(
+    "Do you want to proceed and save this patient information?",
+    "confirm",
+    async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        openModal("No authenticated user found. Please login.", "error");
+        return;
       }
 
-      const uid = new ShortUniqueId({ length: 6 });
-      const patientCode = formData.patientCode || initialFormData?.patientCode || `PAT-${uid.rnd()}`;
+      try {
+        let effectivePatientId = patientId || initialFormData?.patientId;
+        let effectiveControlNo = controlNo || formData.controlNo || initialFormData?.controlNo;
+        if (!effectiveControlNo) {
+          effectiveControlNo = generateControlNumber();
+        }
 
-      // Fetch UserId from Users collection
-      const userRef = doc(db, "Users", user.uid);
-      const userSnap = await getDoc(userRef);
-      let UserId = user.uid; // Default to uid if UserId not found
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        UserId = userData.UserId || user.uid; // Use UserId if exists, else fall back to uid
-      } else {
-        console.warn("⚠️ No user profile found in Firestore for uid:", user.uid);
-      }
+        const uid = new ShortUniqueId({ length: 6 });
+        const patientCode = formData.patientCode || initialFormData?.patientCode || `PAT-${uid.rnd()}`;
 
-      const updatedFormData = {
-        ...formData,
-        controlNo: effectiveControlNo,
-        patientCode,
-      };
+        // Fetch UserId
+        const userSnap = await getDoc(doc(db, "Users", user.uid));
+        let UserId = user.uid;
+        if (userSnap.exists()) {
+          UserId = userSnap.data()?.UserId || user.uid;
+        }
 
-      setFormData(updatedFormData);
+        const updatedFormData = { ...formData, controlNo: effectiveControlNo, patientCode };
+        setFormData(updatedFormData);
 
-      // Save or update patient data
-      if (effectivePatientId) {
-        const patientRef = doc(db, "Patients", effectivePatientId);
-        await updateDoc(patientRef, {
-          ...updatedFormData,
+        // Save patient
+        if (effectivePatientId) {
+          await updateDoc(doc(db, "Patients", effectivePatientId), {
+            ...updatedFormData,
+            uid: user.uid,
+            updatedAt: new Date().toISOString(),
+          });
+        } else {
+          const patientRef = await addDoc(collection(db, "Patients"), {
+            ...updatedFormData,
+            uid: user.uid,
+            createdAt: new Date().toISOString(),
+          });
+          effectivePatientId = patientRef.id;
+        }
+
+        // Create services
+        const services = [];
+        if (formData.checklist.courtOrder) services.push("Court Order Processing");
+        if (formData.checklist.officialReceipt) services.push("Official Receipt");
+        if (formData.checklist.requestForm) services.push("Request Form");
+        if (formData.checklist.dataPrivacy) services.push("Data Privacy Consent");
+        if (formData.checklist.hasValidID) services.push("ID Verification");
+        if (formData.checklist.vitalSigns) services.push("Vital Signs Check");
+
+        // Create transaction
+        const transRef = doc(collection(db, "Transactions"));
+        const transCode = `TRANS-${uid.rnd()}`;
+        await setDoc(transRef, {
           uid: user.uid,
-          updatedAt: new Date().toISOString(),
-        });
-        alert(`✅ Patient info updated! Patient Code: ${patientCode}`);
-      } else {
-        const patientDocRef = await addDoc(collection(db, "Patients"), {
-          ...updatedFormData,
-          uid: user.uid,
-          createdAt: new Date().toISOString(),
-        });
-        effectivePatientId = patientDocRef.id;
-        alert(`✅ Patient info saved! Patient Code: ${patientCode}`);
-      }
-
-      // Create services array based on checklist
-      const services = [];
-      if (formData.checklist.courtOrder) services.push("Court Order Processing");
-      if (formData.checklist.officialReceipt) services.push("Official Receipt");
-      if (formData.checklist.requestForm) services.push("Request Form");
-      if (formData.checklist.dataPrivacy) services.push("Data Privacy Consent");
-      if (formData.checklist.hasValidID) services.push("ID Verification");
-      if (formData.checklist.vitalSigns) services.push("Vital Signs Check");
-
-      // Create a new transaction
-      const transactionRef = doc(collection(db, "Transactions"));
-      const transactionCode = `TRANS-${uid.rnd()}`;
-      await setDoc(transactionRef, {
-        uid: user.uid,
-        UserId, // Include UserId in addition to uid
-        patientId: effectivePatientId,
-        transactionCode,
-        controlNo: effectiveControlNo,
-        patientCode,
-        purpose: "DDE",
-        services: services.length > 0 ? services : ["General Assessment"],
-        date: formData.requestDate,
-        slotTime: "", // No slot time yet
-        slotID: "", // No slot ID yet
-        status: "Pending",
-        createdAt: new Date().toISOString(),
-        transactionId: transactionRef.id,
-        checklist: formData.checklist,
-        lastName: formData.lastName,
-        firstName: formData.firstName,
-        middleInitial: formData.middleInitial,
-        validIDData: initialFormData?.validIDData || null,
-        courtOrderData: initialFormData?.courtOrderData || null,
-        paoData: initialFormData?.paoData || null,
-        empData: initialFormData?.empData || null,
-        lawyersRequestData: initialFormData?.lawyersRequestData || null,
-        receiptData: initialFormData?.receiptData || null,
-      });
-
-      alert(`✅ Transaction created! Transaction Code: ${transactionCode}`);
-
-      // Navigate to Transaction page
-      if (onNavigate) {
-        const navigateData: NavigateData = {
-          ...updatedFormData,
+          UserId,
           patientId: effectivePatientId,
+          transactionCode: transCode,
           controlNo: effectiveControlNo,
           patientCode,
-          hasValidID: formData.checklist.hasValidID,
-          department: "DDE",
+          purpose: "DDE",
+          services: services.length ? services : ["General Assessment"],
+          date: formData.requestDate,
+          slotTime: "",
+          slotID: "",
+          status: "Pending",
+          createdAt: new Date().toISOString(),
+          transactionId: transRef.id,
+          checklist: formData.checklist,
+          lastName: formData.lastName,
+          firstName: formData.firstName,
+          middleInitial: formData.middleInitial,
           validIDData: initialFormData?.validIDData || null,
           courtOrderData: initialFormData?.courtOrderData || null,
           paoData: initialFormData?.paoData || null,
           empData: initialFormData?.empData || null,
           lawyersRequestData: initialFormData?.lawyersRequestData || null,
           receiptData: initialFormData?.receiptData || null,
-        };
-        console.log("📌 ConsentForm: Navigating to transaction with data:", navigateData);
-        onNavigate("transaction", navigateData);
+        });
+
+        // Success modal + navigate
+        openModal(
+          `Patient info saved!\nPatient Code: ${patientCode}\nTransaction Code: ${transCode}`,
+          "success"
+        );
+
+        setTimeout(() => {
+          if (onNavigate) {
+            const navigateData: NavigateData = {
+              ...updatedFormData,
+              patientId: effectivePatientId,
+              controlNo: effectiveControlNo,
+              patientCode,
+              hasValidID: formData.checklist.hasValidID,
+              department: "DDE",
+              validIDData: initialFormData?.validIDData || null,
+              courtOrderData: initialFormData?.courtOrderData || null,
+              paoData: initialFormData?.paoData || null,
+              empData: initialFormData?.empData || null,
+              lawyersRequestData: initialFormData?.lawyersRequestData || null,
+              receiptData: initialFormData?.receiptData || null,
+            };
+            onNavigate("transaction", navigateData);
+          }
+        }, 2000);
+
+      } catch (error) {
+        console.error("Save error:", error);
+        openModal("Failed to save patient information or create transaction.", "error");
       }
-    } catch (error) {
-      console.error("Error saving patient or creating transaction:", error);
-      alert("❌ Failed to save patient information or create transaction. Please try again.");
     }
-  };
+  );
+};
 
   return (
     <div className="main-holders">
       <div className="all-services-containers">
-        <div className="form-headers">
+        <div className="form-header">
           <div className="header-lefts">
             <img src="logo.png" alt="DOH Logo" className="doh-logo" />
             <img src="pilipinas.png" alt="Bagong Pilipinas Logo" className="bp-logo" />
           </div>
-          <div className="header-centers">
+          <div className="header-centersss">
             <p className="republic-header" >Republic of the Philippines</p>
-            <h2>Department of Health</h2>
-            <h3>Treatment and Rehabilitation Center Argao</h3>
-            <div className="header-contact-row">
+            
+            <h1 className="health">Department of Health</h1>
+          
+            <h1>Treatment and Rehabilitation Center Argao</h1>
+            <div className="header-contact-rows">
               <p><span className="icon">📍</span> Candabong, Binlod, Argao, Cebu</p>
               <p><span className="icon">📧</span> trcchief@trcargao.doh.gov.ph</p>
               <p><span className="icon">☎️</span> (032) 485-8155 | (032) 430-3916</p>
@@ -589,6 +633,23 @@ const ConsentForm: React.FC<ServicesProps> = ({ onNavigate, patientId, controlNo
           </p>
           <p>Date</p>
         </div>
+        <div className="footer-logos">
+  <div className="footer-logo-item">
+    <img src="philhealth.png" alt="PhilHealth Logo" className="footer-logo" />
+    <p>PhilHealth<br /><small>Your Partner in Health</small></p>
+  </div>
+
+  <div className="footer-logo-item">
+    <img src="redorchid.png" alt="Red Orchid Award" className="footer-logo" />
+    <p>Red Orchid Award<br /><small>Hall of Fame</small></p>
+  </div>
+
+  <div className="footer-logo-item">
+    <img src="tuv.png" alt="TUV ISO Logo" className="footer-logo" />
+    <p>Quality Management System<br />ISO 9001:2015<br /><small>Cert. No.: TUV-100 05 4571</small></p>
+  </div>
+</div>
+
         <div className="button-container-consent">
           <button
             type="button"
@@ -635,8 +696,8 @@ const ConsentForm: React.FC<ServicesProps> = ({ onNavigate, patientId, controlNo
           <div className="header-centerss">
             <p>Department of Health</p>
             <p>Treatment and Rehabilitation Center Argao</p>
-            <h2>OUTPATIENT AND AFTERCARE DIVISION</h2>
-            <h3>REQUEST FORM FOR ASSESSMENT</h3>
+            <h1>OUTPATIENT AND AFTERCARE DIVISION</h1>
+            <h4>REQUEST FORM FOR ASSESSMENT</h4>
           </div>
           <div className="header-rightss">
             <p>Document No.: TRC-AOD-FM03</p>
@@ -758,62 +819,154 @@ const ConsentForm: React.FC<ServicesProps> = ({ onNavigate, patientId, controlNo
               borderRadius: "6px",
               cursor: "pointer",
             }}
-            onClick={async () => {
-              try {
-                const input = document.querySelector(".form-services-container") as HTMLElement | null;
-                if (!input) {
-                  alert("Form not found!");
-                  return;
-                }
-                const buttonContainer = document.querySelector(".button-container-consent2") as HTMLElement | null;
-                if (buttonContainer) buttonContainer.style.display = "none";
-                await new Promise((resolve) => setTimeout(resolve, 300));
-                window.scrollTo(0, 0);
-                const canvas = await html2canvas(input, {
-                  scale: 2,
-                  useCORS: true,
-                  scrollY: -window.scrollY,
-                });
-                const headerElement = document.querySelector(".form-headerss") as HTMLElement | null;
-                let headerImgData = "";
-                let headerHeight = 0;
-                if (headerElement) {
-                  const headerCanvas = await html2canvas(headerElement, {
-                    scale: 2,
-                    useCORS: true,
-                  });
-                  headerImgData = headerCanvas.toDataURL("image/png");
-                  headerHeight = (headerCanvas.height * 210) / headerCanvas.width;
-                }
-                if (buttonContainer) buttonContainer.style.display = "";
-                const imgData = canvas.toDataURL("image/png");
-                const pdf = new jsPDF("p", "mm", "a4");
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const marginX = 10;
-                const marginY = 10;
-                const imgWidth = pageWidth - marginX * 2;
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                let heightLeft = imgHeight;
-                let position = marginY;
-                pdf.addImage(imgData, "PNG", marginX, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight - marginY * 2;
-                while (heightLeft > 0) {
-                  pdf.addPage();
-                  if (headerImgData) {
-                    pdf.addImage(headerImgData, "PNG", marginX, marginY, imgWidth, headerHeight);
-                  }
-                  position -= pageHeight - marginY * 2;
-                  pdf.addImage(imgData, "PNG", marginX, position, imgWidth, imgHeight);
-                  heightLeft -= pageHeight - marginY * 2;
-                }
-                pdf.save("AssessmentRequestForm.pdf");
-                setDownloads((prev) => ({ ...prev, assessmentForm: true }));
-              } catch (error) {
-                console.error("Error generating Assessment Request Form PDF:", error);
-                alert("❌ Failed to generate Assessment Request Form PDF. Please try again.");
-              }
-            }}
+    onClick={async () => {
+  try {
+    const input = document.querySelector(".form-services-container") as HTMLElement | null;
+    if (!input) return alert("Form not found!");
+
+    const buttonContainer = document.querySelector(".button-container-consent2") as HTMLElement | null;
+    if (buttonContainer) buttonContainer.style.display = "none";
+
+    const clone = input.cloneNode(true) as HTMLElement;
+
+    // === 1. INPUTS → TEXT ===
+    const replaceInputs = (c: HTMLElement) => {
+      c.querySelectorAll('input:not([type="checkbox"]), textarea, select').forEach((el) => {
+        const value = (el as HTMLInputElement).value.trim();
+        if (value) {
+          const span = document.createElement('span');
+          span.textContent = value;
+          const s = window.getComputedStyle(el);
+          span.style.cssText = s.cssText;
+          span.style.backgroundColor = 'transparent';
+          span.style.border = 'none';
+          span.style.display = 'inline-block';
+          el.parentNode?.replaceChild(span, el);
+        } else {
+          (el as HTMLElement).style.visibility = 'hidden';
+        }
+      });
+    };
+
+    // === 2. CHECKBOXES → REAL SYMBOLS (checked/unchecked) ===
+    const replaceCheckboxesWithSymbols = (c: HTMLElement) => {
+      c.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        const isChecked = (cb as HTMLInputElement).checked;
+
+        const symbol = document.createElement('span');
+        symbol.textContent = isChecked ? 'checked' : 'unchecked';
+        symbol.style.cssText = `
+          display: inline-block;
+          width: 14px; height: 14px;
+          border: 1.5px solid #000;
+          border-radius: 2px;
+          margin-right: 8px;
+          font-size: 12px;
+          line-height: 13px;
+          text-align: center;
+          background: ${isChecked ? '#2a7d46' : '#fff'};
+          color: ${isChecked ? 'white' : 'transparent'};
+        `;
+
+        let labelText = '';
+        const label = document.querySelector(`label[for="${cb.id}"]`) ||
+                      cb.closest('label') ||
+                      cb.nextElementSibling;
+
+        if (label && label instanceof HTMLElement) {
+          labelText = label.textContent?.trim() || '';
+          label.style.visibility = 'hidden';
+        }
+
+        const line = document.createElement('div');
+        line.style.display = 'flex';
+        line.style.alignItems = 'center';
+        line.style.fontSize = '14px';
+        line.style.marginBottom = '3px';
+        line.appendChild(symbol);
+        if (labelText) {
+          const text = document.createElement('span');
+          text.textContent = labelText;
+          line.appendChild(text);
+        }
+
+        cb.parentNode?.replaceChild(line, cb);
+        if (label && label.parentNode) label.remove();
+      });
+    };
+
+    // === APPLY FIXES ===
+    replaceInputs(clone);
+    replaceCheckboxesWithSymbols(clone);
+
+    // === RENDER OFF-SCREEN ===
+    clone.style.cssText = `
+      position: absolute; left: -9999px; top: 0;
+      width: ${input.offsetWidth}px; background: white; padding: 20px;
+    `;
+    document.body.appendChild(clone);
+
+    await new Promise(r => setTimeout(r, 600));
+    window.scrollTo(0, 0);
+
+    // === CAPTURE ===
+    const canvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      windowWidth: clone.scrollWidth + 100,
+      windowHeight: clone.scrollHeight + 100,
+    });
+
+    document.body.removeChild(clone);
+    if (buttonContainer) buttonContainer.style.display = "";
+
+    // === HEADER ===
+    let headerImg = "", headerH = 0;
+    const headerEl = document.querySelector(".form-headerss") as HTMLElement | null;
+    if (headerEl) {
+      const hClone = headerEl.cloneNode(true) as HTMLElement;
+      hClone.style.position = 'absolute'; hClone.style.left = '-9999px';
+      document.body.appendChild(hClone);
+      const hCanvas = await html2canvas(hClone, { scale: 2 });
+      headerImg = hCanvas.toDataURL("image/png");
+      headerH = (hCanvas.height * 210) / hCanvas.width;
+      document.body.removeChild(hClone);
+    }
+
+    // === PDF ===
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const w = pdf.internal.pageSize.getWidth();
+    const h = pdf.internal.pageSize.getHeight();
+    const m = 10;
+    const imgW = w - m * 2;
+    const imgH = (canvas.height * imgW) / canvas.width;
+
+    let left = imgH;
+    let pos = 15;
+
+    pdf.addImage(imgData, "PNG", m, pos, imgW, imgH);
+    left -= h - 30;
+
+    while (left > 0) {
+      pdf.addPage();
+      pos = 15 - (h - 30 - left);
+      if (headerImg) pdf.addImage(headerImg, "PNG", m, 15, imgW, headerH);
+      pdf.addImage(imgData, "PNG", m, pos + headerH, imgW, imgH);
+      left -= h - 30 - headerH;
+    }
+
+    pdf.save("AssessmentRequestForm.pdf");
+    setDownloads(p => ({ ...p, assessmentForm: true }));
+
+  } catch (err) {
+    console.error(err);
+    alert("PDF generation failed.");
+    const btn = document.querySelector(".button-container-consent2") as HTMLElement | null;
+    if (btn) btn.style.display = "";
+  }
+}}
           >
             ⬇ Download Assessment Form PDF
           </button>
@@ -834,7 +987,61 @@ const ConsentForm: React.FC<ServicesProps> = ({ onNavigate, patientId, controlNo
             Next ➡
           </button>
         </div>
+
       </div>
+
+      {/* ====================== MODAL ====================== */}
+{showModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+    </audio>
+
+    <div className="modal-overlay-service" onClick={closeModal}>
+      <div className="modal-content-service" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header-service">
+          <img src="/logo.png" alt="DOH" className="modal-logo" />
+          <h3>
+            {modalType === "success" && "SUCCESS"}
+            {modalType === "error" && "ERROR"}
+            {modalType === "confirm" && "CONFIRM ACTION"}
+          </h3>
+        </div>
+
+        <div className="modal-body">
+          <p style={{ whiteSpace: "pre-line" }}>{modalMessage}</p>
+        </div>
+
+        <div className="modal-footer">
+          {modalType === "confirm" && (
+            <>
+              <button className="modal-btn cancel" onClick={closeModal}>
+                Cancel
+              </button>
+              <button
+                className="modal-btn confirm"
+                onClick={() => {
+                  closeModal();
+                  onModalConfirm();
+                }}
+              >
+                Confirm
+              </button>
+            </>
+          )}
+          {(modalType === "error" || modalType === "success") && (
+            <button
+              className="modal-btn ok"
+              onClick={closeModal}
+            >
+              {modalType === "success" ? "Continue" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}
     </div>
   );
 };

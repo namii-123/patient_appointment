@@ -28,6 +28,22 @@ const LawyersRequestForm: React.FC<LawyersRequestFormProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+
+const openModal = (msg: string, type: "confirm" | "error" | "success", callback?: () => void) => {
+  setModalMessage(msg);
+  setModalType(type);
+  if (callback) setOnConfirm(() => callback);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setOnConfirm(() => {});
+};
 
   useEffect(() => {
     if (patientId) {
@@ -162,77 +178,94 @@ const LawyersRequestForm: React.FC<LawyersRequestFormProps> = ({
   };
 
   const handleNext = async () => {
-    try {
-      if (uploadedFiles.some((fileData) => !fileData.base64)) {
-        setError("Please ensure all uploaded lawyer's request documents are processed.");
-        return;
-      }
-
-      const proceedWithUpload = window.confirm(
-  uploadedFiles.length > 0
-    ? "Are you sure you want to proceed with the uploaded lawyer's request documents?\n\n⚠️ Note: Once you continue, you cannot change or remove these documents."
-    : "No lawyer's request documents uploaded. Proceed anyway?\n\n⚠️ Note: Once you continue, you cannot go back to add documents."
-);
-
-      if (!proceedWithUpload) return;
-
-      const appointmentId = formData?.appointmentId;
-      if (!appointmentId) {
-        setError(
-          "No appointment ID provided. Please complete the previous steps first."
-        );
-        return;
-      }
-
-      // Get existing appointment to reuse displayId
-      const appointmentRef = doc(db, "Appointments", appointmentId);
-      const snap = await getDoc(appointmentRef);
-      if (!snap.exists()) {
-        setError("Appointment not found.");
-        return;
-      }
-
-      const existingData = snap.data();
-      const existingDisplayId = existingData?.displayId || "";
-
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
-      const uid = currentUser?.uid || "";
-      if (!uid) {
-        setError("User not authenticated. Please sign in.");
-        return;
-      }
-
-      const lawyersRequestData = {
-        patientId: patientId || formData?.patientId || "",
-        controlNo: controlNo || formData?.controlNo || "",
-        lawyersRequestFiles: uploadedFiles.length > 0
-          ? uploadedFiles.map((fileData) => ({
-              name: fileData.file.name,
-              base64: fileData.base64,
-              type: fileData.file.type,
-              uploadedAt: new Date().toISOString(),
-            }))
-          : [],
-        displayId: existingDisplayId,
-        department: "DDE",
-      };
-
-      await updateDoc(appointmentRef, lawyersRequestData);
-
-      console.log("✅ Lawyer's Request updated in Appointments:", {
-        appointmentId,
-        displayId: existingDisplayId,
-      });
-
-      setError(null);
-      onNavigate?.("officialreceipt", { ...formData, lawyersRequestData, appointmentId });
-    } catch (err: unknown) {
-      console.error("Error updating Lawyer's Request:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      setError(`Failed to update Lawyer's Request: ${errorMessage}`);
+  try {
+    if (uploadedFiles.some((fileData) => !fileData.base64)) {
+      openModal("Please ensure all uploaded lawyer's request documents are processed.", "error");
+      return;
     }
-  };
+
+    // DYNAMIC MESSAGE BASED ON FILE UPLOAD
+    const message = uploadedFiles.length > 0
+      ? "You are about to submit the lawyer's request files.\n\nNote: Once uploaded, the files cannot be changed. Please make sure all details are correct before proceeding."
+      : "No lawyer's request documents uploaded.\n\nNote: This step is optional. You may proceed without files, but you cannot go back to add them later.";
+
+    openModal(message, "confirm", async () => {
+      try {
+        const appointmentId = formData?.appointmentId;
+        if (!appointmentId) {
+          openModal("No appointment ID provided. Please complete the previous steps first.", "error");
+          return;
+        }
+
+        const appointmentRef = doc(db, "Appointments", appointmentId);
+        const snap = await getDoc(appointmentRef);
+        if (!snap.exists()) {
+          openModal("Appointment not found.", "error");
+          return;
+        }
+
+        const existingData = snap.data();
+        const existingDisplayId = existingData?.displayId || "";
+
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        const uid = currentUser?.uid || "";
+        if (!uid) {
+          openModal("User not authenticated. Please sign in.", "error");
+          return;
+        }
+
+        const lawyersRequestData = {
+          patientId: patientId || formData?.patientId || "",
+          controlNo: controlNo || formData?.controlNo || "",
+          lawyersRequestFiles: uploadedFiles.length > 0
+            ? uploadedFiles.map((fileData) => ({
+                name: fileData.file.name,
+                base64: fileData.base64,
+                type: fileData.file.type,
+                uploadedAt: new Date().toISOString(),
+              }))
+            : [],
+          displayId: existingDisplayId,
+          department: "DDE",
+        };
+
+        await updateDoc(appointmentRef, lawyersRequestData);
+
+        console.log("Lawyer's Request updated in Appointments:", {
+          appointmentId,
+          displayId: existingDisplayId,
+        });
+
+        // SUCCESS MODAL
+        openModal(
+          uploadedFiles.length > 0
+            ? `Lawyer's request documents uploaded successfully!\nAppointment ID: ${existingDisplayId}`
+            : `Proceeded without lawyer's request documents.\nAppointment ID: ${existingDisplayId}`,
+          "success"
+        );
+
+        // Navigate after 2 seconds
+        setTimeout(() => {
+          onNavigate?.("officialreceipt", {
+            ...formData,
+            lawyersRequestData,
+            appointmentId,
+          });
+        }, 2000);
+
+      } catch (err: unknown) {
+        console.error("Error updating Lawyer's Request:", err);
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        openModal(`Failed to update Lawyer's Request: ${errorMessage}`, "error");
+      }
+    });
+  } catch (err: unknown) {
+    console.error("Error in handleNext:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    openModal(`Unexpected error: ${errorMessage}`, "error");
+  }
+};
 
   const isWordDocument = (fileType: string) =>
     fileType === "application/msword" ||
@@ -246,7 +279,7 @@ const LawyersRequestForm: React.FC<LawyersRequestFormProps> = ({
 
       <form className="space-y-6">
         <div className="mt-6">
-          <h3 className="font-semibold text-lg mb-3">Upload Lawyer's Request Document</h3>
+          <h3 className="font-semibold text-lg mb-3">Upload Lawyer's Request Document(OPTIONAL)</h3>
           <p className="note-message mb-2">
             Uploading a lawyer's request document is optional. You may proceed without uploading.
           </p>
@@ -325,8 +358,56 @@ const LawyersRequestForm: React.FC<LawyersRequestFormProps> = ({
           Next ➡
         </button>
       </div>
+
+      {showModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+          </audio>
+
+          <div className="modal-overlay-service" onClick={closeModal}>
+            <div className="modal-content-service" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header-service">
+                <img src="/logo.png" alt="DOH" className="modal-logo" />
+                <h3>
+                  {modalType === "success" && "SUCCESS"}
+                  {modalType === "error" && "ERROR"}
+                  {modalType === "confirm" && "CONFIRM ACTION"}
+                </h3>
+              </div>
+
+              <div className="modal-body">
+                <p style={{ whiteSpace: "pre-line" }}>{modalMessage}</p>
+              </div>
+
+              <div className="modal-footer">
+                {modalType === "confirm" && (
+                  <>
+                    <button className="modal-btn cancel" onClick={closeModal}>Cancel</button>
+                    <button
+                      className="modal-btn confirm"
+                      onClick={() => {
+                        closeModal();
+                        onConfirm();
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  </>
+                )}
+                {(modalType === "error" || modalType === "success") && (
+                  <button className="modal-btn ok" onClick={closeModal}>
+                    {modalType === "success" ? "Continue" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
+    
 
 export default LawyersRequestForm;

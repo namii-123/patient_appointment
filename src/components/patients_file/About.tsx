@@ -34,18 +34,17 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
 
   return (
     <>
-      {/* Hero Section */}
-      <div className="aboutss">
-      <div className="about-pages">
-        <section className="about-heros">
-          <div className="about-overlays">
+       {/* Hero Section */}
+      <div className="about-page">
+        <section className="about-hero">
+          <div className="about-overlay">
             <h1>About DOH-TRC Argao</h1>
             <p>Committed to healing, recovery, and transformation since 1984</p>
           </div>
         </section>
 
         {/* Intro Section */}
-        <section className="about-intros">
+        <section className="about-intro">
           <h2>Dedicated to Compassionate Care and Recovery</h2>
           <p>
             DOH-TRC Argao is a beacon of hope for individuals seeking recovery from substance use. 
@@ -56,26 +55,26 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
       </div>
 
       {/* Main Content */}
-      <section className="about-contents">
-        <div className="about-grids">
-          <div className="about-cards">
-            <h3>Mission</h3>
+      <section className="about-content">
+        <div className="about-grid">
+          <div className="about-card">
+            <h4>Mission</h4>
             <p>
               To provide high-quality treatment and support services that empower individuals and families 
               on their path toward a drug-free, fulfilling life.
             </p>
           </div>
 
-          <div className="about-cards">
-            <h3>Vision</h3>
+          <div className="about-card">
+            <h4>Vision</h4>
             <p>
               A society where every individual affected by substance use disorder is offered 
               support, understanding, and a second chance to reintegrate and thrive.
             </p>
           </div>
 
-          <div className="about-cards">
-            <h3>Quality & Policy</h3>
+          <div className="about-card">
+            <h4>Quality & Policy</h4>
             <p>
               We are committed to maintaining the highest standards of care through continuous improvement, 
               professional development, and adherence to best practices. Our policies ensure confidentiality, 
@@ -83,8 +82,8 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
             </p>
           </div>
 
-          <div className="about-cards">
-            <h3>Core Values</h3>
+          <div className="about-card">
+            <h4>Core Values</h4>
             <p>
               Compassion, Integrity, Respect, Excellence, and Collaboration guide everything we do to foster a supportive and healing environment.
             </p>
@@ -93,16 +92,15 @@ const About: React.FC<AboutProps> = ({ onNavigate }) => {
       </section>
 
       {/* Call to Action */}
-      <section className="about-ctas">
-        <div className="cta-boxs">
+       <section className="about-cta">
+        <div className="cta-box">
           <h2>Ready to Begin a New Chapter?</h2>
           <p>Discover how DOH-TRC Argao can support your journey to recovery.</p>
-          <button className="cta-buttons" onClick={handleGetInTouch}>
+          <button className="cta-button" onClick={handleGetInTouch}>
             Get in Touch
           </button>
         </div>
       </section>
-      </div>
     </>
   );
 };

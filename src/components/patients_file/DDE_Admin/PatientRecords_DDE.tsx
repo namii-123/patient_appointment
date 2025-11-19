@@ -467,7 +467,7 @@ const PatientRecords_DDE: React.FC = () => {
 
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Patient Records</h2>
+          <h5 className="navbar-title">Patient Records</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -587,10 +587,7 @@ const PatientRecords_DDE: React.FC = () => {
                   <th>Patient ID</th>
                   <th>Last Name</th>
                   <th>First Name</th>
-                  <th>Middle Initial</th>
-                  <th>Birthdate</th>
-                  <th>Age</th>
-                  <th>Gender</th>
+                
                   <th>Services</th>
                   <th>Request Date</th>
                   <th>Slot</th>
@@ -612,10 +609,8 @@ const PatientRecords_DDE: React.FC = () => {
                       <td>{rec.patientCode}</td>
                       <td>{rec.lastName}</td>
                       <td>{rec.firstName}</td>
-                      <td>{rec.middleInitial || "N/A"}</td>
-                       <td>{rec.birthdate}</td>
-                      <td>{rec.age}</td>
-                      <td>{rec.gender}</td>
+                     
+                     
                       <td>{rec.services.join(", ")}</td>
                       <td>{rec.requestDate}</td>
                       <td>
@@ -644,7 +639,7 @@ const PatientRecords_DDE: React.FC = () => {
                           onClick={() => handleAction("View Record", rec)}
                           className="action-btns view"
                         >
-                          View Record
+                          View More
                         </button>
                       </td>
                     </tr>

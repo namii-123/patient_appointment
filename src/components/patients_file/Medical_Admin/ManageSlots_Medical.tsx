@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock, FaStethoscope } from "react-icons/fa";
 import "../../../assets/ManageSlots.css";
 import { db } from "../firebase";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
@@ -248,6 +248,12 @@ const ManageSlots_Medical: React.FC = () => {
                 Manage Slots
               </span>
             </div>
+             <div className="nav-item">
+                                          <FaStethoscope className="nav-icon" />
+                                          <span onClick={() => handleNavigation("/services_medical")}>
+                                            Services
+                                          </span>
+                                        </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_medical")}>
@@ -286,7 +292,7 @@ const ManageSlots_Medical: React.FC = () => {
       </aside>
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Manage Slots</h2>
+          <h5 className="navbar-title">Manage Slots</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -329,7 +335,7 @@ const ManageSlots_Medical: React.FC = () => {
         <div className="content-wrapper">
           <div className="calendar-containers">
             <div className="calendar-headers">
-              <h3 className="calendar-title">Monthly Calendar - Manage Slots</h3>
+              <h5 className="calendar-title">Monthly Calendar - Manage Slots</h5>
               <div className="calendar-nav">
                 <select
                   value={currentMonth}

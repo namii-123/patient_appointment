@@ -1,80 +1,197 @@
 /* ==================== BASE STYLES ==================== */
 .labservices-container {
-  background-color: #ffffff;
-  border-radius: 0.75rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 2rem;
-  min-height: calc(100vh - 8rem);
+  background: #f8f9fa;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  max-width: 780px;
+  margin: 1.5rem auto;
+  padding: 1.8rem;
+  min-height: 85dvh;
+  max-height: 85dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  font-family: 'Calibri', sans-serif;
+  position: relative;
 }
 
 .labservices-container h2 {
-  font-size: 1.8rem;
-  font-weight: bold;
-  margin-bottom: 20px;
+  font-size: 1.6rem;
+  font-weight: 800;
   text-align: center;
-  color: #2c3e50;
+  color: #003087;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-/* ==================== CATEGORY SECTION ==================== */
+.services-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  padding-bottom: 80px; /* ← SPACE PARA SA FOOTER */
+}
+/* COMPACT SERVICES GRID */
+.services-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 12px;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; 
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .services-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .category {
-  margin-bottom: 25px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .category h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-  color: #34495e;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 5px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #005b9f;
+  margin: 0 0 8px 0;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #ffd700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* ==================== SERVICES LIST ==================== */
 .services-list label {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-  cursor: pointer;
+  font-size: 0.88rem;
   color: #333;
-  line-height: 1.4;
-}
-
-.services-list input[type="checkbox"],
-.services-list input[type="radio"] {
-  margin-right: 10px;
-  transform: scale(1.1);
+  margin: 6px 0;
   cursor: pointer;
+  padding: 4px 0;
 }
 
-/* ==================== NAVIGATION BUTTON ==================== */
-.labservices-navigation {
+.services-list input[type="checkbox"] {
+  margin-right: 8px;
+  transform: scale(1.15);
+  accent-color: #005b9f;
+}
+
+/* OTHERS INPUT */
+.services-list input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #005b9f;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-top: 6px;
+}
+
+/* PREGNANCY SECTION - COMPACT */
+.pregnancy-section {
+  background: #e3f2fd;
+  border: 2px solid #2196f3;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 14px 0;
+  font-size: 0.9rem;
+}
+
+.pregnancy-section h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #003087;
+  margin: 0 0 10px 0;
+  text-align: center;
+}
+
+.pregnancy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+@media (max-width: 640px) {
+  .pregnancy-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pregnancy-section label {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 25px;
+  align-items: center;
+  font-size: 0.88rem;
+  color: #333;
+  padding: 6px 0;
+}
+
+.pregnancy-section input[type="radio"],
+.pregnancy-section input[type="checkbox"] {
+  margin-right: 8px;
+  transform: scale(1.1);
+  accent-color: #d32f2f;
+}
+
+.sub-option {
+  margin-left: 24px;
+  font-size: 0.82rem;
+  color: #555;
+}
+
+/* NAVIGATION */
+.labservices-navigation {
+  padding-top: 12px;
+  border-top: 2px dashed #ccc;
+  text-align: center;
+  padding-bottom: 30px;
 }
 
 .labservices-navigation button {
-  padding: 10px 22px;
+  padding: 12px 32px;
   border: none;
-  border-radius: 8px;
-  background: #2c3e91;
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #005b9f, #003087);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 91, 159, 0.4);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .labservices-navigation button:hover {
-  background: #1a276d;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 91, 159, 0.6);
+  background: linear-gradient(135deg, #003087, #001f5b);
 }
 
+/* SCROLLBAR STYLING */
+.services-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.services-list::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 10px;
+}
+
+.services-list::-webkit-scrollbar-thumb {
+  background: #005b9f;
+  border-radius: 10px;
+}
 /* ==================== COMPLAINT / HISTORY SECTION ==================== */
 .complaint-history {
   margin-top: 20px;
@@ -105,6 +222,155 @@
   transform: scale(1.1);
 }
 
+.labservices-navigation {
+  padding-top: 12px;
+  border-top: 2px dashed #ccc;
+  text-align: right;
+  margin-left: auto;
+}
+
+.labservices-navigation button {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #005b9f, #003087);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 91, 159, 0.4);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: inline-block;
+}
+
+.labservices-navigation button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 91, 159, 0.6);
+  background: linear-gradient(135deg, #003087, #001f5b);
+}
+
+
+/* SAME COMPACT MODAL CSS - COPY FROM ALLSERVICES */
+.modal-overlay-service {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 40px;
+}
+
+.modal-content-service {
+  background: white;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 14px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  border: 3px solid #005b9f;
+  font-family: 'Calibri', sans-serif;
+  animation: slideDown 0.4s ease-out;
+}
+
+.modal-header-service {
+  background: linear-gradient(135deg, #003087, #005b9f);
+  padding: 18px 15px;
+  text-align: center;
+  border-bottom: 2px solid #ffd700;
+}
+
+.modal-logo {
+  width: 55px;
+  height: 55px;
+  border: 4px solid #ffd700;
+  border-radius: 50%;
+  padding: 6px;
+  background: white;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+}
+
+.modal-header-service h5 {
+  margin: 10px 0 0;
+  font-size: 1.4em;
+  font-weight: 800;
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.modal-body {
+  padding: 20px 25px;
+  background: #f8f9fa;
+  text-align: center;
+  font-size: 1.1em;
+  min-height: 70px;
+  line-height: 1.6;
+}
+
+.modal-body p {
+  margin: 0;
+  color: #222;
+  font-weight: 500;
+}
+
+.modal-footer {
+  padding: 18px 20px;
+  background: white;
+  text-align: center;
+  border-top: 1px solid #eee;
+}
+
+.modal-btn {
+  padding: 10px 24px;
+  margin: 0 8px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95em;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 100px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+}
+
+.modal-btn.confirm {
+  background: #005b9f;
+  color: white;
+}
+.modal-btn.confirm:hover {
+  background: #003087;
+  transform: translateY(-2px);
+}
+
+.modal-btn.cancel {
+  background: #dc3545;
+  color: white;
+}
+.modal-btn.cancel:hover {
+  background: #c82333;
+}
+
+.modal-btn.ok {
+  background: #28a745;
+  color: white;
+  padding: 11px 35px;
+}
+.modal-btn.ok:hover {
+  background: #218838;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-80px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 /* ==================== RESPONSIVENESS ==================== */
 
 /* Medium screens (Tablets) */
@@ -113,7 +379,9 @@
     max-width: 90%;
     padding: 1.8rem;
   }
-
+.services-grid {
+    grid-template-columns: 1fr 1fr; 
+  }
   .labservices-container h2 {
     font-size: 1.6rem;
   }
@@ -141,11 +409,32 @@
     min-height: auto;
   }
 
+    .modal-content-service {
+    width: 95%;
+    max-width: 320px;
+    border-width: 3px;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+  }
+
+  .modal-btn {
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 10px 0;
+    margin: 4px 0;
+  }
   .labservices-container h2 {
     font-size: 1.5rem;
     margin-bottom: 16px;
   }
-
+.services-grid {
+    grid-template-columns: 1fr ; 
+  }
+  
   .category {
     margin-bottom: 20px;
   }
@@ -186,15 +475,19 @@
   .labservices-container {
     padding: 1.2rem;
     border-radius: 0.5rem;
+     
   }
-
+  .services-grid {
+    grid-template-columns: 1fr; 
+  }
   .labservices-container h2 {
     font-size: 1.3rem;
   }
 
-  .labservices-navigation button {
+  .labservices-navigation  {
     font-size: 0.85rem;
     padding: 8px 16px;
+   padding-bottom: 50px;
   }
 
   .services-list label {
@@ -203,5 +496,23 @@
 
   .complaint-history {
     font-size: 0.85rem;
+  }
+    .modal-content-service {
+    width: 95%;
+    max-width: 320px;
+    border-width: 3px;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+  }
+
+  .modal-btn {
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 10px 0;
+    margin: 4px 0;
   }
 }

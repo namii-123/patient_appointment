@@ -5,9 +5,10 @@ import "../../assets/Services.css";
 const Services: React.FC = () => {
   return (
     <section className="services-home">
-      <h2>Our Services</h2>
+      <h2>OUR SERVICES</h2>
       <div className="services-cards-home">
         <div className="service-card-home">
+           <span className="service-number">01</span>
           <div className="service-icon">
             <FaTooth />
           </div>
@@ -19,6 +20,7 @@ const Services: React.FC = () => {
         </div>
 
         <div className="service-card-home">
+          <span className="service-number">02</span>
           <div className="service-icon">
             <FaXRay />
           </div>
@@ -30,6 +32,7 @@ const Services: React.FC = () => {
         </div>
 
         <div className="service-card-home">
+          <span className="service-number">03</span>
           <div className="service-icon">
             <FaVials />
           </div>
@@ -41,6 +44,7 @@ const Services: React.FC = () => {
         </div>
 
         <div className="service-card-home">
+          <span className="service-number">04</span>
           <div className="service-icon">
             <FaUserMd />
           </div>
@@ -52,6 +56,7 @@ const Services: React.FC = () => {
         </div>
 
         <div className="service-card-home">
+          <span className="service-number">05</span>
           <div className="service-icon">
             <FaStethoscope />
           </div>

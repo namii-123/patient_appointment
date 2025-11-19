@@ -3,6 +3,7 @@ import { db, auth } from "./firebase";
 import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, runTransaction } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import "../../assets/Transaction.css";
+import { X } from "lucide-react";
 
 interface TransactionProps {
   onNavigate?: (
@@ -92,6 +93,28 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
   const [filterYear, setFilterYear] = useState<string>("All");
   const [filterMonth, setFilterMonth] = useState<string>("All");
   const [filterDay, setFilterDay] = useState<string>("All");
+  const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"success" | "error" | "confirm">("confirm");
+const [onModalConfirm, setOnModalConfirm] = useState<() => void>(() => {});
+
+
+const openModal = (
+  message: string,
+  type: "success" | "error" | "confirm",
+  onConfirm?: () => void
+) => {
+  setModalMessage(message);
+  setModalType(type);
+  if (onConfirm) setOnModalConfirm(() => onConfirm);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setOnModalConfirm(() => {});
+};
+
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -152,95 +175,126 @@ const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
     return () => unsubscribeAuth();
   }, []);
 
-  const handleCancel = async (transactionId: string) => {
-    const confirmCancel = window.confirm("Do you want to cancel your appointment?");
-    if (!confirmCancel) return;
 
-    try {
-      await runTransaction(db, async (transaction) => {
-        const transactionRef = doc(db, "Transactions", transactionId);
-        const transactionSnap = await transaction.get(transactionRef);
 
-        if (!transactionSnap.exists()) {
-          console.warn("Transaction not found:", transactionId);
-          throw new Error("Transaction not found.");
-        }
 
-        const transactionData = transactionSnap.data();
-        const { purpose, date, slotID, reservationId, status } = transactionData;
-        // === ADD THIS BLOCK INSIDE runTransaction ===
-const adminNotifRef = collection(db, "admin_notifications");
-await addDoc(adminNotifRef, {
-  type: "appointment_cancelled",
-  message: `Appointment cancelled by patient: ${transactionData.lastName}, ${transactionData.firstName} on ${transactionData.date} at ${transactionData.slotTime}`,
-  patientName: `${transactionData.firstName} ${transactionData.lastName}`,
-  date: transactionData.date,
-  slotTime: transactionData.slotTime,
-  purpose: transactionData.purpose,
-  transactionId: transactionId,
-  timestamp: new Date().toISOString(),
-  read: false,
-});
+useEffect(() => {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, "0");
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const year = today.getFullYear().toString();
 
-        if (status === "Cancelled") {
-          console.warn("Transaction already cancelled:", transactionId);
-          throw new Error("Appointment is already cancelled.");
-        }
+  setFilterDay(day);
+  setFilterMonth(month);
+  setFilterYear(year);
+}, []); 
 
-        // Only update slot if slotID exists
-        if (slotID && date) {
-          const slotRef = doc(db, "Departments", purpose, "Slots", date);
-          const slotSnap = await transaction.get(slotRef);
 
+
+const handleCancel = async (transactionId: string) => {
+  openModal(
+    "Do you want to cancel your appointment?",
+    "confirm",
+    async () => {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const transactionRef = doc(db, "Transactions", transactionId);
+          const transactionSnap = await transaction.get(transactionRef);
+
+          if (!transactionSnap.exists()) {
+            throw new Error("Transaction not found.");
+          }
+
+          const data = transactionSnap.data()!;
+          const {
+            purpose,
+            date,
+            slotID,
+            reservationId,
+            status,
+            lastName,
+            firstName,
+            slotTime,
+          } = data;
+
+          if (status === "Cancelled") {
+            throw new Error("Appointment is already cancelled.");
+          }
+
+          // === STEP 1: ALL READS FIRST ===
+          let slotSnap = null;
           let reservationSnap = null;
-          let reservationRef = null;
+
+          if (slotID && date) {
+            const slotRef = doc(db, "Departments", purpose, "Slots", date);
+            slotSnap = await transaction.get(slotRef);
+          }
+
           if (reservationId) {
-            reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
+            const reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
             reservationSnap = await transaction.get(reservationRef);
           }
 
-          if (slotSnap.exists() && !slotSnap.data().closed) {
+          // === STEP 2: ALL WRITES AFTER ===
+          // 1. Admin Notification
+          const adminNotifRef = collection(db, "admin_notifications");
+          transaction.set(doc(adminNotifRef), {
+            type: "appointment_cancelled",
+            message: `Appointment cancelled by patient: ${lastName}, ${firstName} on ${date} at ${slotTime}`,
+            patientName: `${firstName} ${lastName}`,
+            date,
+            slotTime,
+            purpose,
+            transactionId,
+            timestamp: new Date().toISOString(),
+            read: false,
+          });
+
+          // 2. Re-open slot
+          if (slotSnap?.exists() && !slotSnap.data().closed && slotID) {
             const slots = slotSnap.data().slots || [];
             const slotIndex = slots.findIndex((s: any) => s.slotID === slotID);
-
             if (slotIndex !== -1) {
-              slots[slotIndex].remaining = (slots[slotIndex].remaining || 0) + 1;
-              const totalSlots = slots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+              const updatedSlots = [...slots];
+              updatedSlots[slotIndex].remaining = (updatedSlots[slotIndex].remaining || 0) + 1;
+              const totalSlots = updatedSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
 
+              const slotRef = doc(db, "Departments", purpose, "Slots", date);
               transaction.update(slotRef, {
-                slots,
+                slots: updatedSlots,
                 totalSlots,
                 updatedAt: new Date().toISOString(),
               });
-              console.log(`📌 Transaction: Incremented remaining for slot ${slotID} on ${date} in ${purpose}`);
-            } else {
-              console.warn(`Slot ${slotID} not found in ${slotRef.path}`);
             }
-          } else {
-            console.warn(`Slot document ${slotRef.path} does not exist or is closed`);
           }
 
-          if (reservationRef && reservationSnap?.exists()) {
+          // 3. Delete reservation
+          if (reservationSnap?.exists()) {
+            const reservationRef = doc(db, "Departments", purpose, "Reservations", reservationId);
             transaction.delete(reservationRef);
-            console.log(`📌 Transaction: Deleted reservation ${reservationId}`);
-          } else if (reservationId) {
-            console.warn(`Reservation ${reservationId} not found`);
           }
-        }
 
-        // AFTER updating status to "Cancelled"
-transaction.update(transactionRef, {
-  status: "Cancelled",
-  updatedAt: new Date().toISOString(),
-});
-      });
+          // 4. Update transaction status
+          transaction.update(transactionRef, {
+            status: "Cancelled",
+            updatedAt: new Date().toISOString(),
+          });
+        });
 
-      alert("Your appointment has been cancelled, and the slot is now available.");
-    } catch (error) {
-      console.error("Error cancelling transaction:", error);
-      alert("❌ Failed to cancel appointment. Please try again.");
+        openModal(
+          "Your appointment has been cancelled!\n\nThe slot is now available for others.",
+          "success"
+        );
+      } catch (error: any) {
+        console.error("Cancel failed:", error);
+        openModal(
+          error.message || "Failed to cancel. Please try again.",
+          "error"
+        );
+      }
     }
-  };
+  );
+};
 
   const parseDateTime = (dateStr: string, timeStr: string): number => {
     if (!dateStr || !timeStr) return 0;
@@ -304,7 +358,7 @@ transaction.update(transactionRef, {
               onChange={(e) => setFilterDept(e.target.value)}
               style={{ marginLeft: "5px" }}
             >
-              <option value="All">All Departments</option>
+              <option value="All">All</option>
               <option value="Medical">Medical</option>
               <option value="Dental">Dental</option>
               <option value="Radiographic">Radiology</option>
@@ -319,74 +373,124 @@ transaction.update(transactionRef, {
               onChange={(e) => setFilterStatus(e.target.value)}
               style={{ marginLeft: "5px" }}
             >
-              <option value="All">All Status</option>
+              <option value="All">All</option>
               <option value="Pending">Pending</option>
               <option value="Approved">Approved</option>
               <option value="Completed">Completed</option>
               <option value="Rejected">Rejected</option>
             </select>
           </label>
-          <label style={{ marginRight: "10px" }}>
-            Year:
-            <select
-              value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value)}
-              style={{ marginLeft: "5px" }}
-            >
-              <option value="All">All Years</option>
-              {Array.from({ length: 2050 - 2000 + 1 }, (_, i) => 2000 + i).map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label style={{ marginRight: "10px" }}>
-            Month:
-            <select
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
-              style={{ marginLeft: "5px" }}
-            >
-              <option value="All">All Months</option>
-              {[
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-              ].map((month, i) => {
-                const monthValue = String(i + 1).padStart(2, "0");
-                return (
-                  <option key={month} value={monthValue}>
-                    {month}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <label>
-            Day:
-            <select
-              value={filterDay}
-              onChange={(e) => setFilterDay(e.target.value)}
-              style={{ marginLeft: "5px" }}
-            >
-              <option value="All">All Days</option>
-              {[...Array(31)].map((_, i) => {
-                const day = String(i + 1).padStart(2, "0");
-                return (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
+        <label style={{ marginRight: "10px" }}>
+  Year:
+  <select
+    value={filterYear}
+    onChange={(e) => setFilterYear(e.target.value)}
+    style={{ marginLeft: "5px" }}
+  >
+    {(() => {
+      const transactionYears = transactions
+        .map(t => t.date.split("-")[0])
+        .filter(Boolean)
+        .map(Number);
+
+      const latestYear = transactionYears.length > 0
+        ? Math.max(...transactionYears)
+        : new Date().getFullYear();
+
+      const startYear = 2025;
+      const endYear = latestYear + 20;
+
+      const years = [];
+      for (let y = endYear; y >= startYear; y--) {
+        years.push(y);
+      }
+
+      return (
+        <>
+          {years.map(year => (
+            <option key={year} value={year}>
+              {year}  
+            </option>
+          ))}
+          <option value="All">All</option>
+        </>
+      );
+    })()}
+  </select>
+</label>
+         <label style={{ marginRight: "10px" }}>
+  Month:
+  <select
+    value={filterMonth}
+    onChange={(e) => setFilterMonth(e.target.value)}
+    style={{ marginLeft: "5px" }}
+  >
+    {(() => {
+      const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const current = new Date().getMonth();
+      const recent: { name: string; value: string; }[] = [];
+
+      for (let i = 0; i < 3; i++) {
+        const idx = (current - i + 12) % 12;
+        recent.push({ name: months[idx], value: String(idx + 1).padStart(2, "0") });
+      }
+
+      return (
+        <>
+          {recent.map(m => (
+            <option key={m.value} value={m.value}>
+              {m.name} 
+            </option>
+          ))}
+          {months.map((m, i) => {
+            const val = String(i + 1).padStart(2, "0");
+            if (recent.some(r => r.value === val)) return null;
+            return <option key={val} value={val}>{m}</option>;
+          })}
+          <option value="All">All</option>
+        </>
+      );
+    })()}
+  </select>
+</label>
+         <label>
+  Day:
+  <select
+    value={filterDay}
+    onChange={(e) => setFilterDay(e.target.value)}
+    style={{ marginLeft: "5px" }}
+  >
+    {[...Array(2)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const day = String(d.getDate()).padStart(2, "0");
+      return (
+        <option key={day} value={day}>
+          {day}  
+        </option>
+      );
+    })}
+
+    {[...Array(31)].map((_, i) => {
+      const day = String(i + 1).padStart(2, "0");
+      const today = String(new Date().getDate()).padStart(2, "0");
+      const yesterday = String(new Date().getDate() - 1).padStart(2, "0");
+      if (day === today || day === yesterday) return null;
+      return <option key={day} value={day}>{day}</option>;
+    })}
+    <option value="All">All</option>
+  </select>
+</label>
         </div>
       </div>
       <div className="appointment-table">
         <div className="appointment-row header">
           <div className="col no">Transaction ID</div>
           <div className="col detail">Details</div>
-          <div className="col status">Status</div>
+          <div className="col statuss">Status</div>
           <div className="col action">Action</div>
         </div>
         {filteredTransactions.length === 0 ? (
@@ -398,7 +502,7 @@ transaction.update(transactionRef, {
         ) : (
           filteredTransactions.map((item) => (
             <div key={item.id} className="appointment-row">
-              <div className="col nos">{item.transactionCode}</div>
+              <div className="col no">{item.transactionCode}</div>
               <div className="col details">
                 <div className="detail-line">
                   <strong>Department:</strong> {item.purpose}
@@ -454,7 +558,7 @@ transaction.update(transactionRef, {
               <div className="col action">
                 {item.status === "Pending" && (
                   <button
-                    className="cancel-btn"
+                    className="cancel-btnt"
                     onClick={() => handleCancel(item.id)}
                   >
                     Cancel
@@ -465,6 +569,60 @@ transaction.update(transactionRef, {
           ))
         )}
       </div>
+
+
+      {/* TRANSACTION MODAL */}
+{showModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+    </audio>
+
+    <div className="transaction-modal-overlay" onClick={closeModal}>
+      <div className="transaction-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="transaction-modal-header">
+          <img src="/logo.png" alt="DOH Logo" className="transaction-modal-logo" />
+          <h3 className="transaction-modal-title">
+  {modalType === "success" && "SUCCESS"}
+  {modalType === "error" && "ERROR"}
+  {modalType === "confirm" && "CONFIRM CANCELLATION"}
+</h3>
+          <button className="transaction-modal-close" onClick={closeModal}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="transaction-modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>{modalMessage}</p>
+        </div>
+
+        <div className="transaction-modal-footer">
+          {modalType === "confirm" && (
+            <>
+              <button className="transaction-modal-btn cancel" onClick={closeModal}>
+                No, Keep It
+              </button>
+              <button
+                className="transaction-modal-btn confirm"
+                onClick={() => {
+                  closeModal();
+                  onModalConfirm();
+                }}
+              >
+                Yes, Cancel
+              </button>
+            </>
+          )}
+          {(modalType === "success" || modalType === "error") && (
+            <button className="transaction-modal-btn ok" onClick={closeModal}>
+              {modalType === "success" ? "Done" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}
     </div>
   );
 };

@@ -271,9 +271,13 @@
     font-weight: 700;
   }
   
-  .content-wrapper {
-    padding: 20px;
-  }
+ .content-wrapper {
+  padding: 28px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  min-height: 100vh;
+  border-radius: 16px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+}
 
   .search-containerrr {
  width: 25%;  
@@ -349,84 +353,226 @@
     width: 100%;
   }
 }
-  .appointments-heading {
-    text-align: center;
-  font-size: 30px;
-  font-weight: bold;
-  color: #1d3557;
-  margin-top: 60px;
-  }
-  
-  .table-container {
-    overflow-x: auto;
-  }
-  
-  .appointments-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: #ffffff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-top: 25px;
-  }
-  
+ /* Main Heading - More Elegant & Responsive */
+.appointments-heading {
+  text-align: center;
+  font-size: clamp(28px, 5vw, 36px); /* Responsive font size */
+  font-weight: 800;
+  color: #1e293b;
+  margin: 60px 0 40px;
+  position: relative;
+  letter-spacing: -0.5px;
+}
+
+.appointments-heading::after {
+  content: '';
+  display: block;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  margin: 16px auto 0;
+  border-radius: 2px;
+}
+
+/* Responsive Table Container */
+.table-container {
+  overflow-x: auto;
+  margin: 20px 0;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  background: white;
+  padding: 0;
+}
+
+/* Modern Table Styling */
+.appointments-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.appointments-table thead th {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: #ffffff;
+  padding: 18px 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.8px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.appointments-table tbody tr {
+  transition: all 0.3s ease;
+  background: #ffffff;
+}
+
+.appointments-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.appointments-table tbody tr:hover {
+  background-color: #eef2ff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.1);
+}
+
+/* Responsive Padding for Cells */
+.appointments-table td {
+  padding: 16px;
+  text-align: center;
+  font-size: 15px;
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* First and Last Cell Rounding */
+.appointments-table tr:first-child th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.appointments-table tr:first-child th:last-child {
+  border-top-right-radius: 12px;
+}
+
+.appointments-table tr:last-child td:first-child {
+  border-bottom-left-radius: 12px;
+}
+
+.appointments-table tr:last-child td:last-child {
+  border-bottom-right-radius: 12px;
+}
+
+/* Modern Action Buttons */
+.action-btns {
+  padding: 8px 14px;
+  margin: 0 4px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: white;
+  min-width: 80px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.action-btns:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+.action-btns.completed {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.action-btns.view {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.action-btns:active {
+  transform: translateY(0);
+}
+
+/* Enhanced Status Text */
+/* Modern & Consistent Status Badges (same style for all) */
+.status-text {
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 6px 16px;
+  border-radius: 50px;
+  font-size: 13px;
+  display: inline-block;
+  min-width: 90px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+/* APPROVED → Green Badge */
+.status-text.approved {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+/* COMPLETED → Blue / Teal Badge (nindot kaayo ni!) */
+.status-text.completed {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+/* REJECTED → Red Badge */
+.status-text.rejected {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* Optional: Pending (kung gamiton sa ubang page) */
+.status-text.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+/* Mobile Optimization - Stack effect for small screens */
+@media (max-width: 768px) {
+  .appointments-table,
+  .appointments-table thead,
+  .appointments-table tbody,
   .appointments-table th,
+  .appointments-table td,
+  .appointments-table tr {
+    display: block;
+  }
+
+  .appointments-table thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  .appointments-table tr {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+
   .appointments-table td {
-    padding: 12px 15px;
-    text-align: center;
-    border-bottom: 1px solid #ddd;
+    border: none;
+    position: relative;
+    padding-left: 50%;
+    text-align: right;
     font-size: 14px;
   }
-  
-  .appointments-table th {
-    background-color: #2c3e50;
-    color: white;
-    font-weight: bold;
+
+  .appointments-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 16px;
+    width: 45%;
+    font-weight: 600;
+    text-align: left;
+    color: #1e293b;
+    text-transform: capitalize;
   }
-  
+
   .action-btns {
-    margin: 0 5px;
-    padding: 6px 5px;
-    border: none;
-    border-radius: 5px;
-    font-size: 13px;
-    cursor: pointer;
-    color: white;
+    width: 100%;
+    margin: 6px 0;
   }
-  
-  .action-btns.completed {
-    background-color: #2ecc71;
-  }
-  
-  .action-btns.view {
-    background-color: #3498db;
-  }
-
-  .status-text {
-    font-weight: 600;
-    text-transform: capitalize;
-  }
-  
-  .status-text.accepted {
-    color: #2ecc71; /* Green */
-  }
-  
-  .status-text.rejected {
-    color: #e74c3c; /* Red */
-  }.status-text {
-    font-weight: 600;
-    text-transform: capitalize;
-  }
-  
-  .status-text.accepted {
-    color: #2ecc71; /* Green */
-  }
-  
-  .status-text.rejected {
-    color: #e74c3c; /* Red */
-  }
-
- 
-  
+}
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -591,4 +737,70 @@
 
 .patient-info strong {
   color: #1d3557;
+}
+
+/* PAGINATION STYLES */
+.pagination-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8fafc;
+  border-radius: 10px;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pagination-btn {
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #475569;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+}
+
+.pagination-btn:hover:not(:disabled):not(.ellipsis) {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.pagination-btn.active {
+  background: #1e293b;
+  color: white;
+  border-color: #1e293b;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.ellipsis {
+  cursor: default;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+}
+
+.prev-btn, .next-btn {
+  font-weight: 700;
 }

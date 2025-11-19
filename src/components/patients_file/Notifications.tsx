@@ -1,8 +1,8 @@
-// Notifications.tsx
+
 import React, { useState } from "react";
 import { FaInfoCircle, FaEnvelopeOpenText } from "react-icons/fa";
-// In any component that needs the type
-// In any component that needs the type
+
+
 import type { Notification } from "./types/Notification";
 import "../../assets/Notifications.css";
 

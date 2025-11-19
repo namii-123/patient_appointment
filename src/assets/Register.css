@@ -110,6 +110,11 @@
   align-items: center;
 }
 
+.create h3{
+  font-size: 24px;
+    color: midnightblue;
+    margin-bottom: 15px;
+}
 .eye-toggle {
   position: absolute;
   right: 10px;

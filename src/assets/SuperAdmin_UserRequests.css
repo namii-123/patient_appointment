@@ -599,6 +599,11 @@ html, body {
   
   
 
+.new-message-row {
+  background-color: #e6f7ff !important;
+  font-weight: 600;
+}
+
 
 .table-footer {
   display: flex;

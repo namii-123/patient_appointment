@@ -319,7 +319,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
       <main className="main-content-superadmin">
         {/* Top Navbar */}
         <div className="top-navbar-superadmins">
-          <h2 className="navbar-title">Dashboard</h2>
+          <h5 className="navbar-title">Dashboard</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -366,7 +366,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_clinical")}
                 >
                   <FaClinicMedical className="card-icon" />
-                  <h3>{patientCounts.Clinical}</h3>
+                  <h5>{patientCounts.Clinical}</h5>
                   <p>Total Clinical Patients</p>
                 </div>
                 <div
@@ -374,7 +374,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_dental")}
                 >
                   <FaTooth className="card-icon" />
-                  <h3>{patientCounts.Dental}</h3>
+                  <h5>{patientCounts.Dental}</h5>
                   <p>Total Dental Patients</p>
                 </div>
                 <div
@@ -382,7 +382,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_radiology")}
                 >
                   <FaXRay className="card-icon" />
-                  <h3>{patientCounts.Radiology}</h3>
+                  <h5>{patientCounts.Radiology}</h5>
                   <p>Total Radiology Patients</p>
                 </div>
                 <div
@@ -390,7 +390,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_medical")}
                 >
                   <FaUserMd className="card-icon" />
-                  <h3>{patientCounts.Medical}</h3>
+                  <h5>{patientCounts.Medical}</h5>
                   <p>Total Medical Patients</p>
                 </div>
                 <div
@@ -398,7 +398,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_dde")}
                 >
                   <FaStethoscope className="card-icon" />
-                  <h3>{patientCounts.DDE}</h3>
+                  <h5>{patientCounts.DDE}</h5>
                   <p>Total DDE Patients</p>
                 </div>
                 <div
@@ -406,7 +406,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_registeredusers")}
                 >
                   <FaUsers className="card-icon" />
-                  <h3>{totalRegisteredUsers}</h3>
+                  <h5>{totalRegisteredUsers}</h5>
                   <p>Total Registered Users</p>
                 </div>
                 <div
@@ -414,7 +414,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_clinicaladmin")}
                 >
                   <FaClinicMedical className="card-icon" />
-                  <h3>{adminCounts.Clinical}</h3>
+                  <h5>{adminCounts.Clinical}</h5>
                   <p>Clinical Admins</p>
                 </div>
                 <div
@@ -422,7 +422,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_dentaladmin")}
                 >
                   <FaTooth className="card-icon" />
-                  <h3>{adminCounts.Dental}</h3>
+                  <h5>{adminCounts.Dental}</h5>
                   <p>Dental Admins</p>
                 </div>
                 <div
@@ -430,7 +430,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_radiologyadmin")}
                 >
                   <FaXRay className="card-icon" />
-                  <h3>{adminCounts.Radiology}</h3>
+                  <h5>{adminCounts.Radiology}</h5>
                   <p>Radiology Admins</p>
                 </div>
                 <div
@@ -438,7 +438,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_medicaladmin")}
                 >
                   <FaUserMd className="card-icon" />
-                  <h3>{adminCounts.Medical}</h3>
+                  <h5>{adminCounts.Medical}</h5>
                   <p>Medical Admins</p>
                 </div>
                 <div
@@ -446,7 +446,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_ddeadmin")}
                 >
                   <FaStethoscope className="card-icon" />
-                  <h3>{adminCounts.DDE}</h3>
+                  <h5>{adminCounts.DDE}</h5>
                   <p>DDE Admins</p>
                 </div>
                 <div
@@ -454,7 +454,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
                   onClick={() => handleNavigation("/superadmin_rejectedadmins")}
                 >
                   <FaUserTimes className="card-icon" />
-                  <h3>{adminCounts.Rejected}</h3>
+                  <h5>{adminCounts.Rejected}</h5>
                   <p>Rejected Admins</p>
                 </div>
               </div>
@@ -466,7 +466,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
         <div className="chart-activity-containers">
           <div className="chart-row">
             <div className="chart-box">
-              <h3 className="chart-titles">Patients per Department</h3>
+              <h5 className="chart-titles">Patients per Department</h5>
               <ResponsiveContainer width="100%" height={400}>
                 <PieChart width={400} height={400}>
                   <Pie
@@ -492,7 +492,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
             <div className="chart-box">
-              <h3 className="chart-titles">Admins per Department</h3>
+              <h5 className="chart-titles">Admins per Department</h5>
               <ResponsiveContainer width="100%" height={400}>
                 <PieChart width={400} height={400}>
                   <Pie

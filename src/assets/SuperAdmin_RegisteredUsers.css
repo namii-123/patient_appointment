@@ -492,11 +492,12 @@ html, body {
     margin: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+     color: #1d3557;
+      font-size: 30px;
   }
   
-  .section-titles {
+  .section-titless h5 {
     display: flex;
-    font-size: 18px;
     font-weight: 600;
     margin-top: -40px;
     color: #1d3557;

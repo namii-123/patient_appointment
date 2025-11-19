@@ -299,7 +299,7 @@
   border: 1px solid #ccc;
 }
 
-  .section-title.center {
+  .section-title.center h5 {
     text-align: center;
   font-size: 30px;
   font-weight: bold;

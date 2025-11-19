@@ -40,7 +40,7 @@ const AboutUs: React.FC<AboutUsProps> = ({ onNavigate }) => {
       <section className="about-content">
         <div className="about-grid">
           <div className="about-card">
-            <h3>Mission</h3>
+            <h4>Mission</h4>
             <p>
               To provide high-quality treatment and support services that empower individuals and families 
               on their path toward a drug-free, fulfilling life.
@@ -48,7 +48,7 @@ const AboutUs: React.FC<AboutUsProps> = ({ onNavigate }) => {
           </div>
 
           <div className="about-card">
-            <h3>Vision</h3>
+            <h4>Vision</h4>
             <p>
               A society where every individual affected by substance use disorder is offered 
               support, understanding, and a second chance to reintegrate and thrive.
@@ -56,7 +56,7 @@ const AboutUs: React.FC<AboutUsProps> = ({ onNavigate }) => {
           </div>
 
           <div className="about-card">
-            <h3>Quality & Policy</h3>
+            <h4>Quality & Policy</h4>
             <p>
               We are committed to maintaining the highest standards of care through continuous improvement, 
               professional development, and adherence to best practices. Our policies ensure confidentiality, 
@@ -65,7 +65,7 @@ const AboutUs: React.FC<AboutUsProps> = ({ onNavigate }) => {
           </div>
 
           <div className="about-card">
-            <h3>Core Values</h3>
+            <h4>Core Values</h4>
             <p>
               Compassion, Integrity, Respect, Excellence, and Collaboration guide everything we do to foster a supportive and healing environment.
             </p>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaUser, FaFileAlt, FaSignOutAlt } from "react-icons/fa";
+import { FaUser, FaFileAlt, FaSignOutAlt, FaHome, FaPhone } from "react-icons/fa";
 import { signOut } from "firebase/auth";
 import { auth, db } from "./firebase"; 
 import { toast } from "react-toastify";
 import { Link, useNavigate } from "react-router-dom";
+import { X } from "lucide-react"; // Add this line
 import {
   FaUserCircle,
   FaBell,
@@ -65,6 +66,10 @@ const Home: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"ALL" | "UNREAD">("ALL");
+    const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState<"success" | "error" | "confirm">("confirm");
+  const [onModalConfirm, setOnModalConfirm] = useState<() => void>(() => {});
   const [currentView, setCurrentView] = useState<
     | "home"
     | "contacts"
@@ -142,6 +147,23 @@ const Home: React.FC = () => {
     setNotifDropdownOpen(false);
   };
 
+
+    const openModal = (
+    message: string,
+    type: "success" | "error" | "confirm",
+    onConfirm?: () => void
+  ) => {
+    setModalMessage(message);
+    setModalType(type);
+    if (onConfirm) setOnModalConfirm(() => onConfirm);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setOnModalConfirm(() => {});
+  };
+
   const handleNotificationClick = async (id: string) => {
     const notif = notifications.find(n => n.id === id);
     if (notif) {
@@ -150,16 +172,23 @@ const Home: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
-    if (window.confirm("Are you sure you want to sign out?")) {
-      try {
-        await signOut(auth);
-        window.location.href = "/";
-      } catch (error) {
-        console.error("Error signing out:", error);
-        toast.error("Error signing out. Please try again.");
+    const handleLogout = () => {
+    openModal(
+      "Are you sure you want to sign out?",
+      "confirm",
+      async () => {
+        try {
+          await signOut(auth);
+          openModal("You have been signed out successfully!", "success");
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 1500);
+        } catch (error) {
+          console.error("Error signing out:", error);
+          openModal("Error signing out. Please try again.", "error");
+        }
       }
-    }
+    );
   };
 
   const unreadCount = notifications.filter((notif) => !notif.read).length;
@@ -301,6 +330,105 @@ const Home: React.FC = () => {
     <span></span>
     <span></span>
   </div>
+
+{/* MOBILE SLIDE-IN MENU MODAL */}
+{menuOpen && (
+  <div className="mobile-menu-modal-overlay" onClick={() => setMenuOpen(false)}>
+    <div className="mobile-menu-modal-content" onClick={(e) => e.stopPropagation()}>
+      {/* CLOSE BUTTON */}
+      <button className="mobile-menu-close-btn" onClick={() => setMenuOpen(false)}>
+        <X size={24} />
+      </button>
+
+      {/* LOGO + TITLE */}
+      <div className="mobile-menu-header">
+        <img src="/logo.png" alt="DOH Logo" className="mobile-menu-logo" />
+        <span className="mobile-menu-title">DOH-TRC Argao</span>
+      </div>
+
+      {/* MENU LINKS WITH ICONS */}
+      <ul className="mobile-menu-links">
+        <li
+          className={currentView === "home" ? "active" : ""}
+          onClick={() => {
+            setCurrentView("home");
+            setMenuOpen(false);
+          }}
+        >
+          <FaHome /> {/* Home icon */}
+          Home
+        </li>
+        <li
+          className={currentView === "abouts" ? "active" : ""}
+          onClick={() => {
+            setCurrentView("abouts");
+            setMenuOpen(false);
+          }}
+        >
+          <FaInfoCircle /> {/* About icon */}
+          About Us
+        </li>
+        <li
+          className={currentView === "contacts" ? "active" : ""}
+          onClick={() => {
+            setCurrentView("contacts");
+            setMenuOpen(false);
+          }}
+        >
+          <FaPhone /> {/* Contact icon */}
+          Contact Us
+        </li>
+
+        {/* NOTIFICATIONS (MOBILE) */}
+        <li
+          className={currentView === "notifications" ? "active" : ""}
+          onClick={() => {
+            setCurrentView("notifications");
+            setMenuOpen(false);
+          }}
+        >
+          <FaBell /> {/* Notification icon */}
+          Notifications
+          {unreadCount > 0 && <span className="badge-mobile">{unreadCount}</span>}
+        </li>
+
+        {/* PROFILE & TRANSACTIONS (MOBILE) */}
+        <li
+          className={currentView === "profile" ? "active" : ""}
+          onClick={() => {
+            setCurrentView("profile");
+            setMenuOpen(false);
+          }}
+        >
+          <FaUser /> {/* Profile icon */}
+          Profile
+        </li>
+        <li
+          className={currentView === "transaction" ? "active" : ""}
+          onClick={() => {
+            setCurrentView("transaction");
+            setMenuOpen(false);
+          }}
+        >
+          <FaFileAlt /> {/* Transactions icon */}
+          Transactions
+        </li>
+
+        {/* SIGN OUT */}
+        <li
+          onClick={() => {
+            handleLogout();
+            setMenuOpen(false);
+          }}
+        >
+          <FaSignOutAlt /> {/* Sign out icon */}
+          Sign Out
+        </li>
+      </ul>
+    </div>
+  </div>
+)}
+
 
   {/* NAV LINKS */}
   <ul className={`nav-links-homes ${menuOpen ? "active" : ""}`}>
@@ -514,35 +642,35 @@ const Home: React.FC = () => {
                 <div className="service-icons">
                   <FaTooth />
                 </div>
-                <h3>Dental Services</h3>
+                <h5>Dental Services</h5>
                 <p>Providing complete oral health care, including cleanings, exams, and treatment plans.</p>
               </div>
               <div className="service-card-homes">
                 <div className="service-icons">
                   <FaXRay />
                 </div>
-                <h3>Radiology Services</h3>
+                <h5>Radiology Services</h5>
                 <p>Advanced imaging services such as X-rays and ultrasounds for accurate diagnosis.</p>
               </div>
               <div className="service-card-homes">
                 <div className="service-icons">
                   <FaVials />
                 </div>
-                <h3>Clinical Laboratory Services</h3>
+                <h5>Clinical Laboratory Services</h5>
                 <p>Fast and accurate blood tests, screenings, and laboratory diagnostics.</p>
               </div>
               <div className="service-card-homes">
                 <div className="service-icons">
                   <FaUserMd />
                 </div>
-                <h3>Drug Dependency Exam</h3>
+                <h5>Drug Dependency Exam</h5>
                 <p>Professional assessment services for individuals undergoing drug rehabilitation programs.</p>
               </div>
               <div className="service-card-homes">
                 <div className="service-icons">
                   <FaStethoscope />
                 </div>
-                <h3>Medical Consultations</h3>
+                <h5>Medical Consultations</h5>
                 <p>General check-ups, follow-up care, and health evaluations by licensed medical professionals.</p>
               </div>
             </div>
@@ -779,7 +907,65 @@ const Home: React.FC = () => {
           <p>© 2025 DOH-TRC Argao. All Rights Reserved.</p>
         </div>
       </footer>
+
+
+
+            {/* SIGN OUT MODAL */}
+      {showModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+          </audio>
+
+          <div className="home-modal-overlay" onClick={closeModal}>
+            <div className="home-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="home-modal-header">
+                <img src="/logo.png" alt="DOH Logo" className="home-modal-logo" />
+                <h3 className="home-modal-title">
+                  {modalType === "success" && "SUCCESS"}
+                  {modalType === "error" && "ERROR"}
+                  {modalType === "confirm" && "CONFIRM SIGN OUT"}
+                </h3>
+                <button className="home-modal-close" onClick={closeModal}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="home-modal-body">
+                <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>{modalMessage}</p>
+              </div>
+
+              <div className="home-modal-footer">
+                {modalType === "confirm" && (
+                  <>
+                    <button className="home-modal-btn cancel" onClick={closeModal}>
+                      No, Stay
+                    </button>
+                    <button
+                      className="home-modal-btn confirm"
+                      onClick={() => {
+                        closeModal();
+                        onModalConfirm();
+                      }}
+                    >
+                      Yes, Sign Out
+                    </button>
+                  </>
+                )}
+                {(modalType === "success" || modalType === "error") && (
+                  <button className="home-modal-btn ok" onClick={closeModal}>
+                    {modalType === "success" ? "Done" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
+
+    
   );
 };
 

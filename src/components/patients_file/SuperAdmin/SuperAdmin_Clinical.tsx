@@ -288,7 +288,7 @@ const SuperAdmin_Clinical: React.FC = () => {
       <main className="main-content-superadmin">
         {/* Top Navbar */}
         <div className="top-navbar-superadmin">
-          <h2 className="navbar-title">Clinical Appointments</h2>
+          <h5 className="navbar-title">Clinical Appointments</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -391,54 +391,54 @@ const SuperAdmin_Clinical: React.FC = () => {
             className={`summary-card all ${filter === "all" ? "active" : ""}`}
             onClick={() => setFilter("all")}
           >
-            <h3>{appointments.length}</h3>
+            <h5>{appointments.length}</h5>
             <p>All</p>
           </div>
           <div
             className={`summary-card pending ${filter === "pending" ? "active" : ""}`}
             onClick={() => setFilter("pending")}
           >
-            <h3>{pendingCount}</h3>
+            <h5>{pendingCount}</h5>
             <p>Pending</p>
           </div>
           <div
             className={`summary-card approved ${filter === "approved" ? "active" : ""}`}
             onClick={() => setFilter("approved")}
           >
-            <h3>{approvedCount}</h3>
+            <h5>{approvedCount}</h5>
             <p>Approved</p>
           </div>
           <div
             className={`summary-card completed ${filter === "completed" ? "active" : ""}`}
             onClick={() => setFilter("completed")}
           >
-            <h3>{completedCount}</h3>
+            <h5>{completedCount}</h5>
             <p>Completed</p>
           </div>
           <div
             className={`summary-card rejected ${filter === "rejected" ? "active" : ""}`}
             onClick={() => setFilter("rejected")}
           >
-            <h3>{rejectedCount}</h3>
+            <h5>{rejectedCount}</h5>
             <p>Rejected</p>
           </div>
           <div
             className={`summary-card canceled ${filter === "cancelled" ? "active" : ""}`}
             onClick={() => setFilter("cancelled")}
           >
-            <h3>{canceledCount}</h3>
+            <h5>{canceledCount}</h5>
             <p>Canceled</p>
           </div>
         </div>
 
         {/* Table for appointments */}
         <div className="appointments-section">
-          <h3 className="section-title">
+          <h5 className="section-title">
             {filter === "all"
               ? "All"
               : filter.charAt(0).toUpperCase() + filter.slice(1)}{" "}
             Appointments
-          </h3>
+          </h5>
           <table className="appointments-table">
             <thead>
               <tr>

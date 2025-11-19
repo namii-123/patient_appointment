@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaClock, FaStethoscope } from "react-icons/fa";
 import "../../../assets/ManageSlots.css";
 import { db } from "../firebase";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
+import { X } from "lucide-react";
+import logo from "/logo.png";
 
 interface Slot {
   slotID: string;
@@ -214,6 +216,30 @@ const ManageSlots_Radiology: React.FC = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
 
+   const [showInfoModal, setShowInfoModal] = useState(false);
+      const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+      const [showCustomModal, setShowCustomModal] = useState(false);
+    const [customModalMessage, setCustomModalMessage] = useState("");
+    const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+    const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+    
+    const openCustomModal = (
+      message: string,
+      type: "success" | "error" | "confirm" = "success",
+      onConfirm?: () => void
+    ) => {
+      setCustomModalMessage(message);
+      setCustomModalType(type);
+      if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+      setShowCustomModal(true);
+    };
+    
+    const closeCustomModal = () => {
+      setShowCustomModal(false);
+      setOnCustomModalConfirm(() => {});
+    };
+    
+
   return (
     <div className="dashboards">
       <aside className="sidebars">
@@ -250,6 +276,12 @@ const ManageSlots_Radiology: React.FC = () => {
               </span>
             </div>
             <div className="nav-item">
+                <FaStethoscope className="nav-icon" />
+                <span onClick={() => handleNavigation("/services_radiology")}>
+                  Services
+                </span>
+              </div>
+            <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_radiology")}>
                 Reports & Analytics
@@ -262,32 +294,35 @@ const ManageSlots_Radiology: React.FC = () => {
             <FaUser className="user-icon" />
             <span className="user-label">Admin</span>
           </div>
-         <div className="signout-box">
-                                <FaSignOutAlt className="signout-icon" />
-                                <span
-                                  onClick={async () => {
-                                    const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                    if (isConfirmed) {
-                                      try {
-                                        await signOut(auth);
-                                        navigate("/loginadmin", { replace: true });
-                                      } catch (error) {
-                                        console.error("Error signing out:", error);
-                                        alert("Failed to sign out. Please try again.");
-                                      }
-                                    }
-                                  }}
-                                  className="signout-label"
-                                  style={{ cursor: "pointer" }}
-                                >
-                                  Sign Out
-                                </span>
-                              </div>
+           <div className="signout-box">
+                                                    <FaSignOutAlt className="signout-icon" />
+                                                    <span
+                                                      onClick={async () => {
+                     openCustomModal(
+                       "Are you sure you want to sign out?",
+                       "confirm",
+                       async () => {
+                         try {
+                           await signOut(auth);
+                           navigate("/loginadmin", { replace: true });
+                         } catch (error) {
+                           console.error("Error signing out:", error);
+                           openCustomModal("Failed to sign out. Please try again.", "error");
+                         }
+                       }
+                     );
+                   }}
+                                                      className="signout-label"
+                                                      style={{ cursor: "pointer" }}
+                                                    >
+                                                      Sign Out
+                                                    </span>
+                                                  </div>
                               </div>
       </aside>
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Manage Slots</h2>
+          <h5 className="navbar-title">Manage Slots</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -330,7 +365,7 @@ const ManageSlots_Radiology: React.FC = () => {
         <div className="content-wrapper">
           <div className="calendar-containers">
             <div className="calendar-headers">
-              <h3 className="calendar-title">Monthly Calendar - Manage Slots</h3>
+              <h5 className="calendar-title">Monthly Calendar - Manage Slots</h5>
               <div className="calendar-nav">
                 <select
                   value={currentMonth}
@@ -460,9 +495,66 @@ const ManageSlots_Radiology: React.FC = () => {
               </div>
             </div>
           )}
+
+
+
+              {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+          {showCustomModal && (
+            <>
+              <audio autoPlay>
+                <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+              </audio>
+              <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+                <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="radiology-modal-header">
+                    <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                    <h3 className="radiology-modal-title">
+                      {customModalType === "success" && "SUCCESS"}
+                      {customModalType === "error" && "ERROR"}
+                      {customModalType === "confirm" && "CONFIRM ACTION"}
+                    </h3>
+                    <button className="radiology-modal-close" onClick={closeCustomModal}>
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="radiology-modal-body">
+                    <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                      {customModalMessage}
+                    </p>
+                  </div>
+                  <div className="radiology-modal-footer">
+                    {customModalType === "confirm" && (
+                      <>
+                        <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                          No, Cancel
+                        </button>
+                        <button
+                          className="radiology-modal-btn confirm"
+                          onClick={() => {
+                            closeCustomModal();
+                            onCustomModalConfirm();
+                          }}
+                        >
+                          Yes, Proceed
+                        </button>
+                      </>
+                    )}
+                    {(customModalType === "success" || customModalType === "error") && (
+                      <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                        {customModalType === "success" ? "Done" : "OK"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
       </main>
     </div>
+
+    
   );
 };
 

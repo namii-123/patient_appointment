@@ -50,12 +50,21 @@ interface NavigateData {
   validIDData?: any;
   hasValidID?: boolean;
   department?: string;
-  [key: string]: any; // Allow additional fields from Appointments
+  [key: string]: any;
 }
 
 interface ValidIDFormProps {
   onNavigate?: (
-    targetView: "calendar" | "confirm" | "allservices" | "labservices" | "pao" | "employee-recommendation" | "consentform" | "validid" | "transaction",
+    targetView:
+      | "calendar"
+      | "confirm"
+      | "allservices"
+      | "labservices"
+      | "pao"
+      | "employee-recommendation"
+      | "consentform"
+      | "validid"
+      | "transaction",
     data?: NavigateData
   ) => void;
   patientId?: string;
@@ -68,6 +77,7 @@ interface FileData {
   base64: string | null;
 }
 
+/* --------------------------------------------------------------- */
 const ValidIDForm: React.FC<ValidIDFormProps> = ({
   onNavigate,
   patientId,
@@ -79,6 +89,32 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [patientData, setPatientData] = useState<NavigateData>({});
 
+  /* -------------------------- Modal state -------------------------- */
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState<"confirm" | "error" | "success">(
+    "confirm"
+  );
+  const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+
+  const openModal = (
+    msg: string,
+    type: "confirm" | "error" | "success",
+    callback?: () => void
+  ) => {
+    setModalMessage(msg);
+    setModalType(type);
+    if (callback) setOnConfirm(() => callback);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setOnConfirm(() => {});
+  };
+  /* ---------------------------------------------------------------- */
+
+  /* ---------------------- Load patient / user ---------------------- */
   useEffect(() => {
     const fetchPatient = async () => {
       try {
@@ -92,17 +128,22 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
               ...prev,
               ...fetchedData,
               patientId: effectivePatientId,
-              controlNo: controlNo || initialFormData?.controlNo || fetchedData.controlNo,
+              controlNo:
+                controlNo ||
+                initialFormData?.controlNo ||
+                fetchedData.controlNo,
               checklist: {
-                courtOrder: fetchedData.checklist?.courtOrder || false,
-                officialReceipt: fetchedData.checklist?.officialReceipt || false,
-                requestForm: fetchedData.checklist?.requestForm || false,
-                dataPrivacy: fetchedData.checklist?.dataPrivacy || false,
-                hasValidID: fetchedData.checklist?.hasValidID || false,
-                vitalSigns: fetchedData.checklist?.vitalSigns || false,
+                courtOrder: fetchedData.checklist?.courtOrder ?? false,
+                officialReceipt:
+                  fetchedData.checklist?.officialReceipt ?? false,
+                requestForm: fetchedData.checklist?.requestForm ?? false,
+                dataPrivacy: fetchedData.checklist?.dataPrivacy ?? false,
+                hasValidID: fetchedData.checklist?.hasValidID ?? false,
+                vitalSigns: fetchedData.checklist?.vitalSigns ?? false,
               },
             }));
-            if (fetchedData.validIDFiles && fetchedData.validIDFiles.length > 0) {
+
+            if (fetchedData.validIDFiles?.length) {
               setUploadedFiles(
                 fetchedData.validIDFiles.map((file: any) => ({
                   file: new File([], file.name, { type: file.type }),
@@ -110,8 +151,6 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
                 }))
               );
             }
-          } else {
-            console.warn("No patient found with ID:", effectivePatientId);
           }
         }
 
@@ -121,216 +160,197 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
           const userRef = doc(db, "Users", user.uid);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
-            const userData = userSnap.data();
+            const u = userSnap.data();
             setPatientData((prev) => ({
               ...prev,
-              firstName: userData.firstName || "",
-              lastName: userData.lastName || "",
-              middleInitial: userData.middleInitial || "",
-              email: userData.email || "",
-              contact: userData.contactNumber || "",
-              age: userData.age || "",
-              birthdate: userData.birthdate || "",
-              gender: userData.gender || "",
-              citizenship: userData.citizenship || "",
-              houseNo: userData.houseNo || "",
-              street: userData.street || "",
-              province: userData.province || "",
-              municipality: userData.municipality || "",
-              barangay: userData.barangay || "",
+              firstName: u.firstName ?? "",
+              lastName: u.lastName ?? "",
+              middleInitial: u.middleInitial ?? "",
+              email: u.email ?? "",
+              contact: u.contactNumber ?? "",
+              age: u.age ?? "",
+              birthdate: u.birthdate ?? "",
+              gender: u.gender ?? "",
+              citizenship: u.citizenship ?? "",
+              houseNo: u.houseNo ?? "",
+              street: u.street ?? "",
+              province: u.province ?? "",
+              municipality: u.municipality ?? "",
+              barangay: u.barangay ?? "",
             }));
-          } else {
-            console.warn("⚠️ No user profile found in Firestore");
           }
         }
       } catch (err) {
-        console.error("Error fetching patient:", err);
-        setError("Failed to fetch patient data.");
+        console.error(err);
+        setError("Failed to load patient data.");
       }
     };
-
     fetchPatient();
   }, [patientId, initialFormData, controlNo]);
 
   useEffect(() => {
     if (initialFormData) {
-      console.log("📌 FormData from Previous Step:", initialFormData);
       setPatientData((prev) => ({
         ...prev,
         ...initialFormData,
         checklist: {
           ...prev.checklist,
           ...initialFormData.checklist,
-          hasValidID: initialFormData.hasValidID || prev.checklist?.hasValidID || false,
+          hasValidID:
+            initialFormData.hasValidID ?? prev.checklist?.hasValidID ?? false,
         },
       }));
     }
   }, [initialFormData]);
+  /* ---------------------------------------------------------------- */
 
+  /* --------------------------- File handling --------------------------- */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+    if (!e.target.files?.length) return;
+    const files = Array.from(e.target.files);
+    const allowed = ["image/jpeg", "image/png", "application/pdf"];
+    const newFiles: FileData[] = [];
+    let hasErr = false;
 
-      const newFiles: FileData[] = [];
-      let hasError = false;
-
-      files.forEach((file) => {
-        if (file.size > 700 * 1024) {
-          setError(`File "${file.name}" exceeds 700KB limit to fit Firestore constraints.`);
-          hasError = true;
-          return;
-        }
-        if (!allowedTypes.includes(file.type)) {
-          setError(`File "${file.name}" is an unsupported type. Please upload a JPG, PNG, or PDF.`);
-          hasError = true;
-          return;
-        }
-        if (uploadedFiles.some((existing) => existing.file.name === file.name)) {
-          setError(`File "${file.name}" is already uploaded. Please choose a different file.`);
-          hasError = true;
-          return;
-        }
-        newFiles.push({ file, base64: null });
-      });
-
-      if (hasError) {
+    files.forEach((f) => {
+      if (f.size > 700 * 1024) {
+        setError(`"${f.name}" exceeds 700 KB`);
+        hasErr = true;
         return;
       }
+      if (!allowed.includes(f.type)) {
+        setError(`"${f.name}" – only JPG, PNG, PDF allowed`);
+        hasErr = true;
+        return;
+      }
+      if (uploadedFiles.some((x) => x.file.name === f.name)) {
+        setError(`"${f.name}" already added`);
+        hasErr = true;
+        return;
+      }
+      newFiles.push({ file: f, base64: null });
+    });
 
-      setUploadedFiles((prev) => [...prev, ...newFiles]);
-      setError(null);
+    if (hasErr) return;
 
-      newFiles.forEach((fileData) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string | null;
-          if (result) {
-            setUploadedFiles((prev) =>
-              prev.map((item) =>
-                item.file.name === fileData.file.name ? { ...item, base64: result } : item
-              )
-            );
-            console.log(`Base64 generated for ${fileData.file.name}:`, result.substring(0, 50) + "...");
-          } else {
-            setError(`Failed to generate Base64 for "${fileData.file.name}".`);
-          }
-        };
-        reader.onerror = () => {
-          setError(`Failed to read file "${fileData.file.name}".`);
-        };
-        reader.readAsDataURL(fileData.file);
-      });
-    }
-  };
-
-  const handleRemoveFile = (fileName: string) => {
-    setUploadedFiles((prev) => prev.filter((item) => item.file.name !== fileName));
+    setUploadedFiles((prev) => [...prev, ...newFiles]);
     setError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    console.log(`File ${fileName} removed.`);
+
+    // Convert to base64 **asynchronously**
+    newFiles.forEach((fd) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = reader.result as string;
+        setUploadedFiles((prev) =>
+          prev.map((it) =>
+            it.file.name === fd.file.name ? { ...it, base64: b64 } : it
+          )
+        );
+      };
+      reader.onerror = () => setError(`Failed to read "${fd.file.name}"`);
+      reader.readAsDataURL(fd.file);
+    });
   };
 
-  const handleNext = async () => {
+  const handleRemoveFile = (name: string) => {
+    setUploadedFiles((prev) => prev.filter((x) => x.file.name !== name));
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+  /* ---------------------------------------------------------------- */
+
+  /* -------------------------- NEXT / UPLOAD -------------------------- */
+  const handleNext = () => {
+    // 1. Wait for all base64
+    if (uploadedFiles.some((f) => !f.base64)) {
+      openModal("Please wait while files are being processed.", "error");
+      return;
+    }
+
+    // 2. Build confirm message
+    const msg =
+      uploadedFiles.length > 0
+        ? `You are about to submit ${uploadedFiles.length} Valid ID file(s).\n\nOnce submitted you **cannot** edit them.`
+        : `No Valid ID uploaded.\n\nYou may continue, but you **cannot** add one later.`;
+
+    openModal(msg, "confirm", performUpload);
+  };
+
+  const performUpload = async () => {
     try {
-      if (uploadedFiles.some((fileData) => !fileData.base64)) {
-        setError("Please ensure all uploaded ID documents are processed.");
-        return;
-      }
-
-      const proceedWithUpload = window.confirm(
-        uploadedFiles.length > 0
-          ? "Are you sure you want to proceed with the uploaded Valid ID documents?\n\n⚠️ Note: Once you continue, you cannot change or remove these documents."
-          : "No Valid ID uploaded. Proceed anyway?\n\n⚠️ Note: Once you continue, you cannot go back to add an ID."
-      );
-
-      if (!proceedWithUpload) return;
-
       const auth = getAuth();
-      const currentUser = auth.currentUser;
-      const uid = currentUser?.uid || "";
-      if (!uid) {
-        setError("User not authenticated. Please sign in.");
-        return;
-      }
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error("User not signed in");
 
       const effectivePatientId = patientId || initialFormData?.patientId;
-      const effectiveControlNo = controlNo || initialFormData?.controlNo || patientData.controlNo;
+      const effectiveControlNo =
+        controlNo || initialFormData?.controlNo || patientData.controlNo;
       const appointmentId = initialFormData?.appointmentId;
 
-      if (!effectivePatientId) {
-        setError("No patient ID provided. Please complete the previous steps first.");
-        return;
-      }
+      if (!effectivePatientId) throw new Error("Missing patient ID");
+      if (!appointmentId) throw new Error("Missing appointment ID");
 
-      if (!appointmentId) {
-        setError("No appointment ID provided. Please complete the previous steps first.");
-        return;
-      }
+      const apptRef = doc(db, "Appointments", appointmentId);
+      const snap = await getDoc(apptRef);
+      if (!snap.exists()) throw new Error("Appointment not found");
 
-      const appointmentRef = doc(db, "Appointments", appointmentId);
-      const snap = await getDoc(appointmentRef);
-      if (!snap.exists()) {
-        setError("Appointment not found.");
-        return;
-      }
-
-      const existingData = snap.data() as NavigateData;
-      const existingDisplayId = existingData?.displayId || "";
+      const existing = snap.data() as NavigateData;
+      const displayId = existing?.displayId ?? "";
 
       const validIDData = {
         patientId: effectivePatientId,
         controlNo: effectiveControlNo,
         validIDFiles:
           uploadedFiles.length > 0
-            ? uploadedFiles.map((fileData) => ({
-                name: fileData.file.name,
-                base64: fileData.base64,
-                type: fileData.file.type,
+            ? uploadedFiles.map((f) => ({
+                name: f.file.name,
+                base64: f.base64,
+                type: f.file.type,
                 uploadedAt: new Date().toISOString(),
               }))
             : [],
-        displayId: existingDisplayId,
+        displayId,
         department: "DDE",
       };
 
-      await updateDoc(appointmentRef, validIDData);
+      await updateDoc(apptRef, validIDData);
 
-      console.log("✅ Valid ID updated in Appointments:", {
-        appointmentId,
-        displayId: existingDisplayId,
-      });
+      // ---- SUCCESS MODAL ----
+      openModal(
+        uploadedFiles.length > 0
+          ? `Valid ID uploaded!\nAppointment ID: ${displayId}`
+          : `Proceeded without ID.\nAppointment ID: ${displayId}`,
+        "success"
+      );
 
-      if (onNavigate) {
-        const navigateData: NavigateData = {
-          ...patientData,
-          ...initialFormData,
-          patientId: effectivePatientId,
-          controlNo: effectiveControlNo,
-          appointmentId,
-          validIDData,
-          hasValidID: uploadedFiles.length > 0,
-          department: "DDE",
-          checklist: {
-            ...patientData.checklist,
-            ...initialFormData?.checklist,
+      // ---- NAVIGATE after short delay ----
+      setTimeout(() => {
+        if (onNavigate) {
+          const nav: NavigateData = {
+            ...patientData,
+            ...initialFormData,
+            patientId: effectivePatientId,
+            controlNo: effectiveControlNo,
+            appointmentId,
+            validIDData,
             hasValidID: uploadedFiles.length > 0,
-          },
-          ...existingData, // Include all existing Appointments data
-        };
-        console.log("📌 ValidIDForm: Navigating to consentform with data:", navigateData);
-        onNavigate("consentform", navigateData);
-      }
-
-      setError(null);
-    } catch (err: unknown) {
-      console.error("Error updating Valid ID:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      setError(`Failed to update Valid ID: ${errorMessage}`);
+            department: "DDE",
+            checklist: {
+              ...patientData.checklist,
+              ...initialFormData?.checklist,
+              hasValidID: uploadedFiles.length > 0,
+            },
+            ...existing,
+          };
+          onNavigate("consentform", nav);
+        }
+      }, 2000);
+    } catch (err: any) {
+      console.error(err);
+      openModal(`Upload failed: ${err.message ?? err}`, "error");
     }
   };
+  /* ---------------------------------------------------------------- */
 
   return (
     <div className="courtorder p-6">
@@ -340,9 +360,12 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
 
       <form className="space-y-6">
         <div className="mt-6">
-          <h3 className="font-semibold text-lg mb-3">Upload Valid ID</h3>
+          <h3 className="font-semibold text-lg mb-3">
+            Upload Valid ID (OPTIONAL)
+          </h3>
           <p className="note-message mb-2">
-            Valid ID/ Certificate of Discharge or Certificate of Detention with picture (For PDL). You may proceed without uploading.
+            Valid ID / Certificate of Discharge or Detention with picture (for
+            PDL). You may proceed without uploading.
           </p>
           <input
             type="file"
@@ -352,23 +375,24 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
             className="border p-2 rounded w-full"
             ref={fileInputRef}
           />
+
           {uploadedFiles.length > 0 && (
             <div className="mt-2">
-              {uploadedFiles.map((fileData, index) => (
-                <p key={index} className="flex items-center gap-2">
+              {uploadedFiles.map((fd, i) => (
+                <p key={i} className="flex items-center gap-2">
                   Selected file:{" "}
-                  <span className={fileData.base64 ? "file-link" : "file-name"}>
-                    {fileData.file.name}
+                  <span className={fd.base64 ? "file-link" : "file-name"}>
+                    {fd.file.name}
                   </span>
                   <div className="x-button">
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(fileData.file.name)}
-                      className="cancel-buttonsss"
-                      title={`Remove ${fileData.file.name}`}
-                    >
-                      ✕
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFile(fd.file.name)}
+                    className="cancel-buttonsss"
+                    title={`Remove ${fd.file.name}`}
+                  >
+                    x
+                  </button>
                   </div>
                 </p>
               ))}
@@ -377,21 +401,22 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
         </div>
       </form>
 
+      {/* ------------------- PREVIEW ------------------- */}
       {uploadedFiles.length > 0 && (
         <div className="file-preview mt-6">
           <h3 className="font-semibold text-lg mb-3">File Preview</h3>
-          {uploadedFiles.map((fileData, index) => (
-            <div key={index} className="mb-4">
-              {fileData.file.type === "application/pdf" ? (
+          {uploadedFiles.map((fd, i) => (
+            <div key={i} className="mb-4">
+              {fd.file.type === "application/pdf" ? (
                 <iframe
-                  src={fileData.base64 || ""}
+                  src={fd.base64!}
                   className="preview-iframe"
-                  title={`File Preview ${fileData.file.name}`}
+                  title={fd.file.name}
                 />
               ) : (
                 <img
-                  src={fileData.base64 || ""}
-                  alt={`File Preview ${fileData.file.name}`}
+                  src={fd.base64!}
+                  alt={fd.file.name}
                   className="preview-image"
                 />
               )}
@@ -400,11 +425,69 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
         </div>
       )}
 
+      {/* ------------------- NEXT BUTTON ------------------- */}
       <div className="button-container-dde">
-        <button type="button" className="next-button-dde" onClick={handleNext}>
-          Next ➡
+        <button
+          type="button"
+          className="next-button-dde"
+          onClick={handleNext}
+        >
+          Next
         </button>
       </div>
+
+      {/* ------------------- MODAL ------------------- */}
+      {showModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+          </audio>
+
+          <div className="modal-overlay-service" onClick={closeModal}>
+            <div
+              className="modal-content-service"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header-service">
+                <img src="/logo.png" alt="DOH" className="modal-logo" />
+                <h3>
+                  {modalType === "success" && "SUCCESS"}
+                  {modalType === "error" && "ERROR"}
+                  {modalType === "confirm" && "CONFIRM ACTION"}
+                </h3>
+              </div>
+
+              <div className="modal-body">
+                <p style={{ whiteSpace: "pre-line" }}>{modalMessage}</p>
+              </div>
+
+              <div className="modal-footer">
+                {modalType === "confirm" && (
+                  <>
+                    <button className="modal-btn cancel" onClick={closeModal}>
+                      Cancel
+                    </button>
+                    <button
+                      className="modal-btn confirm"
+                      onClick={() => {
+                        closeModal();
+                        onConfirm();
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  </>
+                )}
+                {(modalType === "error" || modalType === "success") && (
+                  <button className="modal-btn ok" onClick={closeModal}>
+                    {modalType === "success" ? "Continue" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

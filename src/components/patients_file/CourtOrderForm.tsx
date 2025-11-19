@@ -30,6 +30,24 @@ const CourtOrderForm: React.FC<CourtOrderFormProps> = ({
   const [formData, setFormData] = useState<any>(propFormData || {});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+
+
+const openModal = (msg: string, type: "confirm" | "error" | "success", callback?: () => void) => {
+  setModalMessage(msg);
+  setModalType(type);
+  if (callback) setOnConfirm(() => callback);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setOnConfirm(() => {});
+};
+
   useEffect(() => {
     const fetchPatientData = async () => {
       try {
@@ -152,72 +170,84 @@ const CourtOrderForm: React.FC<CourtOrderFormProps> = ({
   };
 
  
- const handleNext = async () => {
+const handleNext = async () => {
   try {
     if (uploadedFiles.length === 0 || uploadedFiles.some((fileData) => !fileData.base64)) {
-      setError("Please upload at least one court order file and ensure all files are processed.");
+      openModal("Please upload at least one court order file and ensure all files are processed.", "error");
       return;
     }
 
-    // Single alert confirmation message
-    const proceedWithUpload = window.confirm(
-      "You are about to submit the court order files.\n\nNote: Once uploaded, the files cannot be changed. Please make sure all details are correct before proceeding."
+    // REPLACE window.confirm with openModal
+    openModal(
+      "You are about to submit the court order files.\n\nNote: Once uploaded, the files cannot be changed. Please make sure all details are correct before proceeding.",
+      "confirm",
+      async () => {
+        try {
+          // Generate date and prefix
+          const today = new Date();
+          const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
+          const prefix = "APT";
+
+          const snapshot = await getDoc(doc(db, "Counters", dateStr));
+          let count = 1;
+          if (snapshot.exists()) {
+            count = snapshot.data().count + 1;
+            await updateDoc(doc(db, "Counters", dateStr), { count });
+          } else {
+            await setDoc(doc(db, "Counters", dateStr), { count: 1 });
+          }
+
+          const padded = String(count).padStart(3, "0");
+          const displayId = `${prefix}-${dateStr}-${padded}`;
+
+          const auth = getAuth();
+          const currentUser = auth.currentUser;
+          const uid = currentUser?.uid || "";
+          if (!uid) {
+            openModal("User not authenticated. Please sign in.", "error");
+            return;
+          }
+
+          const courtOrderData = {
+            patientId: patientId || formData?.patientId || "",
+            controlNo: controlNo || formData?.controlNo || "",
+            patientCode: formData.patientCode || "",
+            courtFiles: uploadedFiles.map((fileData) => ({
+              name: fileData.file.name,
+              base64: fileData.base64,
+              type: fileData.file.type,
+              uploadedAt: new Date().toISOString(),
+            })),
+            displayId,
+            dateStr,
+            uid,
+            department: "DDE",
+          };
+
+          const docRef = await addDoc(collection(db, "Appointments"), courtOrderData);
+          await updateDoc(docRef, { appointmentId: docRef.id });
+
+          console.log("Court order saved to Appointments:", { appointmentId: docRef.id, displayId });
+
+          // SUCCESS MODAL
+          openModal(`Court order uploaded successfully!\nAppointment ID: ${displayId}`, "success");
+
+          // Navigate after 2 seconds
+          setTimeout(() => {
+            onNavigate?.("pao", { ...formData, courtOrderData, appointmentId: docRef.id, displayId });
+          }, 2000);
+
+        } catch (err: unknown) {
+          console.error("Error saving court order:", err);
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          openModal(`Failed to save court order: ${errorMessage}`, "error");
+        }
+      }
     );
-
-    if (!proceedWithUpload) return;
-
-    // Generate date and prefix
-    const today = new Date();
-    const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-    const prefix = "APT";
-
-    const snapshot = await getDoc(doc(db, "Counters", dateStr));
-    let count = 1;
-    if (snapshot.exists()) {
-      count = snapshot.data().count + 1;
-      await updateDoc(doc(db, "Counters", dateStr), { count });
-    } else {
-      await setDoc(doc(db, "Counters", dateStr), { count: 1 });
-    }
-
-    const padded = String(count).padStart(3, "0");
-    const displayId = `${prefix}-${dateStr}-${padded}`;
-
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    const uid = currentUser?.uid || "";
-    if (!uid) {
-      setError("User not authenticated. Please sign in.");
-      return;
-    }
-
-    const courtOrderData = {
-      patientId: patientId || formData?.patientId || "",
-      controlNo: controlNo || formData?.controlNo || "",
-      patientCode: formData.patientCode || "",
-      courtFiles: uploadedFiles.map((fileData) => ({
-        name: fileData.file.name,
-        base64: fileData.base64,
-        type: fileData.file.type,
-        uploadedAt: new Date().toISOString(),
-      })),
-      displayId,
-      dateStr,
-      uid,
-      department: "DDE",
-    };
-
-    const docRef = await addDoc(collection(db, "Appointments"), courtOrderData);
-    await updateDoc(docRef, { appointmentId: docRef.id });
-
-    console.log("✅ Court order saved to Appointments:", { appointmentId: docRef.id, displayId });
-
-    setError(null);
-    onNavigate?.("pao", { ...formData, courtOrderData, appointmentId: docRef.id, displayId });
   } catch (err: unknown) {
-    console.error("Error saving court order:", err);
+    console.error("Error in handleNext:", err);
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    setError(`Failed to save court order: ${errorMessage}`);
+    openModal(`Unexpected error: ${errorMessage}`, "error");
   }
 };
 
@@ -247,13 +277,16 @@ const CourtOrderForm: React.FC<CourtOrderFormProps> = ({
             <div className="mt-2">
               {uploadedFiles.map((fileData, index) => (
                 <p key={index} className="flex items-center gap-2">
+                  <div className="selected">
                   Selected file:{" "}
+                 
                   <span
                     onClick={() => handleViewFile(fileData.file.name)}
                     className={fileData.base64 ? "file-link" : "file-name"}
                   >
                     {fileData.file.name}
                   </span>
+                   </div>
                   <div className="x-button">
                     <button
                       type="button"
@@ -310,8 +343,58 @@ const CourtOrderForm: React.FC<CourtOrderFormProps> = ({
           Next ➡
         </button>
       </div>
+
+
+
+      {showModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+          </audio>
+
+          <div className="modal-overlay-service" onClick={closeModal}>
+            <div className="modal-content-service" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header-service">
+                <img src="/logo.png" alt="DOH" className="modal-logo" />
+                <h3>
+                  {modalType === "success" && "SUCCESS"}
+                  {modalType === "error" && "ERROR"}
+                  {modalType === "confirm" && "CONFIRM ACTION"}
+                </h3>
+              </div>
+
+              <div className="modal-body">
+                <p style={{ whiteSpace: "pre-line" }}>{modalMessage}</p>
+              </div>
+
+              <div className="modal-footer">
+                {modalType === "confirm" && (
+                  <>
+                    <button className="modal-btn cancel" onClick={closeModal}>Cancel</button>
+                    <button
+                      className="modal-btn confirm"
+                      onClick={() => {
+                        closeModal();
+                        onConfirm();
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  </>
+                )}
+                {(modalType === "error" || modalType === "success") && (
+                  <button className="modal-btn ok" onClick={closeModal}>
+                    {modalType === "success" ? "Continue" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
+  
 
 export default CourtOrderForm;

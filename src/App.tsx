@@ -43,6 +43,8 @@ import Appointments_Dental from './components/patients_file/Dental_Admin/Appoint
 import PatientRecords_Dental from './components/patients_file/Dental_Admin/PatientRecords_Dental';
 import ReportsAnalytics_Dental from './components/patients_file/Dental_Admin/ReportsAnalytics_Dental';
 import ManageSlots_Dental from './components/patients_file/Dental_Admin/ManageSlots_Dental';
+import Services_Dental from './components/patients_file/Dental_Admin/Services_Dental';
+
 
 // Radiology Admin
 import Dashboard_Radiology from './components/patients_file/Radiology_Admin/Dashboard_Radiology';
@@ -50,6 +52,9 @@ import Appointments_Radiology from './components/patients_file/Radiology_Admin/A
 import PatientRecords_Radiology from './components/patients_file/Radiology_Admin/PatientRecords_Radiology';
 import ReportsAnalytics_Radiology from './components/patients_file/Radiology_Admin/ReportsAnalytics_Radiology';
 import ManageSlots_Radiology from './components/patients_file/Radiology_Admin/ManageSlots_Radiology';
+import Services_Radiology from './components/patients_file/Radiology_Admin/Services_Radiology';
+
+
 
 // Clinical Lab Admin
 import Dashboard_Clinical from './components/patients_file/ClinicalLab_Admin/Dashboard_Clinical';
@@ -57,6 +62,9 @@ import Appointments_Clinical from './components/patients_file/ClinicalLab_Admin/
 import PatientRecords_Clinical from './components/patients_file/ClinicalLab_Admin/PatientRecords_Clinical';
 import ReportsAnalytics_Clinical from './components/patients_file/ClinicalLab_Admin/ReportsAnalytics_Clinical';
 import ManageSlots_Clinical from './components/patients_file/ClinicalLab_Admin/ManageSlots_Clinical';
+import Services_Clinical from './components/patients_file/ClinicalLab_Admin/Services_Clinical';
+
+
 
 // DDE Admin
 import Dashboard_DDE from './components/patients_file/DDE_Admin/Dashboard_DDE';
@@ -70,6 +78,9 @@ import Appointments_Medical from './components/patients_file/Medical_Admin/Appoi
 import PatientRecords_Medical from './components/patients_file/Medical_Admin/PatientRecords_Medical';
 import ReportsAnalytics_Medical from './components/patients_file/Medical_Admin/ReportsAnalytics_Medical';
 import ManageSlots_Medical from './components/patients_file/Medical_Admin/ManageSlots_Medical';
+import Services_Medical from './components/patients_file/Medical_Admin/Services_Medical';
+
+
 
 //Super Admin
 import SuperAdmin_Dashboard from './components/patients_file/SuperAdmin/SuperAdmin_Dashboard';
@@ -116,14 +127,15 @@ const App: React.FC = () => {
             <Route path="/register" element={<Register />} />
           
 
-            {/* Protected routes admin */}
-            <Route element={<RequireAuths />}>
-            {/*dental*/}
+
+             {/*dental*/}
             <Route path="/dashboard_dental" element={<Dashboard_Dental />} />
             <Route path="/appointments_dental" element={<Appointments_Dental />} />
             <Route path="/patientrecords_dental" element={<PatientRecords_Dental />} />
             <Route path="/reports&analytics_dental" element={<ReportsAnalytics_Dental />} />
             <Route path="/manageslots_dental" element={<ManageSlots_Dental />} />
+            <Route path="/services_dental" element={<Services_Dental />} />
+
 
             {/*dde*/}
             <Route path="/dashboard_dde" element={<Dashboard_DDE />} />
@@ -137,6 +149,7 @@ const App: React.FC = () => {
             <Route path="/patientrecords_radiology" element={<PatientRecords_Radiology />} />
             <Route path="/reports&analytics_radiology" element={<ReportsAnalytics_Radiology />} />
             <Route path="/manageslots_radiology" element={<ManageSlots_Radiology />} />
+            <Route path="/services_radiology" element={<Services_Radiology />} />
 
 
             {/*clinical*/}
@@ -145,6 +158,7 @@ const App: React.FC = () => {
             <Route path="/patientrecords_clinical" element={<PatientRecords_Clinical />} />
             <Route path="/reports&analytics_clinical" element={<ReportsAnalytics_Clinical />} />
             <Route path="/manageslots_clinical" element={<ManageSlots_Clinical />} />
+            <Route path="/services_clinical" element={<Services_Clinical />} />
 
 
             
@@ -155,6 +169,7 @@ const App: React.FC = () => {
             <Route path="/patientrecords_medical" element={<PatientRecords_Medical />} />
             <Route path="/reports&analytics_medical" element={<ReportsAnalytics_Medical />} />
             <Route path="/manageslots_medical" element={<ManageSlots_Medical />} />
+             <Route path="/services_medical" element={<Services_Medical />} />
 
 
              {/*superadmin*/}
@@ -176,6 +191,10 @@ const App: React.FC = () => {
             <Route path="/superadmin_rejectedadmins" element={<SuperAdmin_RejectedAdmins/>} />
             <Route path="/superadmin_messages" element={<SuperAdmin_Messages/>} />
 
+
+            {/* Protected routes admin */}
+            <Route element={<RequireAuths />}>
+           
 
           </Route>
 

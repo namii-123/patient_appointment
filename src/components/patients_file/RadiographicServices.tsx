@@ -1,345 +1,350 @@
 import React, { useState, useEffect } from "react";
-import "../../assets/RadiographicServices.css";
-import { doc, updateDoc, collection, addDoc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { doc, getDoc, addDoc, collection, updateDoc, setDoc, getDocs, query, where, onSnapshot } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { db } from "./firebase";
+import { X } from "lucide-react";
+import { writeBatch } from "firebase/firestore";
+import "../../assets/RadiographicServices.css";
+import { DEFAULT_SERVICES } from "../../config/defaultServices";
 
 interface RadiographicServicesProps {
   onNavigate?: (
     targetView: "calendar" | "confirm" | "allservices" | "labservices",
     data?: any
   ) => void;
-  patientId?: string; 
+  patientId?: string;
   controlNo?: string;
-  formData?: any; 
+  formData?: any;
 }
 
+/* --------------------------------------------------------------
+   Types for Firestore documents
+   -------------------------------------------------------------- */
+interface ServiceDoc {
+  id: string;
+  name: string;
+  category: string;
+  enabled: boolean;
+}
 
+/* --------------------------------------------------------------
+   Component
+   -------------------------------------------------------------- */
 const RadiographicServices: React.FC<RadiographicServicesProps> = ({
   onNavigate,
   patientId,
   controlNo,
   formData,
 }) => {
+  // ── UI STATE ─────────────────────────────────────
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [otherService, setOtherService] = useState<string>("");
-  const [lastMenstrualPeriod, setLastMenstrualPeriod] = useState<string>("");
+  const [otherService, setOtherService] = useState("");
+  const [lastMenstrualPeriod, setLastMenstrualPeriod] = useState("");
   const [isPregnant, setIsPregnant] = useState<"Yes" | "No" | "Not sure/Delayed">("No");
-  const [pregnancyTestResult, setPregnancyTestResult] = useState<"Positive" | "Negative">("Negative");
+  const [pregnancyTestResult, setPregnancyTestResult] = useState<"Positive" | "Negative">(
+    "Negative"
+  );
   const [clearance, setClearance] = useState(false);
   const [shield, setShield] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+  const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+  
+  
 
-  const servicesByCategory: { [key: string]: string[] } = {
-    Abdomen: ["Abdomen Supine", "Abdomen Upright"],
-    Chest: ["Chest PA", "Chest Lateral", "Chest Apicolordotic"],
-    Spine: ["Cervical AP & L", "Thoracic AP & L", "Lumbosacral AP & L", "Thoracolumbar"],
-    Extremities: [
-      "Ankle AP & L",
-      "Elbow AP & L",
-      "Femur AP & L",
-      "Forearm AP & L",
-      "Foot AP & L",
-      "Hand AP & L",
-      "Hip AP & L",
-      "Humerus AP & L",
-      "Knee AP & L",
-      "Leg AP & L",
-      "Wrist AP & L",
-      "Pelvis AP",
-      "Shoulder (Int/Ext)",
-    ],
-    "Head & Sinuses": ["Skull AP & L", "Paranasal Sinuses (C.W.L.)", "Waters’ Vie"],
-    Others: ["Others"],
+  // ── DATA FROM FIRESTORE ─────────────────────────────
+  const [servicesByCategory, setServicesByCategory] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(true);
+
+  // Load services (seed defaults if empty) + real-time listener
+  useEffect(() => {
+    const load = async () => {
+      const q = query(
+        collection(db, "RadiologyServices"),
+        where("department", "==", "Radiographic"),
+        where("enabled", "==", true)
+      );
+      const snap = await getDocs(q);
+      const map: Record<string, string[]> = {};
+
+      if (snap.empty) {
+        // Seed defaults (same logic as admin page)
+        const batch = writeBatch(db);
+        Object.entries(DEFAULT_SERVICES).forEach(([cat, list]) => {
+          map[cat] = [...list]; // spread to create mutable copy
+          list.forEach((name) => {
+            const ref = doc(collection(db, "RadiologyServices"));
+            batch.set(ref, {
+              name,
+              category: cat,
+              enabled: true,
+              department: "Radiographic",
+              createdAt: new Date(),
+            });
+          });
+        });
+        await batch.commit();
+      } else {
+        snap.forEach((d) => {
+          const data = d.data() as ServiceDoc;
+          if (!map[data.category]) map[data.category] = [];
+          map[data.category].push(data.name);
+        });
+      }
+      setServicesByCategory(map);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  // Real-time listener for updates (enable/disable, add, delete)
+  useEffect(() => {
+    const q = query(
+      collection(db, "RadiologyServices"),
+      where("department", "==", "Radiographic"),
+      where("enabled", "==", true)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const map: Record<string, string[]> = {};
+      snapshot.forEach((d) => {
+        const data = d.data() as ServiceDoc;
+        if (!map[data.category]) map[data.category] = [];
+        map[data.category].push(data.name);
+      });
+      setServicesByCategory(map);
+    });
+    return () => unsub();
+  }, []);
+
+  // ── MODAL HELPERS ─────────────────────────────────────
+  const openModal = (
+    msg: string,
+    type: "confirm" | "error" | "success",
+    cb?: () => void
+  ) => {
+    setModalMessage(msg);
+    setModalType(type);
+    if (cb) setOnConfirm(() => cb);
+    setShowModal(true);
+  };
+  const closeModal = () => {
+    setShowModal(false);
+    setOnConfirm(() => {});
   };
 
-  const toggleService = (service: string) => {
-    if (service === "Others") {
+  // ── SERVICE SELECTION ─────────────────────────────────
+  const toggleService = (svc: string) => {
+    if (svc === "Others") {
       if (selectedServices.includes("Others")) {
-        setSelectedServices((prev) => prev.filter((s) => s !== "Others"));
+        setSelectedServices((p) => p.filter((s) => s !== "Others"));
         setOtherService("");
       } else {
-        setSelectedServices((prev) => [...prev, "Others"]);
+        setSelectedServices((p) => [...p, "Others"]);
       }
     } else {
-      setSelectedServices((prev) =>
-        prev.includes(service) ? prev.filter((s) => s !== service) : [...prev, service]
+      setSelectedServices((p) =>
+        p.includes(svc) ? p.filter((s) => s !== svc) : [...p, svc]
       );
     }
   };
 
-
-
-useEffect(() => {
-  if (patientId) {
-    const fetchPatient = async () => {
-      const docRef = doc(db, "Patients", patientId);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        console.log("📌 Patient from Firestore:", snap.data());
-      }
-    };
-    fetchPatient();
-  }
-
-  if (formData) {
-    console.log("📌 FormData from AllServices:", formData);
-  }
-}, [patientId, formData]);
-
-
-
-  useEffect(() => {
-  const fetchPatient = async () => {
-    if (!patientId) return;
-    const docRef = doc(db, "Patients", patientId);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      console.log("Fetched patient data:", snap.data());
-    } else {
-      console.warn("No patient found with ID:", patientId);
-    }
-  };
-
-  fetchPatient();
-}, [patientId]);
-
-
-
+  // ── NEXT / SAVE APPOINTMENT ───────────────────────────
   const handleNext = async () => {
-  try {
-    if (selectedServices.length === 0) {
-      // No services selected → confirm before navigating
-      const proceed = window.confirm(
-        "You haven't selected any services. Are you sure you want to continue?"
+    try {
+      if (selectedServices.length === 0) {
+        openModal(
+          "You haven't selected any services. Continue anyway?",
+          "confirm",
+          () => onNavigate?.("labservices", { ...formData })
+        );
+        return;
+      }
+
+      if (selectedServices.includes("Others") && !otherService.trim()) {
+        openModal("Please specify the 'Others' service.", "error");
+        return;
+      }
+
+      openModal(
+        "Radiographic services confirmed!\n\nYou will now choose a date & time slot.",
+        "confirm",
+        async () => {
+          // Resolve final service list
+          const finalServices = selectedServices.includes("Others")
+            ? [
+                ...selectedServices.filter((s) => s !== "Others"),
+                `Others: ${otherService}`,
+              ]
+            : selectedServices;
+
+          // Generate display ID
+          const today = new Date();
+          const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
+          const prefix = "APT";
+          const counterDoc = doc(db, "Counters", dateStr);
+          const counterSnap = await getDoc(counterDoc);
+          let count = 1;
+          if (counterSnap.exists()) {
+            count = counterSnap.data().count + 1;
+            await updateDoc(counterDoc, { count });
+          } else {
+            await setDoc(counterDoc, { count: 1 });
+          }
+          const padded = String(count).padStart(3, "0");
+          const displayId = `${prefix}-${dateStr}-${padded}`;
+
+          // Save appointment
+          const auth = getAuth();
+          const uid = auth.currentUser?.uid ?? "";
+          const payload = {
+            patientId: patientId || formData?.patientId || "",
+            controlNo: controlNo || formData?.controlNo || "",
+            services: finalServices,
+            isPregnant,
+            clearance,
+            shield,
+            pregnancyTestResult,
+            lastMenstrualPeriod: lastMenstrualPeriod || "",
+            createdAt: new Date().toISOString(),
+            displayId,
+            dateStr,
+            uid,
+            department: "Radiographic",
+          };
+          const ref = await addDoc(collection(db, "Appointments"), payload);
+          await updateDoc(ref, { appointmentId: ref.id });
+
+          openModal(`Appointment created!\nID: ${displayId}`, "success");
+          setTimeout(() => {
+            onNavigate?.("calendar", {
+              ...formData,
+              appointmentData: payload,
+              appointmentId: ref.id,
+              displayId,
+            });
+          }, 1800);
+        }
       );
-      if (!proceed) return;
-
-      setError(null);
-      onNavigate?.("labservices", { ...formData });
-      return;
+    } catch (err) {
+      console.error(err);
+      openModal("Failed to create appointment.", "error");
     }
+  };
 
-    if (selectedServices.includes("Others") && !otherService.trim()) {
-      setError("Please specify the 'Others' service.");
-      return;
-    }
-
-    // Confirm before proceeding even if services are selected
-    const proceedWithServices = window.confirm(
-      "Are you sure you want to proceed with the selected services?"
-    );
-    if (!proceedWithServices) return;
-
-    const services = selectedServices.includes("Others")
-      ? [...selectedServices.filter((s) => s !== "Others"), `Others: ${otherService}`]
-      : selectedServices;
-
-    // Generate displayId
-    const today = new Date();
-    const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-    const prefix = "APT";
-
-    // Count existing appointments today
-    const snapshot = await getDoc(doc(db, "Counters", dateStr));
-    let count = 1;
-    if (snapshot.exists()) {
-      count = snapshot.data().count + 1;
-      await updateDoc(doc(db, "Counters", dateStr), { count });
-    } else {
-      await setDoc(doc(db, "Counters", dateStr), { count: 1 });
-    }
-
-    const padded = String(count).padStart(3, "0");
-    const displayId = `${prefix}-${dateStr}-${padded}`;
-
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    const uid = currentUser?.uid || "";
-
-    const appointmentData = {
-      patientId: patientId || formData?.patientId || "",
-      controlNo: controlNo || formData?.controlNo || "",
-      services,
-      isPregnant,
-      clearance,
-      shield,
-      pregnancyTestResult,
-      lastMenstrualPeriod: lastMenstrualPeriod || "",
-      createdAt: new Date().toISOString(),
-      displayId,
-      dateStr,
-      uid,
-      department: "Radiographic",
-    };
-
-    // Save to Firestore
-    const docRef = await addDoc(collection(db, "Appointments"), appointmentData);
-    await updateDoc(docRef, { appointmentId: docRef.id });
-
-    console.log("✅ Appointment saved:", { appointmentId: docRef.id, displayId });
-
-    setError(null);
-    onNavigate?.("calendar", { ...formData, appointmentData, appointmentId: docRef.id });
-  } catch (err) {
-    console.error("Error saving appointment:", err);
-    setError("Failed to save appointment. Please try again.");
-  }
-};
-
-
+  // ── RENDER ───────────────────────────────────────
+  if (loading) return <div className="labservices-container p-6">Loading services…</div>;
 
   return (
     <div className="labservices-container p-6">
       <h2 className="text-2xl font-bold mb-4">Radiographic Services</h2>
 
-      {error && <div className="error-message text-red-500 mb-4">{error}</div>}
-
-      <form className="services-list space-y-6">
-        {Object.entries(servicesByCategory).map(([category, services]) => (
-          <div key={category} className="category">
-            <h3 className="font-semibold text-lg mb-2">{category}</h3>
-            <div className="space-y-1 pl-4">
-              {services.map((service) => (
-                <div key={service}>
-                  <label className="block">
+      <form className="services-list">
+        {/* ── SERVICES GRID ── */}
+        <div className="services-grid">
+          {Object.entries(servicesByCategory).map(([cat, list]) => (
+            <div key={cat} className="category">
+              <h3>{cat}</h3>
+              {list.map((svc) => (
+                <div key={svc}>
+                  <label>
                     <input
                       type="checkbox"
-                      checked={selectedServices.includes(service)}
-                      onChange={() => toggleService(service)}
-                      className="mr-2"
+                      checked={selectedServices.includes(svc)}
+                      onChange={() => toggleService(svc)}
                     />
-                    {service}
+                    {svc}
                   </label>
-
-                  {service === "Others" && selectedServices.includes("Others") && (
+                  {svc === "Others" && selectedServices.includes("Others") && (
                     <input
                       type="text"
                       value={otherService}
                       onChange={(e) => setOtherService(e.target.value)}
-                      className="border p-2 mt-1 ml-6 rounded w-64"
-                      placeholder="Please specify"
+                      placeholder="Specify here..."
                     />
                   )}
                 </div>
               ))}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
 
-        <div className="mt-6 border-t pt-4">
-          <h3 className="font-semibold text-lg mb-3">
-            Complaint/History <span className="text-sm font-normal">(For Female Patients only, ages 10 to 55)</span>
-          </h3>
-
-          <div className="mb-3">
-            <label className="block font-medium mb-1">Date of Last Menstrual Period:</label>
-           <input
-  type="date"
-  value={lastMenstrualPeriod}
-  onChange={(e) => setLastMenstrualPeriod(e.target.value)}
-  className="border p-2 w-60 rounded"
-/>
-
-          </div>
-
-          <div className="mb-4">
-  <h4 className="font-medium mb-2">Are you Pregnant?</h4>
-  <div className="space-y-2 ml-4">
-    {/* Yes option */}
-    <label className="block">
-      <input
-        type="radio"
-        value="Yes"
-        checked={isPregnant === "Yes"}
-        onChange={() => setIsPregnant("Yes")}
-        className="mr-2"
-      />
-      Yes
-    </label>
-
-    {/* Show sub-options only if Yes is selected */}
-   {isPregnant === "Yes" && (
-  <div className="ml-8 text-sm text-gray-700 space-y-1">
-    <label className="block">
-      <input
-        type="checkbox"
-        className="mr-2"
-        checked={clearance}
-        onChange={(e) => setClearance(e.target.checked)}
-      />
-      With clearance of the attending doctor
-    </label>
-    <label className="block">
-      <input
-        type="checkbox"
-        className="mr-2"
-        checked={shield}
-        onChange={(e) => setShield(e.target.checked)}
-      />
-      With abdominal lead shield
-    </label>
-  </div>
-)}
-
-    {/* No option */}
-    <label className="block">
-      <input
-        type="radio"
-        value="No"
-        checked={isPregnant === "No"}
-        onChange={() => setIsPregnant("No")}
-        className="mr-2"
-      />
-      No
-    </label>
-
-    {/* Not sure option */}
-    <label className="block">
-      <input
-        type="radio"
-        value="Not sure/Delayed"
-        checked={isPregnant === "Not sure/Delayed"}
-        onChange={() => setIsPregnant("Not sure/Delayed")}
-        className="mr-2"
-      />
-      Not sure/Delayed
-    </label>
-  </div>
-</div>
-
-
+        {/* ── PREGNANCY SECTION ── */}
+        <div className="pregnancy-section">
+          <h3>Female Patients (10‑55 yrs)</h3>
           <div>
-            <h4 className="font-medium mb-2">Pregnancy Test Result:</h4>
-            <div className="ml-4 flex space-x-6">
-              <label>
-                <input
-                  type="radio"
-                  value="Positive"
-                  checked={pregnancyTestResult === "Positive"}
-                  onChange={() => setPregnancyTestResult("Positive")}
-                  className="mr-2"
-                />
-                Positive
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  value="Negative"
-                  checked={pregnancyTestResult === "Negative"}
-                  onChange={() => setPregnancyTestResult("Negative")}
-                  className="mr-2"
-                />
-                Negative
-              </label>
+            <label>Date of Last Menstrual Period:</label>
+            <input
+              type="date"
+              value={lastMenstrualPeriod}
+              onChange={(e) => setLastMenstrualPeriod(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "8px",
+                border: "1.5px solid #005b9f",
+              }}
+            />
+          </div>
+
+          <div className="pregnancy-grid">
+            <div>
+              <strong>Are you pregnant?</strong>
+              <br />
+              {(["Yes", "No", "Not sure/Delayed"] as const).map((opt) => (
+                <label key={opt}>
+                  <input
+                    type="radio"
+                    value={opt}
+                    checked={isPregnant === opt}
+                    onChange={() => setIsPregnant(opt)}
+                  />
+                  {opt}
+                </label>
+              ))}
+              {isPregnant === "Yes" && (
+                <div className="sub-option">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={clearance}
+                      onChange={(e) => setClearance(e.target.checked)}
+                    />
+                    With doctor's clearance
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={shield}
+                      onChange={(e) => setShield(e.target.checked)}
+                    />
+                    With lead shield
+                  </label>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <strong>Pregnancy Test Result:</strong>
+              <br />
+              {(["Positive", "Negative"] as const).map((res) => (
+                <label key={res}>
+                  <input
+                    type="radio"
+                    value={res}
+                    checked={pregnancyTestResult === res}
+                    onChange={() => setPregnancyTestResult(res)}
+                  />
+                  {res}
+                </label>
+              ))}
             </div>
           </div>
         </div>
       </form>
 
-      <div className="labservices-navigation flex justify-between mt-6">
-      
-
+      {/* ── NAVIGATION ── */}
+      <div className="labservices-navigation">
         <button
           className="nav-button bg-blue-500 text-white px-4 py-2 rounded"
           type="button"
@@ -348,6 +353,53 @@ useEffect(() => {
           {selectedServices.length > 0 ? "Show Slots ➡" : "Next ➡"}
         </button>
       </div>
+
+      {/* ── MODAL ── */}
+      {showModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+          </audio>
+          <div className="modal-overlay-service" onClick={closeModal}>
+            <div className="modal-content-service" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header-service">
+                <img src="/logo.png" alt="DOH" className="modal-logo" />
+                <h3>
+                  {modalType === "success" && "SUCCESS"}
+                  {modalType === "error" && "ERROR"}
+                  {modalType === "confirm" && "CONFIRM ACTION"}
+                </h3>
+              </div>
+              <div className="modal-body">
+                <p style={{ whiteSpace: "pre-line" }}>{modalMessage}</p>
+              </div>
+              <div className="modal-footer">
+                {modalType === "confirm" && (
+                  <>
+                    <button className="modal-btn cancel" onClick={closeModal}>
+                      Cancel
+                    </button>
+                    <button
+                      className="modal-btn confirm"
+                      onClick={() => {
+                        closeModal();
+                        onConfirm();
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  </>
+                )}
+                {(modalType === "error" || modalType === "success") && (
+                  <button className="modal-btn ok" onClick={closeModal}>
+                    {modalType === "success" ? "Continue" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -217,7 +217,7 @@ const SuperAdmin_RejectedAdmins: React.FC = () => {
       <main className="main-content-superadmin">
         {/* Top Navbar */}
         <div className="top-navbar-superadmin">
-          <h2 className="navbar-title">Rejected Admins</h2>
+          <h5 className="navbar-title">Rejected Admins</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -307,7 +307,7 @@ const SuperAdmin_RejectedAdmins: React.FC = () => {
         </div>
 
         <div className="appointments-section">
-          <h3 className="section-title">Rejected Admins</h3>
+          <h5 className="section-title">Rejected Admins</h5>
           <table className="appointments-table">
             <thead>
               <tr>

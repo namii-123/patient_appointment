@@ -212,7 +212,7 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
       {/* Main Content */}
       <main className="main-content-superadmin">
         <div className="top-navbar-superadmin">
-          <h2 className="navbar-title">Medical Admins</h2>
+          <h5 className="navbar-title">Medical Admins</h5>
           <div className="notification-wrapper">
             <FaBell className="notification-bell" onClick={() => setShowNotifications(!showNotifications)} />
             {notifications.filter(n => n.unread).length > 0 && <span className="notification-count">{notifications.filter(n => n.unread).length}</span>}
@@ -252,19 +252,19 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
         </div>
 
         <div className="summary-cards">
-          <div className={`summary-card all ${filter==="all"?"active":""}`} onClick={()=>setFilter("all")}><h3>{admins.length}</h3><p>All</p></div>
-          <div className={`summary-card approved ${filter==="approved"?"active":""}`} onClick={()=>setFilter("approved")}><h3>{approvedCount}</h3><p>Approved</p></div>
+          <div className={`summary-card all ${filter==="all"?"active":""}`} onClick={()=>setFilter("all")}><h5>{admins.length}</h5><p>All</p></div>
+          <div className={`summary-card approved ${filter==="approved"?"active":""}`} onClick={()=>setFilter("approved")}><h5>{approvedCount}</h5><p>Approved</p></div>
           <div
   className={`summary-card not-active ${filter === "not active" ? "active" : ""}`}
   onClick={() => setFilter("not active")}
 >
-  <h3>{notActiveCount}</h3>
+  <h5>{notActiveCount}</h5>
   <p>Not Active</p>
 </div>
         </div>
 
         <div className="appointments-section">
-          <h3 className="section-title">{filter==="all"?"All":filter.charAt(0).toUpperCase()+filter.slice(1)} Medical Admins</h3>
+          <h5 className="section-title">{filter==="all"?"All":filter.charAt(0).toUpperCase()+filter.slice(1)} Medical Admins</h5>
           <table className="appointments-table">
             <thead>
               <tr>

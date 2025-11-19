@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaClock, } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaClock, FaStethoscope, } from "react-icons/fa";
 import "../../../assets/Appointments_Dental.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
@@ -362,6 +362,13 @@ const Appointments_Medical: React.FC = () => {
                                       <FaClock className="nav-icon" />
                                      <span onClick={() => navigate("/manageslots_medical")}>Manage Slots</span>
                                     </div>
+
+              <div className="nav-item">
+                              <FaStethoscope className="nav-icon" />
+                              <span onClick={() => handleNavigation("/services_medical")}>
+                                Services
+                              </span>
+                            </div>
             <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span
@@ -409,7 +416,7 @@ const Appointments_Medical: React.FC = () => {
       <main className="main-content">
         {/* Top Navbar */}
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Appointments</h2>
+          <h5 className="navbar-title">Appointments</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"

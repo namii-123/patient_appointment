@@ -5,6 +5,7 @@ import {
   FaPhoneAlt,
   FaPaperPlane,
   FaFacebookF,
+  FaTimes,
 } from "react-icons/fa";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
@@ -36,10 +37,37 @@ const Contacts: React.FC = () => {
     type: "confirm" | "success" | "error" | null;
   }>({ isOpen: false, message: "", type: null });
 
+
+  
+  const [mapOpen, setMapOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const auth = getAuth();
+  const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"success" | "error" | "confirm">("confirm");
+const [onModalConfirm, setOnModalConfirm] = useState<() => void>(() => {});
 
-  // ✅ Fetch full user data from Firestore
+
+const openModal = (
+  message: string,
+  type: "success" | "error" | "confirm",
+  onConfirm?: () => void
+) => {
+  setModalMessage(message);
+  setModalType(type);
+  if (onConfirm) setOnModalConfirm(() => onConfirm);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setModalMessage("");
+  setOnModalConfirm(() => {});
+};
+
+
+
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setIsLoggedIn(!!user);
@@ -49,8 +77,6 @@ const Contacts: React.FC = () => {
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
             const data = userSnap.data();
-            console.log("✅ Firestore user data:", data);
-
             setFormData((prev) => ({
               ...prev,
               UserId: data.UserId || user.uid,
@@ -63,7 +89,6 @@ const Contacts: React.FC = () => {
               birthdate: data.birthdate || "",
             }));
           } else {
-            console.warn("⚠️ No document found for user:", user.uid);
             setFormData((prev) => ({
               ...prev,
               UserId: user.uid,
@@ -86,9 +111,7 @@ const Contacts: React.FC = () => {
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
-  };
+  ) => setFormData({ ...formData, [e.target.id]: e.target.value });
 
   const isFormValid = () =>
     formData.messages.trim() !== "" &&
@@ -96,110 +119,105 @@ const Contacts: React.FC = () => {
     formData.lastName.trim() !== "" &&
     formData.email.trim() !== "";
 
-  const openDialog = (message: string, type: "confirm" | "success" | "error") =>
-    setDialog({ isOpen: true, message, type });
+  
 
-  const closeDialog = () =>
-    setDialog({ isOpen: false, message: "", type: null });
+ const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  if (!isFormValid()) {
+    openModal("Please fill in all required fields.", "error");
+    return;
+  }
+  openModal(
+    "Are you sure you want to send this message?",
+    "confirm",
+    confirmSend
+  );
+};
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!isFormValid()) {
-      openDialog("Please fill in all required fields.", "error");
-      return;
-    }
-    openDialog("Are you sure you want to send this message?", "confirm");
-  };
-
-  // ✅ Save message to Firestore with full user info
-  const confirmSend = async () => {
-    try {
-      const messagesRef = collection(db, "Messages");
-      await addDoc(messagesRef, {
-        uid: auth.currentUser?.uid || null,
-        UserId: formData.UserId,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        age: formData.age,
-        gender: formData.gender,
-        contactNumber: formData.contactNumber,
-        birthdate: formData.birthdate,
-        messages: formData.messages,
-        createdAt: new Date().toLocaleString(),
-        timestamp: serverTimestamp(),
-      });
-      openDialog("Message sent successfully!", "success");
-      setFormData((prev) => ({
-        ...prev,
-        messages: "",
-      }));
-    } catch (error) {
-      console.error("Error saving message:", error);
-      openDialog("Error sending message. Please try again.", "error");
-    }
-  };
+const confirmSend = async () => {
+  try {
+    await addDoc(collection(db, "Messages"), {
+      uid: auth.currentUser?.uid || null,
+      ...formData,
+      createdAt: new Date().toLocaleString(),
+      timestamp: serverTimestamp(),
+    });
+    openModal("Thank you!\nYour message has been sent successfully.", "success");
+    setFormData((prev) => ({ ...prev, messages: "" }));
+  } catch (error) {
+    console.error("Error:", error);
+    openModal("Failed to send message.\nPlease check your connection and try again.", "error");
+  }
+};
 
   return (
-    <div className="contact-sections">
-      <h1>Contact Us</h1>
-      <p className="contact-description">
-        We'd love to hear from you. Reach out via the options below or send us a
-        message directly.
+    <section className="contact-section">
+      <h1 className="contact-title">Contact Us</h1>
+      <p className="contact-subtitle">
+        We'd love to hear from you! Get in touch or send us a message below.
       </p>
 
-      <div className="contact-grid">
+      <div className="contact-grid-2col">
         {/* LEFT SIDE */}
-        <div className="contact-cards-vertical">
-          <div className="contact-card">
+        <div className="contact-cards-wrapper">
+          <div className="contact-card modern">
             <FaPhoneAlt className="contact-icon" />
-            <h3>Phone</h3>
+            <h4>Phone</h4>
             <p>(032) 485-8815</p>
           </div>
-          <div className="contact-card">
+
+          <div className="contact-card modern">
             <FaEnvelope className="contact-icon" />
-            <h3>Email</h3>
+            <h4>Email</h4>
             <p>trcchief@trcargao.doh.gov.ph</p>
           </div>
-          <div className="contact-card">
+
+          <div
+            className="contact-card modern clickable"
+            onClick={() => setMapOpen(true)}
+          >
             <FaMapMarkerAlt className="contact-icon" />
-            <h3>Address</h3>
+            <h4>Address</h4>
             <p>Candabong, Binlod, Argao, Cebu</p>
           </div>
+
           <a
             href="https://www.facebook.com/dohtrcargaocebu"
             target="_blank"
             rel="noopener noreferrer"
-            className="contact-card"
+            className="contact-card modern"
           >
-            <FaFacebookF className="contact-icon facebook-icon" />
-            <h3>Facebook</h3>
-            <p>facebook.com/dohtrcargao</p>
+            <FaFacebookF className="contact-icon facebook" />
+            <h4>Facebook</h4>
+            <p>@dohtrcargaocebu</p>
           </a>
         </div>
 
         {/* RIGHT SIDE FORM */}
-        <div className="chat-form enhanced-form">
-          <div className="chat-header">Send Us a Message</div>
-          <form className="chat-box" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              id="lastName"
-              placeholder="Last Name"
-              value={formData.lastName}
-              onChange={handleInputChange}
-              required
-              readOnly={isLoggedIn}
-            />
-            <input
-              type="text"
-              id="firstName"
-              placeholder="First Name"
-              value={formData.firstName}
-              onChange={handleInputChange}
-              required
-              readOnly={isLoggedIn}
-            />
+        <div className="contact-form-card">
+          <h2>Send a Message</h2>
+          <form className="contact-form" onSubmit={handleSubmit}>
+           <div className="name-fields">
+  <input
+    type="text"
+    id="lastName"
+    placeholder="Last Name"
+    value={formData.lastName}
+    onChange={handleInputChange}
+    required
+    readOnly={isLoggedIn}
+  />
+  <input
+    type="text"
+    id="firstName"
+    placeholder="First Name"
+    value={formData.firstName}
+    onChange={handleInputChange}
+    required
+    readOnly={isLoggedIn}
+  />
+</div>
+
             <input
               type="email"
               id="email"
@@ -217,48 +235,92 @@ const Contacts: React.FC = () => {
               onChange={handleInputChange}
               required
             />
-            <button
-              type="submit"
-              disabled={!isFormValid()}
-              className={isFormValid() ? "" : "disabled"}
-            >
+            <button type="submit" disabled={!isFormValid()}>
               <FaPaperPlane /> Send Message
             </button>
           </form>
         </div>
       </div>
 
-      {/* DIALOG */}
-      {dialog.isOpen && (
-        <div className="dialog-overlay" role="dialog">
-          <div className="dialog-content">
-            <p>{dialog.message}</p>
-            <div className="dialog-buttons">
-              {dialog.type === "confirm" ? (
-                <>
-                  <button
-                    className="dialog-button confirm"
-                    onClick={() => {
-                      confirmSend();
-                      closeDialog();
-                    }}
-                  >
-                    Yes
-                  </button>
-                  <button className="dialog-button cancel" onClick={closeDialog}>
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button className="dialog-button confirm" onClick={closeDialog}>
-                  Okay
-                </button>
-              )}
-            </div>
+      {/* Dialog */}
+     {showModal && (
+  <>
+    {/* Alert Sound */}
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+    </audio>
+
+    <div className="doh-modal-overlay" onClick={closeModal}>
+      <div className="doh-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="doh-modal-header">
+          <img src="/logo.png" alt="DOH Logo" className="doh-modal-logo" />
+          <h3 className="doh-modal-title">
+            {modalType === "success" && "MESSAGE SENT"}
+            {modalType === "error" && "ERROR"}
+            {modalType === "confirm" && "CONFIRM SEND"}
+          </h3>
+          <button className="doh-modal-close" onClick={closeModal}>
+            <FaTimes size={20} />
+          </button>
+        </div>
+
+        <div className="doh-modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center", fontSize: "1.1rem" }}>
+            {modalMessage}
+          </p>
+        </div>
+
+        <div className="doh-modal-footer">
+          {modalType === "confirm" && (
+            <>
+              <button className="doh-modal-btn cancel" onClick={closeModal}>
+                No, Cancel
+              </button>
+              <button
+                className="doh-modal-btn confirm"
+                onClick={() => {
+                  closeModal();
+                  onModalConfirm();
+                }}
+              >
+                Yes, Send
+              </button>
+            </>
+          )}
+          {(modalType === "success" || modalType === "error") && (
+            <button className="doh-modal-btn ok" onClick={closeModal}>
+              {modalType === "success" ? "Done" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}
+
+      {/* Map Modal */}
+      {mapOpen && (
+        <div className="dialog-overlay" onClick={() => setMapOpen(false)}>
+          <div
+            className="map-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="map-close-btn" onClick={() => setMapOpen(false)}>
+              <FaTimes />
+            </button>
+            <iframe
+              title="TRC Argao Location"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              loading="lazy"
+              allowFullScreen
+              src="https://maps.google.com/maps?q=Candabong, Binlod, Argao, Cebu&t=&z=15&ie=UTF8&iwloc=&output=embed"
+            ></iframe>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

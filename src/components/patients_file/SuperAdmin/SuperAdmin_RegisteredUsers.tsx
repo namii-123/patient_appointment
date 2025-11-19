@@ -199,7 +199,7 @@ const filteredUsers = users.filter((u) => {
       <main className="main-content-superadmin">
         {/* Top Navbar */}
         <div className="top-navbar-superadmin">
-          <h2 className="navbar-title">Registered Users</h2>
+          <h5 className="navbar-title">Registered Users</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -262,7 +262,7 @@ const filteredUsers = users.filter((u) => {
 
         {/* Users Table */}
         <div className="appointments-sections">
-          <h3 className="section-titles">All Registered Users</h3>
+          <h5 className="section-titless">All Registered Users</h5>
           <table className="appointments-table">
             <thead>
               <tr>

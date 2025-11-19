@@ -379,7 +379,7 @@ const ReportsAnalytics_DDE: React.FC = () => {
 
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Reports and Analytics</h2>
+          <h5 className="navbar-title">Reports and Analytics</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -480,7 +480,7 @@ const ReportsAnalytics_DDE: React.FC = () => {
             </div>
           </div>
 
-          <h3 className="section-title center">Appointment Trends</h3>
+          <h5 className="section-title center">Appointment Trends</h5>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart
               data={filteredData}

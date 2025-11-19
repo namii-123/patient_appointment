@@ -273,7 +273,9 @@ html, body {
     color: #1d3557;
     font-weight: 700;
   }
-  
+  .card h5{
+  font-size: 24px;
+}
   /* ✅ Summary Cards */
   .summary-cards-container {
     display: flex;

@@ -69,6 +69,27 @@ interface ServicesProps {
 }
 
 const AllServices: React.FC<ServicesProps> = ({ onNavigate }) => {
+
+
+  // ADD THIS INSIDE your component, before return()
+const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+
+const openModal = (msg: string, type: "confirm" | "error" | "success", callback?: () => void) => {
+  setModalMessage(msg);
+  setModalType(type);
+  if (callback) setOnConfirm(() => callback);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setOnConfirm(() => {});
+};
+
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -141,7 +162,6 @@ const AllServices: React.FC<ServicesProps> = ({ onNavigate }) => {
       "controlNo",
       "lastName",
       "firstName",
-      "middleInitial",
       "age",
       "birthdate",
       "gender",
@@ -163,6 +183,10 @@ const AllServices: React.FC<ServicesProps> = ({ onNavigate }) => {
       return false;
     }
 
+
+    if (formData.contact.length !== 11) {
+    return false;
+  }
     return basicComplete;
   };
 
@@ -372,55 +396,54 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   e.preventDefault();
 
   if (!isFormComplete()) {
-    alert("⚠️ Please fill out all required fields before proceeding.");
+    openModal("Please fill out all required fields before proceeding.", "error");
     return;
   }
 
-  const confirmSave = window.confirm("Do you want to proceed and save this patient information?");
-  if (!confirmSave) {
-    return; 
-  }
+  openModal(
+    "Do you want to save this patient information and proceed?",
+    "confirm",
+    async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        openModal("No authenticated user found. Please login again.", "error");
+        return;
+      }
 
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user) {
-    alert("❌ No authenticated user found. Please login.");
-    return;
-  }
+      try {
+        const newControlNo = generateControlNumber();
+        const uid = new ShortUniqueId({ length: 6 });
+        const patientCode = `PAT-${uid.rnd()}`;
 
-  try {
-    const newControlNo = generateControlNumber();
-    setFormData((prev) => ({ ...prev, controlNo: newControlNo }));
+        const patientDocRef = await addDoc(collection(db, "Patients"), {
+          ...formData,
+          controlNo: newControlNo,
+          uid: user.uid,
+          patientCode,
+          createdAt: new Date().toISOString(),
+        });
 
-    // 🔑 Generate short readable code for patient
-    const uid = new ShortUniqueId({ length: 6 });
-    const patientCode = `PAT-${uid.rnd()}`;
+        openModal(`Patient saved successfully!\nPatient Code: ${patientCode}`, "success");
 
-    // Save patient doc (auto-generated Firestore ID)
-    const patientDocRef = await addDoc(collection(db, "Patients"), {
-      ...formData,
-      controlNo: newControlNo,
-      uid: user.uid, // Firebase Auth UID
-      patientCode,   // short readable
-      createdAt: new Date().toISOString(),
-    });
+        setTimeout(() => {
+          if (onNavigate) {
+            onNavigate("radioservices", {
+              ...formData,
+              patientId: patientDocRef.id,
+              controlNo: newControlNo,
+              patientCode,
+            });
+          }
+        }, 2000);
 
-    alert(`✅ Patient info saved! Patient Code: ${patientCode}`);
-
-    if (onNavigate) {
-      onNavigate("radioservices", {
-        ...formData,
-        patientId: patientDocRef.id, // 🔑 use Firestore auto-ID
-        controlNo: newControlNo,
-        patientCode, // pass along short code for UI
-      });
+      } catch (error) {
+        console.error("Error:", error);
+        openModal("Failed to save patient. Please try again.", "error");
+      }
     }
-  } catch (error) {
-    console.error("Error saving patient:", error);
-    alert("❌ Failed to save patient information. Please try again.");
-  }
+  );
 };
-
 
 
   const calculateAge = (birthdate: string): number => {
@@ -461,7 +484,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             <p>Republic of the Philippines</p>
             <p>Department of Health</p>
             <p>Treatment and Rehabilitation Center Argao</p>
-            <h3>OUTPATIENT REQUEST FORM</h3>
+            <h5>OUTPATIENT REQUEST FORM</h5>
           </div>
           <div className="header-right">
             <p>Document No.: TRC-AOD-FM07</p>
@@ -522,6 +545,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
+                placeholder="Last Name"
                 required
               />
             </div>
@@ -533,6 +557,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
+                placeholder="First Name"
                 required
               />
             </div>
@@ -545,6 +570,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 value={formData.middleInitial}
                 onChange={handleChange}
                 maxLength={1}
+                placeholder="Optional"
               />
             </div>
           </div>
@@ -558,6 +584,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 name="birthdate"
                 value={formData.birthdate}
                 onChange={handleChange}
+                placeholder="Birthdate"
                 required
               />
             </div>
@@ -569,8 +596,10 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 name="age"
                 value={formData.age}
                 onChange={handleChange}
+                placeholder="Age"
                 required
                 min={0}
+                readOnly
               />
             </div>
             <div>
@@ -604,7 +633,10 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             </div>
           )}
 
-          <div>
+        
+
+          <div className="house-street-group">
+              <div>
             <label htmlFor="citizenship">Citizenship</label>
             <input
               type="text"
@@ -612,11 +644,10 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
               name="citizenship"
               value={formData.citizenship}
               onChange={handleChange}
+              placeholder="Citizenship"
               required
             />
           </div>
-
-          <div className="house-street-group">
             <div>
               <label htmlFor="houseNo">House No.</label>
               <input
@@ -625,6 +656,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 name="houseNo"
                 value={formData.houseNo}
                 onChange={handleChange}
+                placeholder="House No."
                 required
               />
             </div>
@@ -636,6 +668,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
                 name="street"
                 value={formData.street}
                 onChange={handleChange}
+                placeholder="Street"
                 required
               />
             </div>
@@ -698,6 +731,7 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             </div>
           </div>
 
+  <div className="field-groups">
           <div>
             <label htmlFor="email">Email Address</label>
             <input
@@ -711,16 +745,26 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             />
           </div>
 
-          <div>
-            <label htmlFor="contact">Mobile/Contact Number</label>
-            <input
-              type="tel"
-              id="contact"
-              name="contact"
-              value={formData.contact}
-              onChange={handleChange}
-              required
-            />
+         <div>
+  <label htmlFor="contact">Mobile/Contact Number</label>
+  <input
+    type="tel"
+    id="contact"
+    name="contact"
+    value={formData.contact}
+    onChange={handleChange}
+    placeholder="11-digit mobile number"
+    required
+    style={{
+      borderColor: formData.contact && formData.contact.length !== 11 ? "red" : "",
+    }}
+  />
+  {formData.contact && formData.contact.length !== 11 && (
+    <small style={{ color: "red" }}>
+      Contact number must be exactly 11 digits (e.g., 09123456789)
+    </small>
+  )}
+</div>
           </div>
           <div className="button-containerss">
             <button type="button" className="next-buttons" onClick={handleNext}>
@@ -728,6 +772,51 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             </button>
           </div>
         </form>
+
+
+{/* COMPACT MODAL - GAMAY RA */}
+{showModal && (
+  <>
+    <audio autoPlay className="modal-sound">
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+    </audio>
+
+    <div className="modal-overlay-services" onClick={closeModal}>
+      <div className="modal-content-services" onClick={e => e.stopPropagation()}>
+        
+        <div className="modal-header-services">
+          <img src="/logo.png" alt="DOH" className="modal-logo" />
+          <h5>
+            {modalType === "success" && "SUCCESS"}
+            {modalType === "error" && "ERROR"}
+            {modalType === "confirm" && "CONFIRM ACTION"}
+          </h5>
+        </div>
+
+        <div className="modal-body">
+          <p>{modalMessage}</p>
+        </div>
+
+        <div className="modal-footer">
+          {modalType === "confirm" && (
+            <>
+              <button className="modal-btn cancel" onClick={closeModal}>Cancel</button>
+              <button className="modal-btn confirm" onClick={() => { closeModal(); onConfirm(); }}>
+                Confirm
+              </button>
+            </>
+          )}
+          {(modalType === "error" || modalType === "success") && (
+            <button className="modal-btn ok" onClick={closeModal}>
+              {modalType === "success" ? "Continue" : "OK"}
+            </button>
+          )}
+        </div>
+
+      </div>
+    </div>
+  </>
+)}
       </div>
     </div>
   );

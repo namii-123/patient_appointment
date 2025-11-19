@@ -15,7 +15,8 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
-
+import { FaStethoscope } from "react-icons/fa";
+import { X } from "lucide-react";
 
 
 interface Notification {
@@ -233,6 +234,30 @@ const fetchPatients = async () => {
   };
 
  
+   const [showInfoModal, setShowInfoModal] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+    const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customModalMessage, setCustomModalMessage] = useState("");
+  const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+  const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+  
+  const openCustomModal = (
+    message: string,
+    type: "success" | "error" | "confirm" = "success",
+    onConfirm?: () => void
+  ) => {
+    setCustomModalMessage(message);
+    setCustomModalType(type);
+    if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+    setShowCustomModal(true);
+  };
+  
+  const closeCustomModal = () => {
+    setShowCustomModal(false);
+    setOnCustomModalConfirm(() => {});
+  };
+  
+
 
   return (
     <div className="dashboards">
@@ -273,6 +298,12 @@ const fetchPatients = async () => {
               </span>
             </div>
             <div className="nav-item">
+    <FaStethoscope className="nav-icon" />
+    <span onClick={() => handleNavigation("/services_radiology")}>
+      Services
+    </span>
+  </div>
+            <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_radiology")}>
                 Reports & Analytics
@@ -290,26 +321,29 @@ const fetchPatients = async () => {
           </div>
 
           <div className="signout-box">
-                                 <FaSignOutAlt className="signout-icon" />
-                                 <span
-                                   onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
-                                   className="signout-label"
-                                   style={{ cursor: "pointer" }}
-                                 >
-                                   Sign Out
-                                 </span>
-                               </div>
+                                           <FaSignOutAlt className="signout-icon" />
+                                           <span
+                                             onClick={async () => {
+            openCustomModal(
+              "Are you sure you want to sign out?",
+              "confirm",
+              async () => {
+                try {
+                  await signOut(auth);
+                  navigate("/loginadmin", { replace: true });
+                } catch (error) {
+                  console.error("Error signing out:", error);
+                  openCustomModal("Failed to sign out. Please try again.", "error");
+                }
+              }
+            );
+          }}
+                                             className="signout-label"
+                                             style={{ cursor: "pointer" }}
+                                           >
+                                             Sign Out
+                                           </span>
+                                         </div>
                                </div>
       </aside>
 
@@ -317,7 +351,7 @@ const fetchPatients = async () => {
       <main className="main-content">
         {/* Top Navbar */}
         <div className="top-navbar-radiology">
-          <h2 className="navbar-title">Dashboard</h2>
+          <h5 className="navbar-title">Dashboard</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -367,18 +401,18 @@ const fetchPatients = async () => {
         
                       <div className="cardss">
                       <FaUsers className="card-icon" />
-                      <h3>{totalUsers}</h3>
+                      <h5>{totalUsers}</h5>
                       <p>Total Users</p>
                     </div>
         
                     <div className="cardss">
                       <FaUsers className="card-icon" />
-                      <h3>{totalPatients}</h3>
+                      <h5>{totalPatients}</h5>
                       <p>Total Patients</p>
                     </div>
                     <div className="cardss">
                       <FaCalendarAlt className="card-icon" />
-                      <h3>{totalAppointments}</h3>
+                      <h5>{totalAppointments}</h5>
                       <p>Total Appointments</p>
                     </div>
                     
@@ -387,18 +421,18 @@ const fetchPatients = async () => {
                   <div className="card-row">
                     <div className="cardss">
                       <FaChartBar className="card-icon" />
-                       <h3>{pendingCount}</h3>
+                       <h5>{pendingCount}</h5>
                       <p>Pending Appointments</p>
                     </div>
                      <div className="cardss">
                       <FaCalendarAlt className="card-icon" />
-                      <h3>{cancelledCount}</h3>
+                      <h5>{cancelledCount}</h5>
                       <p>Canceled Appointments</p>
                     </div>
         
                     <div className="cardss">
                       <FaCalendarAlt className="card-icon" />
-                      <h3>{approvedCount}</h3>
+                      <h5>{approvedCount}</h5>
                       <p>Approved Appointments</p>
                     </div>
                    
@@ -408,12 +442,12 @@ const fetchPatients = async () => {
                   <div className="card-row">
                     <div className="cardss">
                       <FaTimesCircle className="card-icon" />
-                      <h3>{rejectedCount}</h3>
+                      <h5>{rejectedCount}</h5>
                       <p>Total Rejected</p>
                     </div>
                     <div className="cardss">
                       <FaCheckCircle className="card-icon" />
-                      <h3>{completedCount}</h3>
+                      <h5>{completedCount}</h5>
                       <p>Total Completed</p>
                     </div>
                   </div>
@@ -422,7 +456,7 @@ const fetchPatients = async () => {
         {/* Charts and Activity */}
         <div className="chart-activity-container">
           <div className="chart-wrapper">
-            <h3 className="chart-title">Appointment Distribution</h3>
+            <h5 className="chart-title">Appointment Distribution</h5>
             <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
@@ -458,7 +492,7 @@ const fetchPatients = async () => {
           </div>
 
           <div className="activity-wrapper">
-  <h3 className="chart-title">Weekly Activity Status</h3>
+  <h5 className="chart-title">Weekly Activity Status</h5>
   <ul className="activity-list">
     {Object.entries(weeklyActivity).map(([day, count]) => (
       <li key={day}>
@@ -473,6 +507,57 @@ const fetchPatients = async () => {
 
         </div>
 
+    {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+{showCustomModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+    </audio>
+    <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+      <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="radiology-modal-header">
+          <img src={logo} alt="Logo" className="radiology-modal-logo" />
+          <h3 className="radiology-modal-title">
+            {customModalType === "success" && "SUCCESS"}
+            {customModalType === "error" && "ERROR"}
+            {customModalType === "confirm" && "CONFIRM ACTION"}
+          </h3>
+          <button className="radiology-modal-close" onClick={closeCustomModal}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="radiology-modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+            {customModalMessage}
+          </p>
+        </div>
+        <div className="radiology-modal-footer">
+          {customModalType === "confirm" && (
+            <>
+              <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                No, Cancel
+              </button>
+              <button
+                className="radiology-modal-btn confirm"
+                onClick={() => {
+                  closeCustomModal();
+                  onCustomModalConfirm();
+                }}
+              >
+                Yes, Proceed
+              </button>
+            </>
+          )}
+          {(customModalType === "success" || customModalType === "error") && (
+            <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+              {customModalType === "success" ? "Done" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}
       
       
 </div>

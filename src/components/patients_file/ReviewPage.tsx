@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
-import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction, addDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import "../../assets/ReviewPage.css";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { getAuth } from "firebase/auth";
 import { query, where } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
+import { X } from "lucide-react";
+import { DEFAULT_SERVICES } from "../../config/defaultServices";
+import { DEFAULT_CLINICAL_SERVICES } from "../../config/defaultClinicalServices";
+import { DEFAULT_DENTAL_SERVICES } from "../../config/defaultDentalServices";
+import { DEFAULT_MEDICAL_SERVICES } from "../../config/defaultMedicalServices";
+
 
 interface Appointment {
   id: string;
@@ -129,6 +135,65 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
     };
   }>({});
   const uidGenerator = new ShortUniqueId({ length: 8 });
+    const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState<"success" | "error" | "confirm">("confirm");
+  const [onModalConfirm, setOnModalConfirm] = useState<() => void>(() => {});
+
+  
+  const [radiologyServices, setRadiologyServices] = useState<Record<string, string[]>>({});
+
+
+ useEffect(() => {
+  const q = query(
+    collection(db, "RadiologyServices"),
+    where("department", "==", "Radiographic"),
+    where("enabled", "==", true),
+    where("isDeleted", "==", false)
+  );
+
+  const unsub = onSnapshot(q, (snapshot) => {
+    const map: Record<string, string[]> = {};
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      if (!map[data.category]) map[data.category] = [];
+      map[data.category].push(data.name);
+    });
+
+    // Sort categories alphabetically
+    const sortedMap: Record<string, string[]> = {};
+    Object.keys(map)
+      .sort()
+      .forEach((key) => {
+        sortedMap[key] = map[key];
+      });
+
+    setRadiologyServices(sortedMap); // already have this state
+  }, (error) => {
+    console.error("Error loading radiology services:", error);
+    setError("Failed to load Radiographic services.");
+  });
+
+  return () => unsub();
+}, []);
+
+
+  const openModal = (
+    message: string,
+    type: "success" | "error" | "confirm",
+    onConfirm?: () => void
+  ) => {
+    setModalMessage(message);
+    setModalType(type);
+    if (onConfirm) setOnModalConfirm(() => onConfirm);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setOnModalConfirm(() => {});
+  };
+
 
   useEffect(() => {
     console.log("📌 ReviewPage: Received formData:", safeFormData);
@@ -478,93 +543,263 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    const formElement = document.querySelector(".all-services-container");
-    if (!formElement) return;
 
-    try {
-      const buttons = document.querySelectorAll(".download-btn, .submit-btn, .change-btn") as NodeListOf<HTMLElement>;
-      buttons.forEach((btn) => (btn.style.display = "none"));
 
-      const certDiv = document.createElement("div");
-      certDiv.style.marginTop = "30px";
-      certDiv.style.textAlign = "center";
-      certDiv.innerHTML = `
-        <p style="font-weight:bold; font-size:1rem;">
-          I hereby certify that the above information is true and correct.
-        </p>
-        <div style="margin-top:50px;">
-          <p>__________________________</p>
-          <p>Signature over Printed Name</p>
-        </div>
-      `;
-      formElement.appendChild(certDiv);
+ const handleDownloadPDF = async () => {
+  const element = document.querySelector(".all-services-container") as HTMLElement;
+  if (!element) {
+    openModal("Page content not found.", "error");
+    return;
+  }
 
-      const canvas = await html2canvas(formElement as HTMLElement, {
-        scale: 2,
-        useCORS: true,
-      });
+  try {
+    const clone = element.cloneNode(true) as HTMLElement;
 
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const marginX = 10;
-      const marginY = 15;
-      const imgWidth = pageWidth - marginX * 2;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    // REMOVE ALL BUTTONS
+    clone.querySelectorAll('button, .button-containers, .change-btns').forEach(el => el.remove());
 
-      const pdf = new jsPDF("p", "mm", "a4");
+    // ADD CERTIFICATION PAGE
+ const certDiv = document.createElement("div");
+certDiv.innerHTML = `
+  <div style="
+    page-break-before: always;
+    height: 330mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    padding-top: 100mm;
+    text-align: center;
+  ">
+    <!-- Certification Text -->
+    <p style="
+      font-size: 16pt;
+      font-weight: bold;
+      margin: 0 0 60px 0;
+      max-width: 700px;
+      line-height: 1.5;
+    ">
+      I hereby certify that the above information is true and correct.
+    </p>
 
-      let position = 0;
-      const pageCanvas = document.createElement("canvas");
-      const pageCtx = pageCanvas.getContext("2d")!;
-      const pageHeightPx = (canvas.width * pageHeight) / pageWidth;
+    <!-- Signature over Printed Name - CORRECT ORDER -->
+    <!-- Signature over Printed Name - FINAL LAYOUT -->
+<div style="margin: 40px 0; text-align: center;">
+  <!-- PATIENT NAME (CAPSLOCK) -->
+  <p style="
+    margin: 0 0 8px 0;
+    font-size: 11pt;
+    font-weight: bold;
+  ">
+    ${(() => {
+      const fullName = `${safeFormData.lastName}, ${safeFormData.firstName}${safeFormData.middleInitial ? ' ' + safeFormData.middleInitial + '.' : ''}`;
+      return fullName.toUpperCase() || "________________________";
+    })()}
+  </p>
 
-      while (position < canvas.height) {
-        const sliceHeight = Math.min(pageHeightPx, canvas.height - position);
+  <!-- SIGNATURE LINE -->
+  <div style="
+    border-bottom: 2px solid #000;
+    width: 400px;
+    margin: 0 auto 8px auto;
+  "></div>
 
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceHeight;
+  <!-- LABEL BELOW LINE -->
+  <p style="
+    margin: 0;
+    font-size: 10pt;
+    font-style: italic;
+    color: #333;
+  ">
+    Signature over Printed Name
+  </p>
+</div>
 
-        pageCtx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
-        pageCtx.drawImage(
-          canvas,
-          0,
-          position,
-          canvas.width,
-          sliceHeight,
-          0,
-          0,
-          canvas.width,
-          sliceHeight
-        );
+    <!-- Date -->
+    <p style="
+      font-size: 14pt;
+      margin: 50px 0 0 0;
+    ">
+      Date: <strong>${new Date().toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })}</strong>
+    </p>
+  </div>
+`;
+clone.appendChild(certDiv);
 
-        const imgData = pageCanvas.toDataURL("image/png");
-        const sliceHeightMM = (sliceHeight * imgWidth) / canvas.width;
-
-        if (position === 0) {
-          pdf.addImage(imgData, "PNG", marginX, marginY, imgWidth, sliceHeightMM);
-        } else {
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", marginX, marginY, imgWidth, sliceHeightMM);
-        }
-
-        position += sliceHeight;
+    // INJECT PRINT STYLES — EXACT SAME SIZES, BUT ALLOW PAGE BREAKS
+    const printStyle = document.createElement("style");
+    printStyle.innerHTML = `
+      * { box-sizing: border-box !important; }
+      body, html { margin: 0; padding: 0; }
+      
+      .all-services-container {
+        width: 215.9mm !important;
+        min-height: 330.2mm !important;
+        padding: 10mm 12mm !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 10pt !important;
+        background: white !important;
+        line-height: 1.3 !important;
       }
 
-      certDiv.remove();
-      buttons.forEach((btn) => (btn.style.display = "inline-block"));
+      /* PATIENT INFO - TIGHTER LAYOUT */
+      .field-group, .house-street-group, .field-groups {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        margin-bottom: 8px !important;
+      }
+      .field-group > div, .house-street-group > div, .field-groups > div {
+        flex: 1 1 calc(33.333% - 8px) !important;
+        min-width: 120px !important;
+      }
 
-      pdf.save("appointment_review.pdf");
-    } catch (err) {
-      console.error("📌 ReviewPage: Error generating PDF:", err);
-      setError("Failed to generate PDF. Please try again.");
+      /* INPUT FIELDS - EXACT SAME */
+      input[type="text"], input[type="date"], input[type="time"], input[type="number"], input[type="email"], input[type="tel"] {
+        width: 100% !important;
+        padding: 6px 8px !important;
+        border: 1px solid #000 !important;
+        background: white !important;
+        font-size: 10pt !important;
+        min-height: 40px !important;
+      }
+
+      /* SERVICES - 2 COLUMNS, TIGHTER */
+      .services-container {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+        margin-top: 12px !important;
+      }
+
+      /* TABLE - COMPACT (EXACT SAME) */
+      table { 
+        width: 100% !important; 
+        table-layout: fixed !important; 
+        border-collapse: collapse !important;
+        font-size: 9pt !important;
+      }
+      td { 
+        padding: 4px 6px !important; 
+        vertical-align: top !important;
+        word-wrap: break-word !important;
+      }
+      .category-row td {
+        font-weight: bold !important;
+        background: #f0f0f0 !important;
+        font-size: 9.5pt !important;
+      }
+
+      /* CHECKBOX & RADIO */
+      input[type="checkbox"], input[type="radio"] {
+        transform: scale(1) !important;
+      }
+
+      /* HEADER */
+      .form-header {
+        display: grid !important;
+        grid-template-columns: 70px 1fr 160px !important;
+        gap: 8px !important;
+        margin-bottom: 12px !important;
+      }
+      .header-center { font-size: 9pt !important; }
+      .header-right { font-size: 8pt !important; }
+
+      /* PAGE BREAK CONTROL — ALLOW NATURAL BREAKS */
+      .service-box, h3, h4 { 
+        page-break-inside: avoid !important; 
+      }
+      h3, h4 { 
+        margin: 10px 0 6px !important; 
+        font-size: 11pt !important; 
+      }
+
+      /* IMPORTANT: ALLOW PAGE BREAKS INSIDE CONTAINER */
+      .all-services-container > div {
+        page-break-inside: auto !important;
+      }
+
+      @page { 
+        margin: 0; 
+        size: 8.5in 13in; 
+      }
+    `;
+    clone.appendChild(printStyle);
+
+    // TEMP CONTAINER
+    const container = document.createElement("div");
+    container.style.position = "absolute";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = "215.9mm";
+    container.style.background = "white";
+    container.appendChild(clone);
+    document.body.appendChild(container);
+
+    await new Promise(r => setTimeout(r, 1200)); // bit longer para sure ang rendering
+
+    // CAPTURE WITH HIGH QUALITY
+    const canvas = await html2canvas(container, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      width: container.scrollWidth,
+      height: container.scrollHeight,
+      windowWidth: container.scrollWidth,
+      windowHeight: container.scrollHeight,
+      logging: false,
+    });
+
+    document.body.removeChild(container);
+
+    // MULTI-PAGE PDF SETUP
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", [215.9, 330.2]); // long bond
+    const pageWidth = 215.9;
+    const pageHeight = 330.2;
+    const imgHeightPerPage = (canvas.height * pageWidth) / canvas.width;
+    let heightLeft = imgHeightPerPage;
+    let position = 0;
+
+    // First page
+    pdf.addImage(imgData, "PNG", 0, position, pageWidth, imgHeightPerPage);
+    heightLeft -= pageHeight;
+
+    // Add new pages if content is taller
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeightPerPage;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, pageWidth, imgHeightPerPage);
+      heightLeft -= pageHeight;
     }
-  };
 
-  const handleSubmit = async () => {
+    // Filename
+    const patientName = `${safeFormData.lastName}_${safeFormData.firstName}`
+      .replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const filename = `TRC_Outpatient_Request_${patientName}_${dateStr}.pdf`;
+
+    pdf.save(filename);
+    openModal("PDF successfully downloaded!", "success");
+
+  } catch (err) {
+    console.error("PDF Error:", err);
+    openModal("Failed to generate PDF.", "error");
+  }
+};
+
+
+
+   const handleSubmit = async () => {
     try {
       if (appointments.length === 0) {
-        setError("No appointments found to submit.");
+        openModal("No appointments found to submit.", "error");
         return;
       }
 
@@ -574,186 +809,354 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
       });
 
       if (validAppointments.length === 0) {
-        setError("No departments have services selected. Please select at least one service for one department.");
+        openModal("No departments have services selected. Please select at least one service.", "error");
         return;
       }
 
-      const confirmSubmit = window.confirm("Are you sure you want to submit?");
-      if (!confirmSubmit) return;
+      openModal(
+        "Are you sure you want to submit your appointment request?",
+        "confirm",
+        async () => {
+          try {
+            const auth = getAuth();
+            const currentUser = auth.currentUser;
+            let userId = "";
 
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
-      let userId = "";
+            if (currentUser) {
+              const userRef = doc(db, "Users", currentUser.uid);
+              const userSnap = await getDoc(userRef);
+              if (userSnap.exists()) {
+                userId = userSnap.data().UserId || "";
+              } else {
+                openModal("User data not found.", "error");
+                return;
+              }
+            } else {
+              openModal("No logged-in user found.", "error");
+              return;
+            }
 
-      if (currentUser) {
-        const userRef = doc(db, "Users", currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          userId = userSnap.data().UserId || "";
-        } else {
-          setError("User data not found.");
-          return;
+            for (const appointment of validAppointments) {
+              if (!appointment.reservationId || !appointment.slotID || !appointment.date || !appointment.slotTime) {
+                openModal(`Missing data for ${appointment.department}. Please schedule first.`, "error");
+                return;
+              }
+
+              const editedData = editedAppointments[appointment.department] || {};
+              if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
+                openModal(`Please specify the 'Others' service for ${appointment.department}.`, "error");
+                return;
+              }
+
+              const services = editedData.services.includes("Others") && editedData.otherService?.trim()
+                ? [...editedData.services.filter((s) => s !== "Others"), `Others: ${editedData.otherService}`]
+                : editedData.services;
+
+              const appointmentRef = doc(db, "Appointments", appointment.id);
+              await updateDoc(appointmentRef, {
+                services,
+                complaint: editedData.complaint || "",
+                ...(appointment.department === "Radiographic" && {
+                  lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
+                  isPregnant: editedData.isPregnant || "No",
+                  clearance: editedData.clearance || false,
+                  shield: editedData.shield || false,
+                  pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
+                }),
+                updatedAt: new Date().toISOString(),
+              });
+
+              await finalizeBooking({
+                department: appointment.department,
+                date: appointment.date,
+                slotId: appointment.slotID,
+                reservationId: appointment.reservationId,
+              });
+
+              await updateDoc(appointmentRef, {
+                status: "submitted",
+                updatedAt: new Date().toISOString(),
+              });
+
+              const transactionRef = doc(collection(db, "Transactions"));
+              await setDoc(transactionRef, {
+                uid: currentUser?.uid,
+                UserId: userId,
+                patientId: appointment.patientId || safeFormData.patientId,
+                transactionCode: `TRANS-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+                controlNo: safeFormData.controlNo,
+                purpose: appointment.department,
+                services: services || [],
+                doctor: "TBA",
+                date: appointment.date || "",
+                slotTime: appointment.slotTime || "",
+                slotID: appointment.slotID || "",
+                status: "Pending",
+                createdAt: new Date().toISOString(),
+                transactionId: transactionRef.id,
+                reservationId: appointment.reservationId,
+              });
+            }
+
+            openModal("Appointments submitted successfully!\n\nYou can check your transactions.", "success");
+            setTimeout(() => {
+              onNavigate?.("transaction", {});
+            }, 2000);
+          } catch (err: unknown) {
+            console.error("Submit error:", err);
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            openModal(`Failed to submit: ${msg}`, "error");
+          }
         }
-      } else {
-        setError("No logged-in user found.");
-        return;
-      }
-
-      for (const appointment of validAppointments) {
-        console.log(`📌 ReviewPage: Processing appointment for ${appointment.department}:`, appointment);
-        if (!appointment.reservationId || !appointment.slotID || !appointment.date || !appointment.slotTime) {
-          console.error(`📌 ReviewPage: Missing critical fields for ${appointment.department}`, appointment);
-          setError(`Missing required data (reservationId, slotID, date, or slotTime) for ${appointment.department} appointment.`);
-          return;
-        }
-
-        const editedData = editedAppointments[appointment.department] || {};
-        if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
-          setError(`Please specify the 'Others' service for ${appointment.department}.`);
-          return;
-        }
-        const services = editedData.services.includes("Others") && editedData.otherService?.trim()
-          ? [...editedData.services.filter((s) => s !== "Others"), `Others: ${editedData.otherService}`]
-          : editedData.services;
-
-        const appointmentRef = doc(db, "Appointments", appointment.id);
-        await updateDoc(appointmentRef, {
-          services,
-          complaint: editedData.complaint || "",
-          ...(appointment.department === "Radiographic" && {
-            lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
-            isPregnant: editedData.isPregnant || "No",
-            clearance: editedData.clearance || false,
-            shield: editedData.shield || false,
-            pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
-          }),
-          updatedAt: new Date().toISOString(),
-        });
-
-        await finalizeBooking({
-          department: appointment.department,
-          date: appointment.date,
-          slotId: appointment.slotID,
-          reservationId: appointment.reservationId,
-        });
-
-        await updateDoc(appointmentRef, {
-          status: "submitted",
-          updatedAt: new Date().toISOString(),
-        });
-
-        const transactionRef = doc(collection(db, "Transactions"));
-        await setDoc(transactionRef, {
-          uid: currentUser?.uid,
-          UserId: userId,
-          patientId: appointment.patientId || safeFormData.patientId,
-          transactionCode: `TRANS-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-          controlNo: safeFormData.controlNo,
-          purpose: appointment.department,
-          services: services || [],
-          doctor: "TBA",
-          date: appointment.date || "",
-          slotTime: appointment.slotTime || "",
-          slotID: appointment.slotID || "",
-          status: "Pending",
-          createdAt: new Date().toISOString(),
-          transactionId: transactionRef.id,
-          reservationId: appointment.reservationId,
-        });
-      }
-
-      alert("✅ Appointments submitted and slots updated!");
-      onNavigate?.("transaction", {});
+      );
     } catch (err: unknown) {
-      console.error("📌 ReviewPage: Error submitting appointments:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`❌ Failed to submit appointments: ${errorMessage}`);
+      console.error("Submit error:", err);
+      openModal("An error occurred. Please try again.", "error");
     }
   };
 
-  const servicesByCategory: { [key: string]: string[] } = {
-    Abdomen: ["Abdomen Supine", "Abdomen Upright"],
-    Chest: ["Chest PA", "Chest Lateral", "Chest Apicolordotic"],
-    Spine: ["Cervical AP & L", "Thoracic AP & L", "Lumbosacral AP & L", "Thoracolumbar"],
-    Extremities: [
-      "Ankle AP & L",
-      "Elbow AP & L",
-      "Femur AP & L",
-      "Forearm AP & L",
-      "Foot AP & L",
-      "Hand AP & L",
-      "Hip AP & L",
-      "Humerus AP & L",
-      "Knee AP & L",
-      "Leg AP & L",
-      "Wrist AP & L",
-      "Pelvis AP",
-      "Shoulder (Int/Ext)",
-    ],
-    "Head & Sinuses": ["Skull AP & L", "Paranasal Sinuses (C.W.L.)", "Waters’ Vie"],
-    Others: ["Others"],
-  };
 
-  const servicesByCategoryLab: { [key: string]: string[] } = {
-    Screening: ["Drug Test"],
-    Hematology: ["Complete Blood Count (CBC)", "Clotting Time and Bleeding Time"],
-    "Microscopy-Parasitology": ["Urinalysis", "Fecalysis"],
-    "Clinical Chemistry": [
-      "RBS (Random Blood Sugar)",
-      "FBS (Fasting Blood Sugar)",
-      "Lipid Panel",
-      "Cholesterol",
-      "Triglycerides",
-      "High-Density Lipoprotein (HDL)",
-      "Low-Density Lipoprotein (LDL)",
-      "Very Low-Density Lipoprotein (VLDL)",
-      "Serum Sodium (Na+)",
-      "Serum Potassium (K+)",
-      "Serum Chloride (Cl-)",
-      "Serum Creatinine",
-      "SGOT / AST",
-      "SGPT / ALT",
-      "BUA (Blood Uric Acid)",
-      "BUN (Blood Urea Nitrogen)",
-    ],
-    "Immunology and Serology": [
-      "HBsAg Screening Test",
-      "HCV Screening Test",
-      "Syphilis Screening Test",
-      "Dengue Duo NS1",
-      "Pregnancy Test",
-      "Blood Typing",
-    ],
-    "Blood Chemistry": ["HbA1c"],
-    Others: ["Others"],
-  };
+  const [radiologyServicesMerged, setRadiologyServicesMerged] = useState<Record<string, string[]>>({});
+useEffect(() => {
+  const q = query(
+    collection(db, "RadiologyServices"),
+    where("department", "==", "Radiographic"),
+    where("enabled", "==", true),
+    where("isDeleted", "==", false)
+  );
 
-  const servicesDental: { [key: string]: string[] } = {
-    "Dental Services": [
-      "Check-up",
-      "Oral Prophylaxis",
-      "Simple Extraction",
-      "Complex Extraction",
-      "Temporary Filling",
-      "Permanent Filling",
-      "Gum Treatment",
-      "Incision and Drainage",
-    ],
-    Others: ["Others"],
-  };
+  const unsub = onSnapshot(q, (snapshot) => {
+    const fromDb: Record<string, string[]> = {};
 
-  const servicesMedical: { [key: string]: string[] } = {
-    "Medical Services": [
-      "General Consultation",
-      "Pediatric Consultation",
-      "Prenatal Consultation",
-      "Postnatal Consultation",
-      "Family Planning Consultation",
-      "Senior Citizen / Geriatric Consultation",
-      "Nutrition Counseling",
-    ],
-    Others: ["Others"],
-  };
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const category = data.category as string;
+      const name = data.name as string;
+
+      if (!fromDb[category]) fromDb[category] = [];
+      fromDb[category].push(name);
+    });
+
+    // Start with defaults (now Record<string, ...> so safe)
+    const merged: Record<string, string[]> = { ...DEFAULT_SERVICES };
+
+    // Add dynamic services (new categories + new items)
+    Object.entries(fromDb).forEach(([category, services]) => {
+      if (!merged[category]) {
+        merged[category] = [];
+      }
+      services.forEach((svc) => {
+        if (!merged[category].includes(svc)) {
+          merged[category].push(svc);
+        }
+      });
+    });
+
+    // Sort categories
+    const sorted = Object.keys(merged)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = merged[key].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+
+    setRadiologyServicesMerged(sorted);
+  }, (error) => {
+    console.error("Error loading radiology services:", error);
+    const fallback = Object.keys(DEFAULT_SERVICES)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = [...DEFAULT_SERVICES[key]].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+    setRadiologyServicesMerged(fallback);
+  });
+
+  return () => unsub();
+}, []);
+
+
+
+
+const [clinicalServicesMerged, setClinicalServicesMerged] = useState<Record<string, string[]>>({});
+
+
+ useEffect(() => {
+  const q = query(
+    collection(db, "ClinicalServices"),
+    where("department", "==", "Clinical Laboratory"),
+    where("enabled", "==", true),
+    where("isDeleted", "==", false)
+  );
+
+  const unsub = onSnapshot(q, (snapshot) => {
+    const fromDb: Record<string, string[]> = {};
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const category = data.category as string;
+      const name = data.name as string;
+
+      if (!fromDb[category]) fromDb[category] = [];
+      fromDb[category].push(name);
+    });
+
+    // Merge with defaults
+    const merged: Record<string, string[]> = { ...DEFAULT_CLINICAL_SERVICES };
+
+    Object.entries(fromDb).forEach(([category, services]) => {
+      if (!merged[category]) merged[category] = [];
+      services.forEach((svc) => {
+        if (!merged[category].includes(svc)) {
+          merged[category].push(svc);
+        }
+      });
+    });
+
+    // Sort everything
+    const sorted = Object.keys(merged)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = merged[key].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+
+    setClinicalServicesMerged(sorted);
+  }, (error) => {
+    console.error("Error loading clinical services:", error);
+    // Fallback to defaults
+    const fallback = Object.keys(DEFAULT_CLINICAL_SERVICES)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = [...DEFAULT_CLINICAL_SERVICES[key]].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+    setClinicalServicesMerged(fallback);
+  });
+
+  return () => unsub();
+}, []);
+
+
+const [dentalServicesMerged, setDentalServicesMerged] = useState<Record<string, string[]>>({});
+useEffect(() => {
+  const q = query(
+    collection(db, "DentalServices"),
+    where("department", "==", "Dental"),
+    where("enabled", "==", true),
+    where("isDeleted", "==", false)
+  );
+
+  const unsub = onSnapshot(q, (snapshot) => {
+    const fromDb: Record<string, string[]> = {};
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const category = data.category as string;
+      const name = data.name as string;
+
+      if (!fromDb[category]) fromDb[category] = [];
+      fromDb[category].push(name);
+    });
+
+    // Merge with defaults (from config)
+    const merged: Record<string, string[]> = { ...DEFAULT_DENTAL_SERVICES };
+
+    Object.entries(fromDb).forEach(([category, services]) => {
+      if (!merged[category]) merged[category] = [];
+      services.forEach((svc) => {
+        if (!merged[category].includes(svc)) {
+          merged[category].push(svc);
+        }
+      });
+    });
+
+    // Sort categories and services
+    const sorted = Object.keys(merged)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = merged[key].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+
+    setDentalServicesMerged(sorted);
+  }, (error) => {
+    console.error("Error loading dental services:", error);
+    // Fallback to defaults only
+    const fallback = Object.keys(DEFAULT_DENTAL_SERVICES)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = [...DEFAULT_DENTAL_SERVICES[key]].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+    setDentalServicesMerged(fallback);
+  });
+
+  return () => unsub();
+}, []);
+
+
+
+const [medicalServicesMerged, setMedicalServicesMerged] = useState<Record<string, string[]>>({});
+
+useEffect(() => {
+  const q = query(
+    collection(db, "MedicalServices"),
+    where("department", "==", "Medical"),
+    where("enabled", "==", true),
+    where("isDeleted", "==", false)
+  );
+
+  const unsub = onSnapshot(q, (snapshot) => {
+    const fromDb: Record<string, string[]> = {};
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const category = data.category as string;
+      const name = data.name as string;
+
+      if (!fromDb[category]) fromDb[category] = [];
+      fromDb[category].push(name);
+    });
+
+    // Merge with defaults (from your DEFAULT_MEDICAL_SERVICES)
+    const merged: Record<string, string[]> = { ...DEFAULT_MEDICAL_SERVICES };
+
+    Object.entries(fromDb).forEach(([category, services]) => {
+      if (!merged[category]) merged[category] = [];
+      services.forEach((svc) => {
+        if (!merged[category].includes(svc)) {
+          merged[category].push(svc);
+        }
+      });
+    });
+
+    // Sort categories and services
+    const sorted = Object.keys(merged)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = merged[key].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+
+    setMedicalServicesMerged(sorted);
+  }, (error) => {
+    console.error("Error loading medical services:", error);
+    // Fallback to defaults
+    const fallback = Object.keys(DEFAULT_MEDICAL_SERVICES)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = [...DEFAULT_MEDICAL_SERVICES[key]].sort((a, b) => a.localeCompare(b));
+        return acc;
+      }, {} as Record<string, string[]>);
+    setMedicalServicesMerged(fallback);
+  });
+
+  return () => unsub();
+}, []);
+
+
+  
 
   return (
     <div className="main-holder">
@@ -766,7 +1169,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
             <p>Republic of the Philippines</p>
             <p>Department of Health</p>
             <p>Treatment and Rehabilitation Center Argao</p>
-            <h3>OUTPATIENT REQUEST FORM</h3>
+            <h5>OUTPATIENT REQUEST FORM</h5>
           </div>
           <div className="header-right">
             <p>Document No.: TRC-AOD-FM07</p>
@@ -833,12 +1236,13 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
             </div>
           )}
 
-          <div>
+         
+
+          <div className="house-street-group">
+             <div>
             <label>Citizenship</label>
             <input type="text" value={safeFormData.citizenship} readOnly />
           </div>
-
-          <div className="house-street-group">
             <div>
               <label>House No.</label>
               <input type="text" value={safeFormData.houseNo} readOnly />
@@ -864,6 +1268,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
             </div>
           </div>
 
+           <div className="field-groups">
           <div>
             <label>Email Address</label>
             <input type="email" value={safeFormData.email} readOnly />
@@ -873,6 +1278,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
             <label>Mobile/Contact Number</label>
             <input type="tel" value={safeFormData.contact} readOnly />
           </div>
+         </div>
 
           <div className="services-wrapper">
             <div className="services-container">
@@ -895,52 +1301,60 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                     <h4>{dept} Services</h4>
 
                     {dept === "Radiographic" && (
-                      <table>
-                        <tbody>
-                          {Object.entries(servicesByCategory).map(([category, services]) => (
-                            <React.Fragment key={category}>
-                              <tr className="category-row">
-                                <td colSpan={2}>{category}</td>
-                              </tr>
-                              {services.map((service) => {
-                                const isChecked = editedData.services.includes(service);
-                                if (service === "Others") {
-                                  return (
-                                    <tr key="Others">
-                                      <td>
-                                        <input
-                                          type="text"
-                                          value={editedData.otherService}
-                                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                                          className="border p-2 rounded w-full"
-                                          placeholder="Please specify"
-                                        />
-                                      </td>
-                                      <td style={{ textAlign: "center" }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() => toggleService(dept, "Others")}
-                                        />
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                                return (
-                                  <tr key={service}>
-                                    <td>{service}</td>
-                                    <td style={{ textAlign: "center" }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={() => toggleService(dept, service)}
-                                      />
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          ))}
+  <table>
+    <tbody>
+      {Object.entries(radiologyServicesMerged)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([category, services]) => (
+          <React.Fragment key={category}>
+            <tr className="category-row">
+              <td colSpan={2}>{category}</td>
+            </tr>
+            {services.map((service) => {
+              const isOthers = service === "Others";
+              const isChecked = editedData.services.includes(service);
+              const displayName = isOthers ? "Others (please specify)" : service;
+
+              if (isOthers) {
+                return (
+                  <tr key="Others">
+                    <td colSpan={2}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <input
+                          type="text"
+                          value={editedData.otherService || ""}
+                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
+                          placeholder="Specify other service here..."
+                          style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #000" }}
+                          disabled={!isChecked}
+                        />
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleService(dept, "Others")}
+                          style={{ transform: "scale(1.2)" }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={service}>
+                  <td>{displayName}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleService(dept, service)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </React.Fragment>
+        ))}
                           <tr>
                             <td colSpan={2}>
                               <span style={{ fontWeight: "bold" }}>
@@ -1064,223 +1478,318 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
                     )}
 
                     {dept === "Clinical Laboratory" && (
-                      <table>
-                        <tbody>
-                          {Object.entries(servicesByCategoryLab).map(([category, services]) => (
-                            <React.Fragment key={category}>
-                              <tr className="category-row">
-                                <td colSpan={2}>{category}</td>
-                              </tr>
-                              {services.map((service) => {
-                                const isChecked = editedData.services.includes(service);
-                                if (service === "Others") {
-                                  return (
-                                    <tr key="Others">
-                                      <td>
-                                        <input
-                                          type="text"
-                                          value={editedData.otherService}
-                                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                                          className="border p-2 rounded w-full"
-                                          placeholder="Please specify"
-                                        />
-                                      </td>
-                                      <td style={{ textAlign: "center" }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() => toggleService(dept, "Others")}
-                                        />
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                                return (
-                                  <tr key={service}>
-                                    <td>{service}</td>
-                                    <td style={{ textAlign: "center" }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={() => toggleService(dept, service)}
-                                      />
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          ))}
-                          <tr>
-                            <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              <button
-                                type="button"
-                                className="change-btns"
-                                onClick={() => handleChangeDateTime(dept, appointment)}
-                                disabled={isScheduleDisabled}
-                              >
-                                {appointment ? "Change" : "Schedule"}
-                              </button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    )}
+  <table>
+    <tbody>
+      {Object.entries(clinicalServicesMerged)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([category, services]) => (
+          <React.Fragment key={category}>
+            <tr className="category-row">
+              <td colSpan={2}>{category}</td>
+            </tr>
+            {services.map((service) => {
+              const isOthers = service === "Others";
+              const isChecked = editedData.services.includes(service);
+              const displayName = isOthers ? "Others (please specify)" : service;
 
-                    {dept === "Dental" && (
-                      <table>
-                        <tbody>
-                          {Object.entries(servicesDental).map(([category, services]) => (
-                            <React.Fragment key={category}>
-                              <tr className="category-row">
-                                <td colSpan={2}>{category}</td>
-                              </tr>
-                              {services.map((service) => {
-                                const isChecked = editedData.services.includes(service);
-                                if (service === "Others") {
-                                  return (
-                                    <tr key="Others">
-                                      <td>
-                                        <input
-                                          type="text"
-                                          value={editedData.otherService}
-                                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                                          className="border p-2 rounded w-full"
-                                          placeholder="Please specify"
-                                        />
-                                      </td>
-                                      <td style={{ textAlign: "center" }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() => toggleService(dept, "Others")}
-                                        />
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                                return (
-                                  <tr key={service}>
-                                    <td>{service}</td>
-                                    <td style={{ textAlign: "center" }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={() => toggleService(dept, service)}
-                                      />
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          ))}
-                          <tr>
-                            <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              <button
-                                type="button"
-                                className="change-btns"
-                                onClick={() => handleChangeDateTime(dept, appointment)}
-                                disabled={isScheduleDisabled}
-                              >
-                                {appointment ? "Change" : "Schedule"}
-                              </button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    )}
+              if (isOthers) {
+                return (
+                  <tr key="Others">
+                    <td colSpan={2}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <input
+                          type="text"
+                          value={editedData.otherService || ""}
+                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
+                          placeholder="Specify other service here..."
+                          style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #000" }}
+                          disabled={!isChecked}
+                        />
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleService(dept, "Others")}
+                          style={{ transform: "scale(1.2)" }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
 
+              return (
+                <tr key={service}>
+                  <td>{displayName}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleService(dept, service)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      <tr>
+        <td colSpan={2}>
+          Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+          Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
+          <button
+            type="button"
+            className="change-btns"
+            onClick={() => handleChangeDateTime(dept, appointment)}
+            disabled={isScheduleDisabled}
+          >
+            {appointment ? "Change" : "Schedule"}
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+)}
+
+                   {dept === "Dental" && (
+  <table>
+    <tbody>
+      {Object.entries(dentalServicesMerged)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([category, services]) => (
+          <React.Fragment key={category}>
+            <tr className="category-row">
+              <td colSpan={2}>{category}</td>
+            </tr>
+            {services.map((service) => {
+              const isOthers = service === "Others";
+              const isChecked = editedData.services.includes(service);
+              const displayName = isOthers ? "Others (please specify)" : service;
+
+              if (isOthers) {
+                return (
+                  <tr key="Others">
+                    <td colSpan={2}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <input
+                          type="text"
+                          value={editedData.otherService || ""}
+                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
+                          placeholder="Specify other dental service..."
+                          style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #000" }}
+                          disabled={!isChecked}
+                        />
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleService(dept, "Others")}
+                          style={{ transform: "scale(1.2)" }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={service}>
+                  <td>{displayName}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleService(dept, service)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      <tr>
+        <td colSpan={2}>
+          Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+          Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
+          <button
+            type="button"
+            className="change-btns"
+            onClick={() => handleChangeDateTime(dept, appointment)}
+            disabled={isScheduleDisabled}
+          >
+            {appointment ? "Change" : "Schedule"}
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+)}
                     {dept === "Medical" && (
-                      <table>
-                        <tbody>
-                          {Object.entries(servicesMedical).map(([category, services]) => (
-                            <React.Fragment key={category}>
-                              <tr className="category-row">
-                                <td colSpan={2}>{category}</td>
-                              </tr>
-                              {services.map((service) => {
-                                const isChecked = editedData.services.includes(service);
-                                if (service === "Others") {
-                                  return (
-                                    <tr key="Others">
-                                      <td>
-                                        <input
-                                          type="text"
-                                          value={editedData.otherService}
-                                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                                          className="border p-2 rounded w-full"
-                                          placeholder="Please specify"
-                                        />
-                                      </td>
-                                      <td style={{ textAlign: "center" }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() => toggleService(dept, "Others")}
-                                        />
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                                return (
-                                  <tr key={service}>
-                                    <td>{service}</td>
-                                    <td style={{ textAlign: "center" }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={() => toggleService(dept, service)}
-                                      />
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          ))}
-                          <tr>
-                            <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              <button
-                                type="button"
-                                className="change-btns"
-                                onClick={() => handleChangeDateTime(dept, appointment)}
-                                disabled={isScheduleDisabled}
-                              >
-                                {appointment ? "Change" : "Schedule"}
-                              </button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    )}
+  <table>
+    <tbody>
+      {Object.entries(medicalServicesMerged) // We'll create this state below
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([category, services]) => (
+          <React.Fragment key={category}>
+            <tr className="category-row">
+              <td colSpan={2}>{category}</td>
+            </tr>
+            {services.map((service) => {
+              const isOthers = service === "Others";
+              const isChecked = editedData.services.includes(service);
+              const displayName = isOthers ? "Others (please specify)" : service;
+
+              if (isOthers) {
+                return (
+                  <tr key="Others">
+                    <td colSpan={2}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <input
+                          type="text"
+                          value={editedData.otherService || ""}
+                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
+                          placeholder="Specify other medical service..."
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            borderRadius: "4px",
+                            border: "1px solid #000",
+                          }}
+                          disabled={!isChecked}
+                        />
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleService(dept, "Others")}
+                          style={{ transform: "scale(1.2)" }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={service}>
+                  <td>{displayName}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleService(dept, service)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      <tr>
+        <td colSpan={2}>
+          Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+          Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
+          <button
+            type="button"
+            className="change-btns"
+            onClick={() => handleChangeDateTime(dept, appointment)}
+            disabled={isScheduleDisabled}
+          >
+            {appointment ? "Change" : "Schedule"}
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+)}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="button-containers flex justify-between mt-6">
-            <button
-              type="button"
-              className="nav-button download-btn bg-blue-500 text-white px-4 py-2 rounded"
-              onClick={handleDownloadPDF}
-            >
-              📄 Download PDF
-            </button>
-            <button
-              type="button"
-              className="nav-button submit-btn bg-green-500 text-white px-4 py-2 rounded"
-              onClick={handleSubmit}
-            >
-              ✅ Submit
-            </button>
-          </div>
+          <div className="button-containers">
+  {/* DOWNLOAD PDF BUTTON */}
+  <button
+    type="button"
+    className="formal-btn download-btn"
+    onClick={handleDownloadPDF}
+  >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+    <span>Download PDF Form</span>
+  </button>
+
+  {/* SUBMIT BUTTON */}
+  <button
+    type="button"
+    className="formal-btn submit-btn"
+    onClick={handleSubmit}
+  >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+    <span>Submit Request</span>
+  </button>
+</div>
         </form>
       </div>
+
+
+            {/* REVIEW SUBMIT MODAL - SAME RA SA TRANSACTION */}
+      {showModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+          </audio>
+
+          <div className="review-modal-overlay" onClick={closeModal}>
+            <div className="review-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="review-modal-header">
+                <img src="/logo.png" alt="DOH Logo" className="review-modal-logo" />
+                <h3 className="review-modal-title">
+                  {modalType === "success" && "SUCCESS"}
+                  {modalType === "error" && "ERROR"}
+                  {modalType === "confirm" && "CONFIRM SUBMISSION"}
+                </h3>
+                <button className="review-modal-close" onClick={closeModal}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="review-modal-body">
+                <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>{modalMessage}</p>
+              </div>
+
+              <div className="review-modal-footer">
+                {modalType === "confirm" && (
+                  <>
+                    <button className="review-modal-btn cancel" onClick={closeModal}>
+                      No, Go Back
+                    </button>
+                    <button
+                      className="review-modal-btn confirm"
+                      onClick={() => {
+                        closeModal();
+                        onModalConfirm();
+                      }}
+                    >
+                      Yes, Submit
+                    </button>
+                  </>
+                )}
+                {(modalType === "success" || modalType === "error") && (
+                  <button className="review-modal-btn ok" onClick={closeModal}>
+                    {modalType === "success" ? "Done" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   );
 };

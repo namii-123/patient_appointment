@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, 
-  FaChartBar, FaSignOutAlt, FaClock, FaTimesCircle, FaCheckCircle} from "react-icons/fa";
+  FaChartBar, FaSignOutAlt, FaClock, FaTimesCircle, FaCheckCircle,
+  FaStethoscope} from "react-icons/fa";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, } from "recharts";
 import "../../../assets/Dashboard_Clinical.css";
 import logo from "/logo.png";
@@ -270,6 +271,13 @@ const fetchPatients = async () => {
               </span>
             </div>
             <div className="nav-item">
+                <FaStethoscope className="nav-icon" />
+                <span onClick={() => handleNavigation("/services_clinical")}>
+                  Services
+                </span>
+              </div>
+
+            <div className="nav-item">
               <FaChartBar className="nav-icon" />
               <span onClick={() => handleNavigation("/reports&analytics_clinical")}>
                 Reports & Analytics
@@ -315,7 +323,7 @@ const fetchPatients = async () => {
       <main className="main-content">
         {/* Top Navbar */}
         <div className="top-navbar-clinical">
-          <h2 className="navbar-title">Dashboard</h2>
+          <h5 className="navbar-title">Dashboard</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -365,18 +373,18 @@ const fetchPatients = async () => {
         
                       <div className="cardss">
                       <FaUsers className="card-icon" />
-                      <h3>{totalUsers}</h3>
+                      <h5>{totalUsers}</h5>
                       <p>Total Users</p>
                     </div>
         
                     <div className="cardss">
                       <FaUsers className="card-icon" />
-                      <h3>{totalPatients}</h3>
+                      <h5>{totalPatients}</h5>
                       <p>Total Patients</p>
                     </div>
                     <div className="cardss">
                       <FaCalendarAlt className="card-icon" />
-                      <h3>{totalAppointments}</h3>
+                      <h5>{totalAppointments}</h5>
                       <p>Total Appointments</p>
                     </div>
                     
@@ -385,18 +393,18 @@ const fetchPatients = async () => {
                   <div className="card-row">
                     <div className="cardss">
                       <FaChartBar className="card-icon" />
-                       <h3>{pendingCount}</h3>
+                       <h5>{pendingCount}</h5>
                       <p>Pending Appointments</p>
                     </div>
                      <div className="cardss">
                       <FaCalendarAlt className="card-icon" />
-                      <h3>{cancelledCount}</h3>
+                      <h5>{cancelledCount}</h5>
                       <p>Canceled Appointments</p>
                     </div>
         
                     <div className="cardss">
                       <FaCalendarAlt className="card-icon" />
-                      <h3>{approvedCount}</h3>
+                      <h5>{approvedCount}</h5>
                       <p>Approved Appointments</p>
                     </div>
                    
@@ -406,12 +414,12 @@ const fetchPatients = async () => {
                   <div className="card-row">
                     <div className="cardss">
                       <FaTimesCircle className="card-icon" />
-                       <h3>{rejectedCount}</h3>
+                       <h5>{rejectedCount}</h5>
                       <p>Total Rejected</p>
                     </div>
                     <div className="cardss">
                       <FaCheckCircle className="card-icon" />
-                      <h3>{completedCount}</h3>
+                      <h5>{completedCount}</h5>
                       <p>Total Completed</p>
                     </div>
                   </div>
@@ -420,7 +428,7 @@ const fetchPatients = async () => {
         {/* Charts and Activity */}
          <div className="chart-activity-container">
                   <div className="chart-wrapper">
-                    <h3 className="chart-title">Appointment Distribution</h3>
+                    <h5 className="chart-title">Appointment Distribution</h5>
                     <ResponsiveContainer width="100%" height={400}>
                       <PieChart>
                         <Pie
@@ -456,7 +464,7 @@ const fetchPatients = async () => {
                   </div>
 
          <div className="activity-wrapper">
-  <h3 className="chart-title">Weekly Activity Status</h3>
+  <h5 className="chart-title">Weekly Activity Status</h5>
   <ul className="activity-list">
     {Object.entries(weeklyActivity).map(([day, count]) => (
       <li key={day}>

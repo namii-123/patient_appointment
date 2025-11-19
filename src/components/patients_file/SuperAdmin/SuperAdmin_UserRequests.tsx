@@ -355,7 +355,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
 
       <main className="main-contents">
         <div className="top-navbar-dentals">
-          <h2 className="navbar-title">User Access Requests</h2>
+          <h5 className="navbar-title">User Access Requests</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"

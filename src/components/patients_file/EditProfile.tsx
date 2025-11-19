@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaCamera } from "react-icons/fa";
+import { FaCamera, FaSpinner } from "react-icons/fa";
 import axios from "axios";
 import "../../assets/EditProfile.css";
 import { auth, db, googleProvider } from "./firebase";
@@ -8,23 +8,9 @@ import { useNavigate } from "react-router-dom";
 import { updateProfile, updateEmail, reauthenticateWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { toast } from "react-toastify";
 
-// Define interfaces for API responses
-interface Province {
-  name: string;
-  code: string;
-}
-
-interface City {
-  name: string;
-  code: string;
-  provinceCode: string;
-}
-
-interface Barangay {
-  name: string;
-  code: string;
-  cityCode: string;
-}
+interface Province { name: string; code: string; }
+interface City { name: string; code: string; provinceCode: string; }
+interface Barangay { name: string; code: string; cityCode: string; }
 
 interface FormData {
   lastName: string;
@@ -52,22 +38,9 @@ interface EditProfileProps {
 const EditProfile: React.FC<EditProfileProps> = ({ onNavigate }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
-    lastName: "",
-    firstName: "",
-    middleName: "",
-    email: "",
-    gender: "",
-    birthdate: "",
-    age: "",
-    contactNumber: "",
-    houseNo: "",
-    street: "",
-    province: "",
-    provinceCode: "",
-    municipality: "",
-    municipalityCode: "",
-    barangay: "",
-    zipcode: "",
+    lastName: "", firstName: "", middleName: "", email: "", gender: "", birthdate: "", age: "",
+    contactNumber: "", houseNo: "", street: "", province: "", provinceCode: "",
+    municipality: "", municipalityCode: "", barangay: "", zipcode: "",
   });
 
   const [avatar, setAvatar] = useState<string>("/default-img.jpg");
@@ -80,183 +53,133 @@ const EditProfile: React.FC<EditProfileProps> = ({ onNavigate }) => {
   const [success, setSuccess] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Partial<FormData>>({});
 
-  // Utility function to convert file to Base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  // === UTILITIES ===
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
+      reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-  };
 
-  // Utility function for API calls with retry
-  const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<any> => {
+  const fetchWithRetry = async (url: string, retries = 3, delay = 1000) => {
     for (let i = 0; i < retries; i++) {
-      try {
-        const response = await axios.get(url);
-        return response.data;
-      } catch (err: any) {
-        console.error(`Attempt ${i + 1} failed for ${url}:`, err.message, err.response?.status);
+      try { return (await axios.get(url)).data; }
+      catch (err: any) {
         if (err.response?.status === 429 && i < retries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, delay * (i + 1)));
+          await new Promise(r => setTimeout(r, delay * (i + 1)));
           continue;
         }
-        throw new Error(`Failed to fetch data from ${url}: ${err.message}`);
+        throw err;
       }
     }
   };
 
-  // Check localStorage for cached data
-  const getCachedData = (key: string): any => {
-    const cached = localStorage.getItem(key);
-    return cached ? JSON.parse(cached) : null;
+  const getCachedData = (key: string) => {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : null;
   };
+  const cacheData = (key: string, data: any) => localStorage.setItem(key, JSON.stringify(data));
 
-  // Cache data to localStorage
-  const cacheData = (key: string, data: any) => {
-    localStorage.setItem(key, JSON.stringify(data));
-  };
-
-  // Fetch user profile from Firestore on mount
+  
   useEffect(() => {
     const fetchProfile = async () => {
       const user = auth.currentUser;
-      console.log("Fetching profile for user:", user?.uid);
-      if (user) {
-        try {
-          setLoading(true);
-          const userRef = doc(db, "Users", user.uid);
-          const docSnap = await getDoc(userRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            console.log("Firestore profile data:", data);
-            setFormData({
-              lastName: data.lastName || "",
-              firstName: data.firstName || "",
-              middleName: data.middleName || "",
-              email: data.email || user.email || "",
-              gender: data.gender || "",
-              birthdate: data.birthdate || "",
-              age: data.age || "",
-              contactNumber: data.contactNumber || "",
-              houseNo: data.houseNo || "",
-              street: data.street || "",
-              province: data.province || "",
-              provinceCode: data.provinceCode || "",
-              municipality: data.municipality || "",
-              municipalityCode: data.municipalityCode || "",
-              barangay: data.barangay || "",
-              zipcode: data.zipcode || "",
-            });
-            setAvatar(data.photoBase64 || data.photoURL || user.photoURL || "/default-img.jpg");
-            setAvatarBase64(data.photoBase64 || null);
-          } else {
-            setError("Profile not found.");
-            toast.error("Profile not found.", { position: "top-center" });
-          }
-        } catch (err: any) {
-          console.error("Error fetching profile:", err.message, err.code);
-          setError(`Failed to load profile data: ${err.message}`);
-          toast.error(`Failed to load profile data: ${err.message}`, { position: "top-center" });
-        } finally {
-          setLoading(false);
+      if (!user) { navigate("/"); return; }
+
+      setLoading(true);
+      try {
+        const snap = await getDoc(doc(db, "Users", user.uid));
+        if (snap.exists()) {
+          const d = snap.data();
+          setFormData(prev => ({
+            ...prev,
+            lastName: d.lastName || "",
+            firstName: d.firstName || "",
+            middleName: d.middleName || "",
+            email: d.email || user.email || "",
+            gender: d.gender || "",
+            birthdate: d.birthdate || "",
+            age: d.age || "",
+            contactNumber: d.contactNumber || "",
+            houseNo: d.houseNo || "",
+            street: d.street || "",
+            province: d.province || "",
+            provinceCode: d.provinceCode || "",
+            municipality: d.municipality || "",
+            municipalityCode: d.municipalityCode || "",
+            barangay: d.barangay || "",
+            zipcode: d.zipcode || "",
+          }));
+          const photo = d.photoBase64 || d.photoURL || user.photoURL || "/default-img.jpg";
+          setAvatar(photo);
+          setAvatarBase64(d.photoBase64 || null);
         }
-      } else {
-        setError("User not authenticated.");
-        toast.error("User not authenticated.", { position: "top-center" });
-        navigate("/");
+      } catch (err: any) {
+        toast.error("Failed to load profile.", { position: "top-center" });
+      } finally {
+        setLoading(false);
       }
     };
     fetchProfile();
   }, [navigate]);
 
-  // Fetch provinces and cities on mount
-  useEffect(() => {
-    const fetchLocations = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        let provinceList: Province[] = getCachedData("provinces") || [];
-        if (provinceList.length === 0) {
-          const provincesData = await fetchWithRetry("https://psgc.gitlab.io/api/provinces/");
-          provinceList = Array.isArray(provincesData)
-            ? provincesData
-                .filter((prov: any) => prov.name && prov.code)
-                .map((prov: Province) => ({ name: prov.name.trim(), code: prov.code.trim() }))
-                .sort((a, b) => a.name.localeCompare(b.name))
-            : [];
-          if (provinceList.length === 0) {
-            throw new Error("No valid province data received");
-          }
-          cacheData("provinces", provinceList);
-        }
-        setProvinces(provinceList);
 
-        let cityList: City[] = getCachedData("cities") || [];
-        if (cityList.length === 0) {
-          const citiesData = await fetchWithRetry("https://psgc.gitlab.io/api/cities-municipalities/");
-          cityList = Array.isArray(citiesData)
-            ? citiesData
-                .filter((city: any) => city.name && city.code && city.provinceCode)
-                .map((city: City) => ({
-                  name: city.name.trim(),
-                  code: city.code.trim(),
-                  provinceCode: city.provinceCode.trim(),
-                }))
-                .sort((a, b) => a.name.localeCompare(b.name))
-            : [];
-          if (cityList.length === 0) {
-            throw new Error("No valid city/municipality data received");
-          }
-          cacheData("cities", cityList);
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        // Provinces
+        let provs = getCachedData("provinces") || [];
+        if (!provs.length) {
+          const data = await fetchWithRetry("https://psgc.gitlab.io/api/provinces/");
+          provs = data.filter((p: any) => p.name && p.code)
+            .map((p: Province) => ({ name: p.name.trim(), code: p.code.trim() }))
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          cacheData("provinces", provs);
         }
-        setCities(cityList);
-      } catch (err: any) {
-        console.error("Error fetching location data:", err.message);
-        setError("Failed to load provinces or cities. Please try again later.");
-        toast.error("Failed to load provinces or cities. Please try again later.", { position: "top-center" });
-        setProvinces([]);
-        setCities([]);
+        setProvinces(provs);
+
+        // Cities
+        let cits = getCachedData("cities") || [];
+        if (!cits.length) {
+          const data = await fetchWithRetry("https://psgc.gitlab.io/api/cities-municipalities/");
+          cits = data.filter((c: any) => c.name && c.code && c.provinceCode)
+            .map((c: City) => ({
+              name: c.name.trim(),
+              code: c.code.trim(),
+              provinceCode: c.provinceCode.trim(),
+            }))
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          cacheData("cities", cits);
+        }
+        setCities(cits);
+      } catch {
+        toast.error("Failed to load locations.", { position: "top-center" });
       } finally {
         setLoading(false);
       }
     };
-    fetchLocations();
+    load();
   }, []);
 
-  // Fetch barangays when municipalityCode changes
-  const fetchBarangays = async (municipalityCode: string) => {
+
+  const loadBarangays = async (code: string) => {
+    const cached = getCachedData(`barangays_${code}`);
+    if (cached) { setBarangays(cached); return; }
+
     setLoading(true);
-    setError(null);
     try {
-      const barangaysData = await fetchWithRetry(
-        `https://psgc.gitlab.io/api/cities-municipalities/${municipalityCode}/barangays/`
+      const data = await fetchWithRetry(
+        `https://psgc.gitlab.io/api/cities-municipalities/${code}/barangays/`
       );
-      const barangayList = Array.isArray(barangaysData)
-        ? barangaysData
-            .filter((brgy: any) => brgy.name && brgy.code)
-            .map((brgy: Barangay) => ({
-              name: brgy.name.trim(),
-              code: brgy.code.trim(),
-              cityCode: municipalityCode.trim(),
-            }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-        : [];
-      if (barangayList.length === 0) {
-        setError(`No barangays found for ${formData.municipality}. Please select another municipality.`);
-        toast.error(`No barangays found for ${formData.municipality}.`, { position: "top-center" });
-      } else {
-        cacheData(`barangays_${municipalityCode}`, barangayList);
-      }
-      setBarangays(barangayList);
-      if (formData.barangay && !barangayList.find((b) => b.name === formData.barangay)) {
-        setFormData((prev) => ({ ...prev, barangay: "" }));
-      }
-    } catch (err: any) {
-      console.error("Error fetching barangays:", err.message);
-      setError("Failed to load barangays. Please try another municipality or check your connection.");
-      toast.error("Failed to load barangays. Please try another municipality or check your connection.", { position: "top-center" });
+      const list = data
+        .filter((b: any) => b.name && b.code)
+        .map((b: any) => ({ name: b.name.trim(), code: b.code.trim(), cityCode: code }))
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+      cacheData(`barangays_${code}`, list);
+      setBarangays(list);
+    } catch {
       setBarangays([]);
     } finally {
       setLoading(false);
@@ -264,603 +187,437 @@ const EditProfile: React.FC<EditProfileProps> = ({ onNavigate }) => {
   };
 
   useEffect(() => {
-    if (formData.municipalityCode && !barangays.find((b) => b.cityCode === formData.municipalityCode)) {
-      const cachedBarangays = getCachedData(`barangays_${formData.municipalityCode}`);
-      if (cachedBarangays?.length > 0) {
-        setBarangays(cachedBarangays);
-        if (formData.barangay && !cachedBarangays.find((b: Barangay) => b.name === formData.barangay)) {
-          setFormData((prev) => ({ ...prev, barangay: "" }));
-        }
-      } else {
-        fetchBarangays(formData.municipalityCode);
-      }
-    } else if (!formData.municipalityCode) {
-      setBarangays([]);
-      setFormData((prev) => ({ ...prev, barangay: "" }));
-    }
+    if (formData.municipalityCode) loadBarangays(formData.municipalityCode);
+    else { setBarangays([]); setFormData(p => ({ ...p, barangay: "" })); }
   }, [formData.municipalityCode]);
 
-  // Update age based on birthdate
+  
   useEffect(() => {
-    if (formData.birthdate) {
-      const birthDate = new Date(formData.birthdate);
-      if (isNaN(birthDate.getTime())) {
-        setFormData((prev) => ({ ...prev, age: "" }));
-        return;
-      }
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const hasHadBirthdayThisYear =
-        today.getMonth() > birthDate.getMonth() ||
-        (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
-      if (!hasHadBirthdayThisYear) age--;
-      setFormData((prev) => ({ ...prev, age: age >= 0 ? age.toString() : "" }));
-    } else {
-      setFormData((prev) => ({ ...prev, age: "" }));
+    if (!formData.birthdate) {
+      setFormData(p => ({ ...p, age: "" }));
+      return;
     }
+    const b = new Date(formData.birthdate);
+    if (isNaN(b.getTime())) return;
+
+    const today = new Date();
+    let age = today.getFullYear() - b.getFullYear();
+    const m = today.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+    setFormData(p => ({ ...p, age: age >= 0 ? age.toString() : "" }));
   }, [formData.birthdate]);
 
-  // Clean up avatar URL
-  useEffect(() => {
-    return () => {
-      if (avatar !== "/default-img.jpg" && avatar.startsWith("data:")) {
-        // No cleanup needed for Base64 strings
-      }
-    };
-  }, [avatar]);
-
-  // Handle avatar file change with Base64
+ 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) {
-      setError("No file selected.");
-      toast.error("No file selected.", { position: "top-center" });
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be < 2MB", { position: "top-center" });
       return;
     }
-    if (!auth.currentUser) {
-      setError("You must be logged in to upload an image.");
-      toast.error("You must be logged in to upload an image.", { position: "top-center" });
+    if (!file.type.match(/image\/(jpeg|png|jpg)/)) {
+      toast.error("Only JPG/PNG", { position: "top-center" });
       return;
     }
 
-    console.log("Selected file:", file.name, file.size, file.type);
+    setLoading(true);
     try {
-      // Validate file size and type
-      if (file.size > 2 * 1024 * 1024) {
-        setError("Image size must be under 2MB.");
-        toast.error("Image size must be under 2MB.", { position: "top-center" });
-        return;
-      }
-      if (!file.type.match(/^image\/(jpeg|png|jpg)$/)) {
-        setError("Only JPEG or PNG images are allowed.");
-        toast.error("Only JPEG or PNG images are allowed.", { position: "top-center" });
-        return;
-      }
-
-      // Convert to Base64 for preview and storage
-      setLoading(true);
-      const base64 = await fileToBase64(file);
-      console.log("Base64 generated, length:", base64.length);
-      setAvatar(base64);
-      setAvatarBase64(base64);
-    } catch (err: any) {
-      console.error("Error processing image:", err.message);
-      setError("Failed to process image. Please try another image.");
-      toast.error("Failed to process image. Please try another image.", { position: "top-center" });
-      setAvatar("/default-img.jpg");
-      setAvatarBase64(null);
+      const b64 = await fileToBase64(file);
+      setAvatar(b64);
+      setAvatarBase64(b64);
+    } catch {
+      toast.error("Failed to process image", { position: "top-center" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle form input changes
- const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+ 
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    console.log("Input changed:", name, value);
+    setFormErrors(p => ({ ...p, [name]: "" }));
+
     if (name === "province") {
-      const selectedProvince = provinces.find((prov) => prov.name === value);
-      setFormData((prev) => ({
-        ...prev,
+      const prov = provinces.find(p => p.name === value);
+      setFormData(p => ({
+        ...p,
         province: value,
-        provinceCode: selectedProvince?.code || "",
-        municipality: "",
-        municipalityCode: "",
-        barangay: "",
-        zipcode: "",
+        provinceCode: prov?.code || "",
+        municipality: "", municipalityCode: "", barangay: "", zipcode: "",
       }));
-      setFormErrors((prev) => ({ ...prev, province: "", municipality: "", barangay: "" }));
-    } else if (name === "municipality") {
-      const selectedCity = cities.find((city) => city.name === value);
-      
-      // Fetch zipcode from PSGC API
-      let zipcode = "";
-      if (selectedCity?.code) {
+    }
+    else if (name === "municipality") {
+      const city = cities.find(c => c.name === value);
+      let zip = "";
+      if (city?.code) {
         try {
-          const cityData = await fetchWithRetry(
-            `https://psgc.gitlab.io/api/cities-municipalities/${selectedCity.code}/`
+          const info = await fetchWithRetry(
+            `https://psgc.gitlab.io/api/cities-municipalities/${city.code}/`
           );
-          zipcode = cityData?.zipcode || "";
-          console.log("Fetched zipcode:", zipcode);
-        } catch (err) {
-          console.error("Error fetching zipcode:", err);
-        }
+          zip = info?.zipcode || "";
+        } catch {}
       }
-      
-      setFormData((prev) => ({
-        ...prev,
+      setFormData(p => ({
+        ...p,
         municipality: value,
-        municipalityCode: selectedCity?.code || "",
+        municipalityCode: city?.code || "",
         barangay: "",
-        zipcode: zipcode,
+        zipcode: zip,
       }));
-      setFormErrors((prev) => ({ ...prev, municipality: "", barangay: "" }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-      setFormErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    else {
+      setFormData(p => ({ ...p, [name]: value }));
     }
   };
 
   
-
-  // Validate form
   const validateForm = (): boolean => {
     const errors: Partial<FormData> = {};
-    if (!formData.lastName) errors.lastName = "Last name is required";
-    if (!formData.firstName) errors.firstName = "First name is required";
-    if (!formData.email) errors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Invalid email format";
-    if (!formData.birthdate) errors.birthdate = "Birthdate is required";
-    if (!formData.gender) errors.gender = "Gender is required";
-    if (!formData.province) errors.province = "Province is required";
-    if (!formData.municipality) errors.municipality = "Municipality is required";
-    if (!formData.barangay) errors.barangay = "Barangay is required";
-    if (!formData.contactNumber) errors.contactNumber = "Contact number is required";
+
+    if (!formData.lastName) errors.lastName = "Last name required";
+    if (!formData.firstName) errors.firstName = "First name required";
+    if (!formData.email) errors.email = "Email required";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Invalid email";
+    if (!formData.birthdate) errors.birthdate = "Birthdate required";
+    if (!formData.gender) errors.gender = "Gender required";
+    if (!formData.contactNumber) errors.contactNumber = "Contact required";
     else if (!/^\+?\d{7,15}$/.test(formData.contactNumber))
-      errors.contactNumber = "Invalid contact number format (7-15 digits)";
+      errors.contactNumber = "7–15 digits only";
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // Re-authenticate user with Google
+  
   const reAuthenticateWithGoogle = async () => {
     try {
-      if (!auth.currentUser) {
-        throw new Error("No user is currently signed in.");
-      }
-      await reauthenticateWithPopup(auth.currentUser, googleProvider);
-      toast.success("Re-authentication successful!", { position: "top-center" });
+      await reauthenticateWithPopup(auth.currentUser!, googleProvider);
+      toast.success("Re-authenticated!", { position: "top-center" });
       return true;
     } catch (err: any) {
-      console.error("Re-authentication error:", err.message, err.code);
-      let errorMessage = "Failed to re-authenticate with Google. Please try again.";
-      if (err.code === "auth/popup-closed-by-user") {
-        errorMessage = "Re-authentication canceled. Please complete the Google sign-in to save changes.";
-      } else if (err.code === "auth/network-request-failed") {
-        errorMessage = "Network error during re-authentication. Please check your connection.";
-      }
-      setError(errorMessage);
-      toast.error(errorMessage, { position: "top-center" });
+      toast.error(err.code === "auth/popup-closed-by-user"
+        ? "Re-auth canceled"
+        : "Re-auth failed", { position: "top-center" });
       return false;
     }
   };
 
-  // Handle save action with re-authentication
-  const handleSave = async () => {
-    setError(null);
-    setSuccess(null);
+ 
+const handleSave = async () => {
+  setError(null);
+  setSuccess(null);
 
-    if (!validateForm()) {
-      setError("Please fill in all required fields correctly.");
-      toast.error("Please fill in all required fields correctly.", { position: "top-center" });
-      return;
+  if (!validateForm()) {
+    toast.error("Fix required fields", { position: "top-center" });
+    return;
+  }
+
+  const user = auth.currentUser;
+  if (!user) {
+    navigate("/");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const isGoogle = user.providerData.some(p => p.providerId === "google.com");
+
+   
+    if (formData.email !== user.email) {
+      if (isGoogle) {
+        const ok = await reAuthenticateWithGoogle();
+        if (!ok) throw new Error("Re-authentication canceled");
+      }
+      await updateEmail(user, formData.email);
+      toast.success("Email updated!", { position: "top-center" });
     }
 
-    const user = auth.currentUser;
-    console.log("Current user:", user?.uid, user?.email);
-    if (!user) {
-      setError("You must be logged in to save your profile.");
-      toast.error("You must be logged in to save your profile.", { position: "top-center" });
-      navigate("/");
-      return;
+  
+    await updateProfile(user, {
+      displayName: `${formData.firstName} ${formData.lastName}`.trim(),
+     
+    });
+
+    
+    await updateDoc(doc(db, "Users", user.uid), {
+      lastName: formData.lastName,
+      firstName: formData.firstName,
+      middleName: formData.middleName || null,
+      email: formData.email,
+      gender: formData.gender,
+      birthdate: formData.birthdate,
+      age: formData.age,
+      contactNumber: formData.contactNumber,
+      houseNo: formData.houseNo || null,
+      street: formData.street || null,
+      province: formData.province || null,
+      provinceCode: formData.provinceCode || null,
+      municipality: formData.municipality || null,
+      municipalityCode: formData.municipalityCode || null,
+      barangay: formData.barangay || null,
+      zipcode: formData.zipcode || null,
+      photoBase64: avatarBase64, 
+    });
+
+    toast.success("Profile saved successfully!", { position: "top-center" });
+    onNavigate ? onNavigate("profile") : navigate("/profile");
+  } catch (err: any) {
+    console.error("Save error:", err);
+    let msg = "Failed to save profile.";
+    if (err.code === "auth/requires-recent-login") {
+      msg = "Please re-sign in to update sensitive info.";
+    } else if (err.message?.includes?.("re-auth")) {
+      msg = "Re-authentication required. Try again.";
     }
+    toast.error(msg, { position: "top-center" });
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setLoading(true);
-    try {
-      // Check if user signed in with Google
-      const isGoogleUser = user.providerData.some(
-        (provider) => provider.providerId === GoogleAuthProvider.PROVIDER_ID
-      );
-
-      // Update email if changed
-      if (formData.email !== user.email) {
-        try {
-          if (isGoogleUser) {
-            const reAuthSuccess = await reAuthenticateWithGoogle();
-            if (!reAuthSuccess) {
-              setLoading(false);
-              return;
-            }
-          }
-          await updateEmail(user, formData.email);
-          console.log("Email updated in Firebase Authentication:", formData.email);
-        } catch (emailErr: any) {
-          console.error("Email update error:", emailErr.message, emailErr.code);
-          if (emailErr.code === "auth/requires-recent-login") {
-            const reAuthSuccess = await reAuthenticateWithGoogle();
-            if (reAuthSuccess) {
-              await updateEmail(user, formData.email);
-              console.log("Email updated after re-authentication:", formData.email);
-            } else {
-              throw new Error("Re-authentication failed. Please try again.");
-            }
-          } else if (emailErr.code === "auth/email-already-in-use") {
-            throw new Error("This email is already in use by another account.");
-          } else if (emailErr.code === "auth/invalid-email") {
-            throw new Error("Invalid email format.");
-          } else {
-            throw new Error(`Failed to update email: ${emailErr.message}`);
-          }
-        }
-      }
-
-      // Update profile photoURL with Base64 (optional)
-      if (avatarBase64) {
-        try {
-          if (isGoogleUser) {
-            const reAuthSuccess = await reAuthenticateWithGoogle();
-            if (!reAuthSuccess) {
-              setLoading(false);
-              return;
-            }
-          }
-          await updateProfile(user, { photoURL: avatarBase64 });
-          console.log("User profile updated with new photoURL (Base64)");
-        } catch (profileErr: any) {
-          console.error("Profile update error:", profileErr.message, profileErr.code);
-          if (profileErr.code === "auth/requires-recent-login") {
-            const reAuthSuccess = await reAuthenticateWithGoogle();
-            if (reAuthSuccess) {
-              await updateProfile(user, { photoURL: avatarBase64 });
-              console.log("Profile updated after re-authentication");
-            } else {
-              throw new Error("Re-authentication failed. Please try again.");
-            }
-          } else {
-            console.warn("Profile photo update failed, continuing with Firestore update");
-          }
-        }
-      }
-
-      // Save profile data to Firestore
-      const userRef = doc(db, "Users", user.uid);
-      console.log("Saving profile data to Firestore:", { ...formData, photoBase64: avatarBase64 });
-      await updateDoc(userRef, {
-        lastName: formData.lastName,
-        firstName: formData.firstName,
-        middleName: formData.middleName,
-        email: formData.email,
-        gender: formData.gender,
-        birthdate: formData.birthdate,
-        age: formData.age,
-        contactNumber: formData.contactNumber,
-        houseNo: formData.houseNo,
-        street: formData.street,
-        province: formData.province,
-        provinceCode: formData.provinceCode,
-        municipality: formData.municipality,
-        municipalityCode: formData.municipalityCode,
-        barangay: formData.barangay,
-        zipcode: formData.zipcode,
-        photoBase64: avatarBase64 || null,
-      });
-
-      setSuccess("Profile updated successfully!");
-      toast.success("Profile updated successfully!", { position: "top-center" });
-      console.log("Profile saved successfully for user:", user.uid);
-      if (onNavigate) {
-        onNavigate("profile");
-      } else {
-        navigate("/profile");
-      }
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (err: any) {
-      console.error("Error saving profile:", err.message, err.code);
-      setAvatarBase64(null);
-      setAvatar("/default-img.jpg");
-      let errorMessage = "Failed to save profile. Please try again.";
-      if (err.code === "firestore/permission-denied") {
-        errorMessage = "You don’t have permission to update your profile. Please log in again.";
-      } else if (err.code === "auth/requires-recent-login") {
-        errorMessage = "Please re-authenticate to update your profile or email.";
-      } else if (err.code === "auth/invalid-email") {
-        errorMessage = "Invalid email format.";
-      } else if (err.code === "auth/email-already-in-use") {
-        errorMessage = "This email is already in use by another account.";
-      } else if (err.code === "firestore/quota-exceeded") {
-        errorMessage = "Firestore quota exceeded. Image may be too large.";
-      }
-      setError(errorMessage);
-      toast.error(errorMessage, { position: "top-center" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle cancel action
   const handleCancel = () => {
-    if (onNavigate) {
-      onNavigate("profile");
-    } else {
-      navigate("/profile");
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    onNavigate ? onNavigate("profile") : navigate("/profile");
   };
 
-  // Filter cities based on province
-  const filteredCities = cities.filter((city) => city.provinceCode.trim() === formData.provinceCode.trim());
+  const filteredCities = cities.filter(c => c.provinceCode === formData.provinceCode);
 
   return (
     <div className="edit-profile-container">
       <div className="profile-card">
-        <div className="avatar-container">
-          <div className="avatar-wrapper">
-            <img src={avatar} alt="Avatar" className="avatar-img" />
-            <div className="avatar-buttons">
-              <label className="avatar-upload-btn">
-                <FaCamera size={16} />
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/jpg"
-                  onChange={handleAvatarChange}
-                  className="avatar-input"
-                  disabled={loading}
-                />
-              </label>
-            </div>
-          </div>
-        </div>
+   
+   <div className="custom-avatar-container">
+  <div className="custom-avatar-wrapper">
+    <img 
+      src={avatar} 
+      alt="User Avatar" 
+      className="custom-avatar-img" 
+    />
+    
+    <label className="custom-avatar-upload-btn">
+      <FaCamera size={16} />
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/jpg"
+        onChange={handleAvatarChange}
+        className="custom-avatar-input"
+        disabled={loading}
+      />
+    </label>
+    {loading && (
+      <div className="custom-avatar-loading">
+        <FaSpinner className="spin" size={20} />
+      </div>
+    )}
+  </div>
+</div>
 
         {error && <p className="error-message">{error}</p>}
         {success && <p className="success-message">{success}</p>}
-        {loading && <p className="loading-message">Loading...</p>}
+        {loading && <p className="loading-message">Please wait...</p>}
 
         <div className="form-section">
-          <div className="name-row">
-            <div>
-              <label htmlFor="lastName">Last Name</label>
-              <input
-                id="lastName"
-                name="lastName"
-                placeholder="Last Name"
-                value={formData.lastName}
-                onChange={handleChange}
-                className={formErrors.lastName ? "input-error" : ""}
-                disabled={loading}
-              />
-              {formErrors.lastName && <p className="error-message">{formErrors.lastName}</p>}
-            </div>
-            <div>
-              <label htmlFor="firstName">First Name</label>
-              <input
-                id="firstName"
-                name="firstName"
-                placeholder="First Name"
-                value={formData.firstName}
-                onChange={handleChange}
-                className={formErrors.firstName ? "input-error" : ""}
-                disabled={loading}
-              />
-              {formErrors.firstName && <p className="error-message">{formErrors.firstName}</p>}
-            </div>
-            <div>
-              <label htmlFor="middleName">Middle Name</label>
-              <input
-                id="middleName"
-                name="middleName"
-                placeholder="Middle Name"
-                value={formData.middleName}
-                onChange={handleChange}
-                disabled={loading}
-              />
-            </div>
-          </div>
+  
+  <div className="name-row">
+    <div>
+      <label>Last Name *</label>
+      <input
+        name="lastName"
+        placeholder="e.g. Dela Cruz"
+        value={formData.lastName}
+        onChange={handleChange}
+        disabled={loading}
+        className={formErrors.lastName ? "input-error" : ""}
+      />
+      {formErrors.lastName && <p className="error-message">{formErrors.lastName}</p>}
+    </div>
+    <div>
+      <label>First Name *</label>
+      <input
+        name="firstName"
+        placeholder="e.g. Juan"
+        value={formData.firstName}
+        onChange={handleChange}
+        disabled={loading}
+        className={formErrors.firstName ? "input-error" : ""}
+      />
+      {formErrors.firstName && <p className="error-message">{formErrors.firstName}</p>}
+    </div>
+    <div>
+      <label>Middle Name</label>
+      <input
+        name="middleName"
+        placeholder="e.g. Santos (optional)"
+        value={formData.middleName}
+        onChange={handleChange}
+        disabled={loading}
+      />
+    </div>
+  </div>
 
-          <div className="name-row">
-            <div>
-              <label htmlFor="birthdate">Birthdate</label>
-              <input
-                id="birthdate"
-                name="birthdate"
-                type="date"
-                value={formData.birthdate}
-                onChange={handleChange}
-                className={formErrors.birthdate ? "input-error" : ""}
-                disabled={loading}
-              />
-              {formErrors.birthdate && <p className="error-message">{formErrors.birthdate}</p>}
-            </div>
-            <div>
-              <label htmlFor="age">Age</label>
-              <input
-                id="age"
-                name="age"
-                placeholder="Age"
-                type="number"
-                value={formData.age}
-                readOnly
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <label htmlFor="contactNumber">Contact Number</label>
-              <input
-                id="contactNumber"
-                name="contactNumber"
-                placeholder="Contact Number"
-                value={formData.contactNumber}
-                onChange={handleChange}
-                className={formErrors.contactNumber ? "input-error" : ""}
-                disabled={loading}
-              />
-              {formErrors.contactNumber && <p className="error-message">{formErrors.contactNumber}</p>}
-            </div>
-          </div>
+ 
+  <div className="name-row">
+    <div>
+      <label>Birthdate *</label>
+      <input
+        type="date"
+        name="birthdate"
+        value={formData.birthdate}
+        onChange={handleChange}
+        disabled={loading}
+        className={formErrors.birthdate ? "input-error" : ""}
+      />
+      {formErrors.birthdate && <p className="error-message">{formErrors.birthdate}</p>}
+    </div>
+    <div>
+      <label>Age</label>
+      <input
+        placeholder="Auto-calculated"
+        value={formData.age}
+        readOnly
+        disabled={loading}
+      />
+    </div>
+    <div>
+      <label>Contact No. *</label>
+      <input
+        name="contactNumber"
+        placeholder="e.g. 09123456789"
+        value={formData.contactNumber}
+        onChange={handleChange}
+        disabled={loading}
+        className={formErrors.contactNumber ? "input-error" : ""}
+      />
+      {formErrors.contactNumber && <p className="error-message">{formErrors.contactNumber}</p>}
+    </div>
+  </div>
 
-          <div className="name-row">
-            <div>
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                name="email"
-                placeholder="Email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={formErrors.email ? "input-error" : ""}
-                disabled={loading}
-                 readOnly
-              />
-              {formErrors.email && <p className="error-message">{formErrors.email}</p>}
-            </div>
-            <div>
-              <label htmlFor="gender">Gender</label>
-              <select
-                id="gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                className={formErrors.gender ? "input-error" : ""}
-                disabled={loading}
-              >
-                <option value="">Select Gender</option>
-                <option value="Female">Female</option>
-                <option value="Male">Male</option>
-                <option value="Other">Other</option>
-              </select>
-              {formErrors.gender && <p className="error-message">{formErrors.gender}</p>}
-            </div>
-          </div>
 
-          <div className="name-row">
-            <div>
-              <label htmlFor="houseNo">House No.</label>
-              <input
-                id="houseNo"
-                name="houseNo"
-                placeholder="House No."
-                value={formData.houseNo}
-                onChange={handleChange}
-                disabled={loading}
-                className={formErrors.houseNo ? "input-error" : ""}
-              />
-              {formErrors.houseNo && <p className="error-message">{formErrors.houseNo}</p>}
-            </div>
-            <div>
-              <label htmlFor="street">Street</label>
-              <input
-                id="street"
-                name="street"
-                placeholder="Street"
-                value={formData.street}
-                onChange={handleChange}
-                disabled={loading}
-                className={formErrors.street ? "input-error" : ""}
-              />
-              {formErrors.street && <p className="error-message">{formErrors.street}</p>}
-            </div>
-          </div>
+  <div className="name-row">
+    <div>
+      <label>Email *</label>
+      <input
+        type="email"
+        name="email"
+        placeholder="you@example.com"
+        value={formData.email}
+        onChange={handleChange}
+        disabled={loading}
+        readOnly
+        className={formErrors.email ? "input-error" : ""}
+      />
+      {formErrors.email && <p className="error-message">{formErrors.email}</p>}
+    </div>
+    <div>
+      <label>Gender *</label>
+      <select
+        name="gender"
+        value={formData.gender}
+        onChange={handleChange}
+        disabled={loading}
+        className={formErrors.gender ? "input-error" : ""}
+      >
+        <option value="">Choose gender</option>
+        <option value="Female">Female</option>
+        <option value="Male">Male</option>
+        <option value="Other">Other</option>
+      </select>
+      {formErrors.gender && <p className="error-message">{formErrors.gender}</p>}
+    </div>
+  </div>
 
-          <div className="name-row">
-            <div>
-              <label htmlFor="province">Province</label>
-              <select
-                id="province"
-                name="province"
-                value={formData.province}
-                onChange={handleChange}
-                disabled={loading || provinces.length === 0}
-                className={formErrors.province ? "input-error" : ""}
-              >
-                <option value="">Select Province</option>
-                {provinces.map((prov) => (
-                  <option key={prov.code} value={prov.name}>
-                    {prov.name}
-                  </option>
-                ))}
-              </select>
-              {formErrors.province && <p className="error-message">{formErrors.province}</p>}
-            </div>
-            <div>
-              <label htmlFor="municipality">Municipality/City</label>
-              <select
-                id="municipality"
-                name="municipality"
-                value={formData.municipality}
-                onChange={handleChange}
-                disabled={loading || !formData.province || filteredCities.length === 0}
-                className={formErrors.municipality ? "input-error" : ""}
-              >
-                <option value="">Select Municipality/City</option>
-                {filteredCities.map((city) => (
-                  <option key={city.code} value={city.name}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-              {formErrors.municipality && <p className="error-message">{formErrors.municipality}</p>}
-            </div>
-            <div>
-              <label htmlFor="barangay">Barangay</label>
-              <select
-                id="barangay"
-                name="barangay"
-                value={formData.barangay}
-                onChange={handleChange}
-                disabled={loading || !formData.municipality || barangays.length === 0}
-                className={formErrors.barangay ? "input-error" : ""}
-              >
-                <option value="">Select Barangay</option>
-                {barangays.length > 0 ? (
-                  barangays.map((barangay) => (
-                    <option key={barangay.code} value={barangay.name}>
-                      {barangay.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>
-                    {formData.municipality
-                      ? "No barangays available. Try another municipality or check your connection."
-                      : "Please select a municipality first"}
-                  </option>
-                )}
-              </select>
-              {formErrors.barangay && <p className="error-message">{formErrors.barangay}</p>}
-            </div>
-          </div>
+ 
+  <div className="name-row">
+    <div>
+      <label>House No.</label>
+      <input
+        name="houseNo"
+        placeholder="e.g. 123"
+        value={formData.houseNo}
+        onChange={handleChange}
+        disabled={loading}
+      />
+    </div>
+    <div>
+      <label>Street</label>
+      <input
+        name="street"
+        placeholder="e.g. M. J. Cuenco Ave"
+        value={formData.street}
+        onChange={handleChange}
+        disabled={loading}
+      />
+    </div>
+  </div>
 
-          <div>
-            <label htmlFor="zipcode">Zip Code</label>
-            <input
-              id="zipcode"
-              name="zipcode"
-              placeholder="Zip Code"
-              value={formData.zipcode}
-              onChange={handleChange}
-              disabled={loading}
-            />
-          </div>
+  <div className="name-row">
+    <div>
+      <label>Province</label>
+      <select
+        name="province"
+        value={formData.province}
+        onChange={handleChange}
+        disabled={loading || !provinces.length}
+      >
+        <option value="">Select Province</option>
+        {provinces.map(p => (
+          <option key={p.code} value={p.name}>{p.name}</option>
+        ))}
+      </select>
+    </div>
+    <div>
+      <label>Municipality/City</label>
+      <select
+        name="municipality"
+        value={formData.municipality}
+        onChange={handleChange}
+        disabled={loading || !formData.province}
+      >
+        <option value="">Select City/Municipality</option>
+        {filteredCities.map(c => (
+          <option key={c.code} value={c.name}>{c.name}</option>
+        ))}
+      </select>
+    </div>
+    <div>
+      <label>Barangay</label>
+      <select
+        name="barangay"
+        value={formData.barangay}
+        onChange={handleChange}
+        disabled={loading || !formData.municipality}
+      >
+        <option value="">Select Barangay</option>
+        {barangays.map(b => (
+          <option key={b.code} value={b.name}>{b.name}</option>
+        ))}
+      </select>
+    </div>
+  </div>
 
-          <div className="edit-buttons">
-            <button className="save-btn" onClick={handleSave} disabled={loading}>
-              {loading ? "Saving..." : "Save"}
-            </button>
-            <button className="cancel-btn-edit" onClick={handleCancel} disabled={loading}>
-              Cancel
-            </button>
-          </div>
-        </div>
+  <div>
+    <label>Zip Code</label>
+    <input
+      name="zipcode"
+      placeholder="e.g. 6000"
+      value={formData.zipcode}
+      onChange={handleChange}
+      disabled={loading}
+    />
+  </div>
+
+
+  <div className="edit-buttons">
+    <button className="save-btn" onClick={handleSave} disabled={loading}>
+      {loading ? "Saving..." : "Save Changes"}
+    </button>
+    <button className="cancel-btn-edit" onClick={handleCancel} disabled={loading}>
+      Cancel
+    </button>
+  </div>
+</div>
+
+          
       </div>
     </div>
   );

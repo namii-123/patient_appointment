@@ -28,6 +28,22 @@ const EmployeeRecommendationForm: React.FC<EmployeeRecommendationFormProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showModal, setShowModal] = useState(false);
+const [modalMessage, setModalMessage] = useState("");
+const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+
+const openModal = (msg: string, type: "confirm" | "error" | "success", callback?: () => void) => {
+  setModalMessage(msg);
+  setModalType(type);
+  if (callback) setOnConfirm(() => callback);
+  setShowModal(true);
+};
+
+const closeModal = () => {
+  setShowModal(false);
+  setOnConfirm(() => {});
+};
 
   useEffect(() => {
     if (patientId) {
@@ -161,80 +177,86 @@ const EmployeeRecommendationForm: React.FC<EmployeeRecommendationFormProps> = ({
     console.log("All files canceled.");
   };
 
-  const handleNext = async () => {
+ const handleNext = async () => {
   try {
-    if (
-      uploadedFiles.length === 0 ||
-      uploadedFiles.some((fileData) => !fileData.base64)
-    ) {
-      setError(
-        "Please upload at least one employee recommendation document and ensure all files are processed."
-      );
+    if (uploadedFiles.length === 0 || uploadedFiles.some((fileData) => !fileData.base64)) {
+      openModal("Please upload at least one employee recommendation document and ensure all files are processed.", "error");
       return;
     }
 
-    // Custom alert/confirm message
-    const proceedWithUpload = window.confirm(
-      "Are you sure you want to proceed? Once you continue, the uploaded Employee Recommendation documents can no longer be changed."
+    // SAME MESSAGE AS PAO & COURT ORDER
+    openModal(
+      "You are about to submit the Employee Recommendation files.\n\nNote: Once uploaded, the files cannot be changed. Please make sure all details are correct before proceeding.",
+      "confirm",
+      async () => {
+        try {
+          const appointmentId = formData?.appointmentId;
+          if (!appointmentId) {
+            openModal("No appointment ID provided. Please complete the previous steps first.", "error");
+            return;
+          }
+
+          const appointmentRef = doc(db, "Appointments", appointmentId);
+          const snap = await getDoc(appointmentRef);
+          if (!snap.exists()) {
+            openModal("Appointment not found.", "error");
+            return;
+          }
+
+          const existingData = snap.data();
+          const existingDisplayId = existingData?.displayId || "";
+
+          const auth = getAuth();
+          const currentUser = auth.currentUser;
+          const uid = currentUser?.uid || "";
+          if (!uid) {
+            openModal("User not authenticated. Please sign in.", "error");
+            return;
+          }
+
+          const empData = {
+            patientId: patientId || formData?.patientId || "",
+            controlNo: controlNo || formData?.controlNo || "",
+            empFiles: uploadedFiles.map((fileData) => ({
+              name: fileData.file.name,
+              base64: fileData.base64,
+              type: fileData.file.type,
+              uploadedAt: new Date().toISOString(),
+            })),
+            displayId: existingDisplayId,
+            department: "DDE",
+          };
+
+          await updateDoc(appointmentRef, empData);
+
+          console.log("Employee Recommendation updated in Appointments:", {
+            appointmentId,
+            displayId: existingDisplayId,
+          });
+
+          // SUCCESS MODAL
+          openModal(`Employee Recommendation uploaded successfully!\nAppointment ID: ${existingDisplayId}`, "success");
+
+          // Navigate after 2 seconds
+          setTimeout(() => {
+            onNavigate?.("lawyersrequest", {
+              ...formData,
+              empData,
+              appointmentId,
+            });
+          }, 2000);
+
+        } catch (err: unknown) {
+          console.error("Error updating Employee Recommendation:", err);
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          openModal(`Failed to update Employee Recommendation: ${errorMessage}`, "error");
+        }
+      }
     );
-
-    if (!proceedWithUpload) {
-      // If user clicks "Cancel", stop execution
-      return;
-    }
-
-    const appointmentId = formData?.appointmentId;
-    if (!appointmentId) {
-      setError(
-        "No appointment ID provided. Please complete the previous steps first."
-      );
-      return;
-    }
-
-    const appointmentRef = doc(db, "Appointments", appointmentId);
-    const snap = await getDoc(appointmentRef);
-    if (!snap.exists()) {
-      setError("Appointment not found.");
-      return;
-    }
-
-    const existingData = snap.data();
-    const existingDisplayId = existingData?.displayId || "";
-
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    const uid = currentUser?.uid || "";
-    if (!uid) {
-      setError("User not authenticated. Please sign in.");
-      return;
-    }
-
-    const empData = {
-      patientId: patientId || formData?.patientId || "",
-      controlNo: controlNo || formData?.controlNo || "",
-      empFiles: uploadedFiles.map((fileData) => ({
-        name: fileData.file.name,
-        base64: fileData.base64,
-        type: fileData.file.type,
-        uploadedAt: new Date().toISOString(),
-      })),
-      displayId: existingDisplayId,
-      department: "DDE",
-    };
-
-    await updateDoc(appointmentRef, empData);
-
-    console.log("✅ Employee Recommendation updated in Appointments:", {
-      appointmentId,
-      displayId: existingDisplayId,
-    });
-
-    setError(null);
-    onNavigate?.("lawyersrequest", { ...formData, empData, appointmentId });
   } catch (err: unknown) {
-    console.error("Error updating Employee Recommendation:", err);
+    console.error("Error in handleNext:", err);
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    setError(`Failed to update Employee Recommendation: ${errorMessage}`);
+    openModal(`Unexpected error: ${errorMessage}`, "error");
   }
 };
 
@@ -329,8 +351,55 @@ const EmployeeRecommendationForm: React.FC<EmployeeRecommendationFormProps> = ({
           Next ➡
         </button>
       </div>
+      {showModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+          </audio>
+
+          <div className="modal-overlay-service" onClick={closeModal}>
+            <div className="modal-content-service" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header-service">
+                <img src="/logo.png" alt="DOH" className="modal-logo" />
+                <h3>
+                  {modalType === "success" && "SUCCESS"}
+                  {modalType === "error" && "ERROR"}
+                  {modalType === "confirm" && "CONFIRM ACTION"}
+                </h3>
+              </div>
+
+              <div className="modal-body">
+                <p style={{ whiteSpace: "pre-line" }}>{modalMessage}</p>
+              </div>
+
+              <div className="modal-footer">
+                {modalType === "confirm" && (
+                  <>
+                    <button className="modal-btn cancel" onClick={closeModal}>Cancel</button>
+                    <button
+                      className="modal-btn confirm"
+                      onClick={() => {
+                        closeModal();
+                        onConfirm();
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  </>
+                )}
+                {(modalType === "error" || modalType === "success") && (
+                  <button className="modal-btn ok" onClick={closeModal}>
+                    {modalType === "success" ? "Continue" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
+   
 
 export default EmployeeRecommendationForm;

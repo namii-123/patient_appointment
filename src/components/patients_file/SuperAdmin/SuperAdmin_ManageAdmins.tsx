@@ -227,7 +227,7 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
 
       <main className="main-content">
         <div className="top-navbar-dental">
-          <h2 className="navbar-title">Manage Admins</h2>
+          <h5 className="navbar-title">Manage Admins</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -365,7 +365,7 @@ const SuperAdmin_ManageAdmins: React.FC = () => {
             </div>
           </div>
 
-          <h2 className="admins-table-title">Manage Admins</h2>
+          <h5 className="admins-table-title">Manage Admins</h5>
           <table className="admins-table">
             <thead>
               <tr>

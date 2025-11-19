@@ -42,7 +42,7 @@
   color: #1a1a1a;
 }
 
-.header-center h3 {
+.header-center h5 {
   margin: 8px 0;
   font-size: 13pt;
   font-weight: 700;
@@ -216,6 +216,133 @@ background: #1a276d;
   color: #fff;
 }
 
+
+
+/* COMPACT MODAL - DOH OFFICIAL (GAMAY RA) */
+.modal-overlay-services {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 40px;
+}
+
+.modal-content-services {
+  background: white;
+  width: 90%;
+  max-width: 420px;           /* ← GAMAY RA */
+  border-radius: 14px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  border: 3px solid #005b9f;
+  font-family: 'Calibri', sans-serif;
+  animation: slideDown 0.4s ease-out;
+}
+
+/* COMPACT HEADER */
+.modal-header-services {
+  background: linear-gradient(135deg, #003087, #005b9f);
+  padding: 18px 15px;
+  text-align: center;
+  border-bottom: 2px solid #ffd700;
+}
+
+.modal-logo {
+  width: 55px;
+  height: 55px;
+  border: 4px solid #ffd700;
+  border-radius: 50%;
+  padding: 6px;
+  background: white;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+}
+
+.modal-header-services h5 {
+  margin: 10px 0 0;
+  font-size: 1.4em;           /* ← GAMAY RA */
+  font-weight: 800;
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* COMPACT BODY */
+.modal-body {
+  padding: 20px 25px;
+  background: #f8f9fa;
+  text-align: center;
+  font-size: 1.1em;
+  min-height: 70px;
+  line-height: 1.6;
+}
+
+.modal-body p {
+  margin: 0;
+  color: #222;
+  font-weight: 500;
+}
+
+/* COMPACT FOOTER */
+.modal-footer {
+  padding: 18px 20px;
+  background: white;
+  text-align: center;
+  border-top: 1px solid #eee;
+}
+
+.modal-btn {
+  padding: 10px 24px;
+  margin: 0 8px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95em;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 100px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+}
+
+.modal-btn.confirm {
+  background: #005b9f;
+  color: white;
+}
+.modal-btn.confirm:hover {
+  background: #003087;
+  transform: translateY(-2px);
+}
+
+.modal-btn.cancel {
+  background: #dc3545;
+  color: white;
+}
+.modal-btn.cancel:hover {
+  background: #c82333;
+}
+
+.modal-btn.ok {
+  background: #28a745;
+  color: white;
+  padding: 11px 35px;
+  font-size: 1em;
+}
+.modal-btn.ok:hover {
+  background: #218838;
+}
+
+/* SMOOTH ANIMATION */
+@keyframes slideDown {
+  from { transform: translateY(-80px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+
 @media (max-width: 768px) {
   .all-services-container {
     padding: 15px;
@@ -252,7 +379,7 @@ background: #1a276d;
     font-size: 10pt;
   }
 
-  .header-center h3 {
+  .header-center h5 {
     font-size: 12pt;
   }
 

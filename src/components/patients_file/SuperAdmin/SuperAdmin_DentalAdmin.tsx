@@ -241,7 +241,7 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
       <main className="main-content-superadmin">
         {/* Top Navbar */}
         <div className="top-navbar-superadmin">
-          <h2 className="navbar-title">Dental Admins</h2>
+          <h5 className="navbar-title">Dental Admins</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
@@ -306,14 +306,14 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
             className={`summary-card all ${filter === "all" ? "active" : ""}`}
             onClick={() => setFilter("all")}
           >
-            <h3>{admins.length}</h3>
+            <h5>{admins.length}</h5>
             <p>All</p>
           </div>
           <div
             className={`summary-card approved ${filter === "approved" ? "active" : ""}`}
             onClick={() => setFilter("approved")}
           >
-            <h3>{approvedCount}</h3>
+            <h5>{approvedCount}</h5>
             <p>Approved</p>
           </div>
 
@@ -322,19 +322,19 @@ const notActiveCount = admins.filter((a) => a.status.toLowerCase() === "not acti
   className={`summary-card not-active ${filter === "not active" ? "active" : ""}`}
   onClick={() => setFilter("not active")}
 >
-  <h3>{notActiveCount}</h3>
+  <h5>{notActiveCount}</h5>
   <p>Not Active</p>
 </div>
 
         </div>
 
         <div className="appointments-section">
-          <h3 className="section-title">
+          <h5 className="section-title">
             {filter === "all"
               ? "All"
               : filter.charAt(0).toUpperCase() + filter.slice(1)}{" "}
             Dental Admins
-          </h3>
+          </h5>
           <table className="appointments-table">
             <thead>
               <tr>

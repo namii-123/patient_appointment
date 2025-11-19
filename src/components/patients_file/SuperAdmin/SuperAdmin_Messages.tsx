@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
 import {
   FaBell,
   FaUser,
@@ -58,40 +59,59 @@ const SuperAdmin_Messages: React.FC = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, "Messages"),
-      (snapshot) => {
-        const messageData = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            UserId: data.UserId || null,
-            lastName: data.lastName || "",
-            firstName: data.firstName || "",
-            messages: data.messages || "",
-            email: data.email || "",
-            createdAt: data.createdAt
-              ? (data.createdAt.toDate
-                  ? data.createdAt.toDate().toISOString()
-                  : data.createdAt)
-              : null,
-            replied: data.replied || false, // Fetch replied status
-          } as Message;
-        });
-        setMessages(messageData);
-        // Update repliedMessages based on Firestore data
-        setRepliedMessages(new Set(messageData.filter((msg) => msg.replied).map((msg) => msg.id)));
-      },
-      (error) => {
-        console.error("Error fetching messages:", error);
-        toast.error("Failed to load messages. Please try again.", {
-          position: "top-center",
-        });
-      }
-    );
-    return () => unsubscribe();
-  }, [db]);
+ useEffect(() => {
+  const unsubscribe = onSnapshot(
+    collection(db, "Messages"),
+    (snapshot) => {
+      const messageData = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          UserId: data.UserId || null,
+          lastName: data.lastName || "",
+          firstName: data.firstName || "",
+          messages: data.messages || "",
+          email: data.email || "",
+          createdAt: data.createdAt || null,
+          replied: data.replied || false,
+        } as Message;
+      });
+
+      // ✅ Sort by latest createdAt first (handles Timestamp or string)
+      const sortedMessages = messageData.sort((a, b) => {
+        const dateA =
+          a.createdAt instanceof Timestamp
+            ? a.createdAt.toDate().getTime()
+            : a.createdAt
+            ? new Date(a.createdAt).getTime()
+            : 0;
+
+        const dateB =
+          b.createdAt instanceof Timestamp
+            ? b.createdAt.toDate().getTime()
+            : b.createdAt
+            ? new Date(b.createdAt).getTime()
+            : 0;
+
+        return dateB - dateA;
+      });
+
+      setMessages(sortedMessages);
+      setRepliedMessages(
+        new Set(sortedMessages.filter((msg) => msg.replied).map((msg) => msg.id))
+      );
+    },
+    (error) => {
+      console.error("Error fetching messages:", error);
+      toast.error("Failed to load messages. Please try again.", {
+        position: "top-center",
+      });
+    }
+  );
+
+  return () => unsubscribe();
+}, [db]);
+
 
   const handleReply = (message: Message) => {
     setSelectedMessage(message);
@@ -304,7 +324,7 @@ const SuperAdmin_Messages: React.FC = () => {
 
       <main className="main-contents">
         <div className="top-navbar-dentals">
-          <h2 className="navbar-title">Messages</h2>
+          <h5 className="navbar-title">Messages</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"

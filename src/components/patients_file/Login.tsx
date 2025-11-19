@@ -58,7 +58,8 @@ const Login: React.FC<LoginProps> = ({ onClose, onSignUpClick }) => {
           lastName,
           email: user.email,
           emailVerified: user.emailVerified,
-          photoURL: user.photoURL,
+          photoURL: user.photoURL,  
+          photoBase64: null,        
           providerId: user.providerData[0]?.providerId || "google",
           createdAt: new Date(),
         });
@@ -98,7 +99,20 @@ const Login: React.FC<LoginProps> = ({ onClose, onSignUpClick }) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      const uid = user.uid;
 
+
+     const adminSnap = await getDoc(doc(db, "UserAdmin", uid));
+const manageSnap = await getDoc(doc(db, "ManageAdmins", uid));
+
+if (adminSnap.exists() || manageSnap.exists()) {
+  toast.info("Admin detected! Opening Admin Portal...", {
+    position: "top-center",
+    autoClose: 3000,
+  });
+  window.open("/login-admin", "_blank"); 
+  return;
+}
       const userRef = doc(db, "Users", user.uid);
       const docSnap = await getDoc(userRef);
 
@@ -169,7 +183,9 @@ const Login: React.FC<LoginProps> = ({ onClose, onSignUpClick }) => {
         <div className="login-left">
           <div className="logo-container">
             <img src="/logo.png" alt="logo" className="logo-img" />
-            <h2>DOH-TRC Argao</h2>
+            
+            <h1 >DOH-TRC Argao</h1>
+            
           </div>
           <p>Your health, our priority.</p>
         </div>
