@@ -3,6 +3,7 @@ export const DEFAULT_DENTAL_SERVICES: Record<string, string[]> = {
   "Routine Care": [
     "Check-up",
     "Oral Prophylaxis",
+    
   ],
   "Fillings": [
     "Temporary Filling",
@@ -15,6 +16,8 @@ export const DEFAULT_DENTAL_SERVICES: Record<string, string[]> = {
   "Gum & Others": [
     "Gum Treatment",
     "Incision and Drainage",
+  ],
+   "Others": [
     "Others",
   ],
 } as const;

@@ -11,6 +11,8 @@ import {
   FaSignOutAlt,
   FaSearch,
   FaTimes,
+  FaEye,
+  FaCheckCircle,
 } from "react-icons/fa";
 import "../../../assets/PatientRecords_Radiology.css";
 import logo from "/logo.png";
@@ -18,6 +20,7 @@ import { db } from "../firebase";
 import { doc, getDoc, updateDoc, query, where, onSnapshot, collection } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"
+import { X } from "lucide-react";
 
 interface FileItem {
   base64: string;
@@ -52,7 +55,11 @@ interface PatientRecord {
   slotID?: string;
   purpose: string;
   status: "Approved" | "Rejected" | "Completed";
-  validIDData?: { validIDFiles?: FileItem[] | null } | null;
+ appointmentType?: string;
+admissionTypeDisplay?: string;
+voluntaryAdmissionFiles?: { voluntaryAdmissionFiles?: FileItem[] | null } | null;
+validIDFiles?: { validIDFiles?: FileItem[] | null } | null;
+  validIDData?: { validIDData?: FileItem[] | null } | null;
   courtOrderData?: { courtFiles?: FileItem[] | null } | null;
   paoData?: { paoFiles?: FileItem[] | null } | null;
   empData?: { empFiles?: FileItem[] | null } | null;
@@ -94,162 +101,197 @@ const PatientRecords_DDE: React.FC = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
 
-  const [availableYears, setAvailableYears] = useState(() => {
-    const currentYear = new Date().getFullYear();
-    return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
-  });
+ 
 
-  const handleYearClick = () => {
-    const maxYear = Math.max(...availableYears);
-    const currentYear = new Date().getFullYear();
-    if (maxYear < currentYear + 50) {
-      const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
-      setAvailableYears((prev) => [...prev, ...newYears]);
-    }
-  };
+  
+  
 
-  const availableMonths = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
 
-  const availableDays = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+ useEffect(() => {
+  setLoading(true);
 
-  useEffect(() => {
-    setLoading(true);
-    const transQuery = query(
-      collection(db, "Transactions"),
-      where("purpose", "==", "DDE"),
-      where("status", "in", ["Approved", "Rejected", "Completed"])
-    );
+  const transQuery = query(
+    collection(db, "Transactions"),
+    where("purpose", "==", "DDE"),
+    where("status", "in", ["Approved", "Rejected", "Completed"])
+  );
 
-    const unsubscribe = onSnapshot(transQuery, async (transSnap) => {
-      const loaded: PatientRecord[] = [];
+  const unsubscribe = onSnapshot(transQuery, async (transSnap) => {
+    const loaded: PatientRecord[] = [];
 
-      for (const t of transSnap.docs) {
-        const tData = t.data();
+    // Process each transaction one by one
+    for (const t of transSnap.docs) {
+      const tData = t.data();
+      const transactionId = t.id;
 
-        let patientData: any = {
-          UserId: " ",
-          lastName: "Unknown",
-          firstName: "Unknown",
-          middleInitial: "Unknown",
-          age: 0,
-          gender: "",
-          patientCode: "",
-          controlNo: "",
-          birthdate: "",
-          citizenship: "",
-          houseNo: "",
-          street: "",
-          barangay: "",
-          municipality: "",
-          province: "",
-          email: "",
-          contact: "",
-        };
+      // Default values
+      let userId = "N/A";
+      let patientData: any = {
+        patientCode: "",
+        lastName: "Unknown",
+        firstName: "Unknown",
+        middleInitial: "",
+        age: 0,
+        gender: "",
+        controlNo: "",
+        birthdate: "",
+        citizenship: "",
+        houseNo: "",
+        street: "",
+        barangay: "",
+        municipality: "",
+        province: "",
+        email: "",
+        contact: "",
+      };
 
-        let userId = " ";
-        if (tData.uid) {
+      let appointmentType: string | undefined = undefined;
+
+      // 1. Fetch UserId from Users collection
+      if (tData.uid) {
+        try {
           const userRef = doc(db, "Users", tData.uid);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
-            userId = userSnap.data().UserId || " ";
+            userId = userSnap.data()?.UserId || "N/A";
           }
+        } catch (err) {
+          console.warn("Failed to fetch UserId for uid:", tData.uid);
         }
-
-        if (tData.patientId) {
-          const pRef = doc(db, "Patients", tData.patientId);
-          const pSnap = await getDoc(pRef);
-          if (pSnap.exists()) {
-            patientData = pSnap.data();
-          } else {
-            console.warn(`No patient document found for patientId: ${tData.patientId}`);
-          }
-        } else {
-          console.warn(`No patientId in transaction: ${t.id}`);
-        }
-
-        const mapFileData = (
-          fieldData: any,
-          fileKey: string
-        ): { [key: string]: FileItem[] | null } | null => {
-          let filesArray = fieldData;
-          if (fieldData && typeof fieldData === "object" && fileKey in fieldData) {
-            filesArray = fieldData[fileKey];
-          }
-          if (filesArray && Array.isArray(filesArray) && filesArray.length > 0) {
-            return {
-              [fileKey]: filesArray.map((file: any) => ({
-                base64: file.base64 || "",
-                name: file.name || `${fileKey.replace("Files", "")}_file_${file.uploadedAt || new Date().toISOString()}.jpg`,
-                uploadedAt: file.uploadedAt || new Date().toISOString(),
-              })),
-            };
-          }
-          return null;
-        };
-
-        let requestDate: string;
-        if (tData.createdAt) {
-          if (typeof tData.createdAt === 'string') {
-            requestDate = tData.createdAt.split('T')[0];
-          } else if (tData.createdAt && typeof tData.createdAt.toDate === 'function') {
-            requestDate = tData.createdAt.toDate().toISOString().split('T')[0];
-          } else {
-            console.warn(`Unexpected createdAt format for transaction ${t.id}:`, tData.createdAt);
-            requestDate = new Date().toISOString().split('T')[0];
-          }
-        } else {
-          console.warn(`No createdAt field for transaction ${t.id}`);
-          requestDate = new Date().toISOString().split('T')[0];
-        }
-
-        loaded.push({
-          id: t.id,
-          UserId: userId,
-          patientId: tData.patientId || "",
-          patientCode: patientData.patientCode || "",
-          lastName: patientData.lastName || "Unknown",
-          firstName: patientData.firstName || "Unknown",
-          middleInitial: patientData.middleInitial || "Unknown",
-          age: patientData.age || 0,
-          gender: patientData.gender || "",
-          services: Array.isArray(tData.services) ? tData.services : [],
-          controlNo: patientData.controlNo || "",
-          birthdate: patientData.birthdate || "",
-          citizenship: patientData.citizenship || "",
-          houseNo: patientData.houseNo || "",
-          street: patientData.street || "",
-          barangay: patientData.barangay || "",
-          municipality: patientData.municipality || "",
-          province: patientData.province || "",
-          email: patientData.email || "",
-          contact: patientData.contact || "",
-          requestDate,
-          appointmentDate: tData.date || "",
-          slotTime: tData.slotTime || "",
-          slotID: tData.slotID || "",
-          purpose: tData.purpose || "DDE",
-          status: tData.status || "Approved",
-          validIDData: mapFileData(tData.validIDFiles, "validIDFiles"),
-          courtOrderData: mapFileData(tData.courtOrderData, "courtFiles"),
-          paoData: mapFileData(tData.paoData, "paoFiles"),
-          empData: mapFileData(tData.empData, "empFiles"),
-          lawyersRequestData: mapFileData(tData.lawyersRequestData, "lawyersRequestFiles"),
-          receiptData: mapFileData(tData.receiptData, "officialReceiptFiles"),
-        });
       }
 
-      setPatientRecords(loaded);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching patient records:", error);
-      setLoading(false);
-    });
+      // 2. Fetch Patient Data (MAIN SOURCE OF TRUTH)
+      if (tData.patientId) {
+        try {
+          const pRef = doc(db, "Patients", tData.patientId);
+          const pSnap = await getDoc(pRef);
 
-    return () => unsubscribe();
-  }, []);
+          if (pSnap.exists()) {
+            const pData = pSnap.data();
+            patientData = { ...patientData, ...pData }; // Merge properly
+
+            // Get appointment type
+            appointmentType = pData.appointmentType || pData.admissionType || undefined;
+          } else {
+            console.warn("Patient document not found:", tData.patientId);
+          }
+        } catch (err) {
+          console.error("Error fetching patient:", tData.patientId, err);
+        }
+      } else {
+        console.warn("Transaction has no patientId:", transactionId);
+      }
+
+      // 3. Handle requestDate safely
+    const getLocalDateString = (timestamp: any): string => {
+  if (!timestamp) return "N/A";
+  let date: Date;
+  if (typeof timestamp === "string") {
+    date = new Date(timestamp);
+  } else if (timestamp?.toDate) {
+    date = timestamp.toDate();
+  } else {
+    return "N/A";
+  }
+  const offset = 8 * 60; // UTC+8
+  const phDate = new Date(date.getTime() + offset * 60 * 1000);
+  return phDate.toISOString().slice(0, 10);
+};
+
+let requestDate = getLocalDateString(tData.createdAt);
+
+      // 4. Helper to safely extract files
+      const extractFiles = (data: any, key: string): FileItem[] | null => {
+        if (!data) return null;
+        const files = data[key] || data;
+        if (Array.isArray(files) && files.length > 0) {
+          return files.map((f: any) => ({
+            base64: f.base64 || "",
+            name: f.name || `${key}_${Date.now()}.jpg`,
+            uploadedAt: f.uploadedAt || new Date().toISOString(),
+          }));
+        }
+        return null;
+      };
+
+      // 5. Build final record
+      loaded.push({
+        id: transactionId,
+        UserId: userId,
+        patientId: tData.patientId || "",
+        patientCode: patientData.patientCode || "N/A",
+        lastName: patientData.lastName || "Unknown",
+        firstName: patientData.firstName || "Unknown",
+        middleInitial: patientData.middleInitial || "",
+        age: patientData.age || 0,
+        gender: patientData.gender || "N/A",
+        services: Array.isArray(tData.services) ? tData.services : [],
+        controlNo: patientData.controlNo || "N/A",
+        birthdate: patientData.birthdate || "N/A",
+        citizenship: patientData.citizenship || "N/A",
+        houseNo: patientData.houseNo || "N/A",
+        street: patientData.street || "N/A",
+        barangay: patientData.barangay || "N/A",
+        municipality: patientData.municipality || "N/A",
+        province: patientData.province || "N/A",
+        email: patientData.email || "N/A",
+        contact: patientData.contact || "N/A",
+        requestDate,
+        appointmentDate: tData.date || "N/A",
+        slotTime: tData.slotTime || "N/A",
+        slotID: tData.slotID || "N/A",
+        purpose: tData.purpose || "DDE",
+        status: (tData.status as PatientRecord["status"]) || "Approved",
+
+        // New fields
+        appointmentType,
+        admissionTypeDisplay:
+          appointmentType === "voluntary"
+            ? "Voluntary Admission"
+            : appointmentType === "pleabargain"
+            ? "Plea Bargain (Court-Ordered)"
+            : "Not Specified",
+
+        // File data
+        voluntaryAdmissionFiles: tData.voluntaryAdmissionFiles
+          ? { voluntaryAdmissionFiles: extractFiles(tData.voluntaryAdmissionFiles, "voluntaryAdmissionFiles") }
+          : null,
+        validIDFiles: tData.validIDFiles
+          ? { validIDFiles: extractFiles(tData.validIDFiles, "validIDFiles") }
+          : null,
+        validIDData: tData.validIDData
+          ? { validIDData: extractFiles(tData.validIDData, "validIDData") }
+          : null,
+        courtOrderData: tData.courtOrderData
+          ? { courtFiles: extractFiles(tData.courtOrderData, "courtFiles") }
+          : null,
+        paoData: tData.paoData
+          ? { paoFiles: extractFiles(tData.paoData, "paoFiles") }
+          : null,
+        empData: tData.empData
+          ? { empFiles: extractFiles(tData.empData, "empFiles") }
+          : null,
+        lawyersRequestData: tData.lawyersRequestData
+          ? { lawyersRequestFiles: extractFiles(tData.lawyersRequestData, "lawyersRequestFiles") }
+          : null,
+        receiptData: tData.receiptData
+          ? { officialReceiptFiles: extractFiles(tData.receiptData, "officialReceiptFiles") }
+          : null,
+      });
+    }
+
+    setPatientRecords(loaded);
+    setLoading(false);
+  }, (error) => {
+    console.error("Error listening to Transactions:", error);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
+
+
+
 
   const handleAction = (action: string, patientRecord: PatientRecord) => {
     setSelectedPatientRecord(patientRecord);
@@ -311,6 +353,9 @@ const PatientRecords_DDE: React.FC = () => {
         </tr>
       );
     }
+
+
+
 
     return (
       <tr>
@@ -385,24 +430,108 @@ const PatientRecords_DDE: React.FC = () => {
     );
   };
 
-  const filteredPatientRecords = patientRecords.filter((rec) => {
-    const fullName = `${rec.firstName} ${rec.lastName} ${rec.middleInitial || ""}`.toLowerCase();
-    const matchesSearch =
-      fullName.includes(searchTerm.toLowerCase()) ||
-      rec.patientCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rec.UserId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rec.patientId.toLowerCase().includes(searchTerm.toLowerCase());
+  // Sort by appointment date: newest first
+const sortedPatientRecords = [...patientRecords].sort((a, b) => {
+  return b.requestDate.localeCompare(a.requestDate);
+});
 
-    const appointmentDate = new Date(rec.appointmentDate);
-    const matchesYear = yearFilter === "All" || appointmentDate.getFullYear() === parseInt(yearFilter);
-    const matchesMonth = monthFilter === "All" || availableMonths[appointmentDate.getMonth()] === monthFilter;
-    const matchesDay = dayFilter === "All" || appointmentDate.getDate() === parseInt(dayFilter);
+const filteredAndSortedRecords = sortedPatientRecords.filter((rec) => {
+  const fullName = `${rec.firstName} ${rec.lastName} ${rec.middleInitial || ""}`.toLowerCase();
+  const matchesSearch = 
+    fullName.includes(searchTerm.toLowerCase()) ||
+    rec.patientCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    rec.UserId.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
+  const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
 
-    return matchesSearch && matchesStatus && matchesYear && matchesMonth && matchesDay;
-  });
+  // NEW LOGIC: Only apply date filters if status is NOT Rejected
+  let matchesDate = true;
+  if (rec.status !== "Rejected" && rec.appointmentDate) {
+    const [year, month, day] = rec.appointmentDate.split("-");
 
+    const matchesYear = yearFilter === "All" || year === yearFilter;
+    const matchesMonth = monthFilter === "All" || month === monthFilter;
+    const matchesDay = dayFilter === "All" || day === dayFilter.padStart(2, "0");
+
+    matchesDate = matchesYear && matchesMonth && matchesDay;
+  }
+  
+
+  return matchesSearch && matchesStatus && matchesDate;
+});
+
+   const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customModalMessage, setCustomModalMessage] = useState("");
+  const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+  const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+  
+  const openCustomModal = (
+    message: string,
+    type: "success" | "error" | "confirm" = "success",
+    onConfirm?: () => void
+  ) => {
+    setCustomModalMessage(message);
+    setCustomModalType(type);
+    if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+    setShowCustomModal(true);
+  };
+  
+  const closeCustomModal = () => {
+    setShowCustomModal(false);
+    setOnCustomModalConfirm(() => {});
+  };
+  
+ // Add this useEffect (butangan sa ubos sa imong other useEffects)
+useEffect(() => {
+  const today = new Date();
+  const currentYear = today.getFullYear().toString();
+  const currentMonth = String(today.getMonth() + 1).padStart(2, "0"); // 1-12 → "01" to "12"
+
+  setYearFilter(currentYear);
+  setMonthFilter(currentMonth);
+}, []);
+
+
+const [currentPage, setCurrentPage] = useState<number>(1);
+const recordsPerPage = 5; // same sa radiology
+
+// Pagination calculations
+const indexOfLastRecord = currentPage * recordsPerPage;
+const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+const currentRecords = filteredAndSortedRecords.slice(indexOfFirstRecord, indexOfLastRecord);
+const totalPages = Math.ceil(filteredAndSortedRecords.length / recordsPerPage);
+
+// Smart page number generator (same sa Radiology)
+const getPageNumbers = () => {
+  const pages: (number | string)[] = [];
+  if (totalPages <= 5) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push("...");
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push("...");
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push("...");
+      pages.push(currentPage - 1);
+      pages.push(currentPage);
+      pages.push(currentPage + 1);
+      pages.push("...");
+      pages.push(totalPages);
+    }
+  }
+  return pages;
+};
+
+useEffect(() => {
+  setCurrentPage(1);
+}, [searchTerm, statusFilter, yearFilter, monthFilter, dayFilter]);
+  
   return (
     <div className="dashboards">
       <aside className="sidebars">
@@ -442,26 +571,29 @@ const PatientRecords_DDE: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
           <div className="signout-box">
-                     <FaSignOutAlt className="signout-icon" />
-                     <span
-                       onClick={async () => {
-                         const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                         if (isConfirmed) {
-                           try {
-                             await signOut(auth);
-                             navigate("/loginadmin", { replace: true });
-                           } catch (error) {
-                             console.error("Error signing out:", error);
-                             alert("Failed to sign out. Please try again.");
-                           }
-                         }
-                       }}
-                       className="signout-label"
-                       style={{ cursor: "pointer" }}
-                     >
-                       Sign Out
-                     </span>
-                   </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+  openCustomModal(
+    "Are you sure you want to sign out?",
+    "confirm",
+    async () => {
+      try {
+        await signOut(auth);
+        navigate("/loginadmin", { replace: true });
+      } catch (error) {
+        console.error("Error signing out:", error);
+        openCustomModal("Failed to sign out. Please try again.", "error");
+      }
+    }
+  );
+}}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
                            </div>
       </aside>
 
@@ -529,65 +661,67 @@ const PatientRecords_DDE: React.FC = () => {
                 <option value="Completed">Completed</option>
               </select>
             </div>
+        <div className="filter">
+  <label>Year:</label>
+  <select
+    className="status-dropdown"
+    value={yearFilter}
+    onChange={(e) => setYearFilter(e.target.value)}
+  >
+    <option value="All">All</option>
+    {(() => {
+      const currentYear = new Date().getFullYear();
+      const startYear = 2020; // or 2023, depende nimo
+      const endYear = currentYear + 20;
+
+      const years = [];
+      for (let y = endYear; y >= startYear; y--) {
+        years.push(y);
+      }
+
+      return years.map((year) => (
+        <option key={year} value={year}>
+          {year}
+        </option>
+      ));
+    })()}
+  </select>
+</div>
             <div className="filter">
-              <label>Year:</label>
-              <select
-                className="status-dropdown"
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                onClick={handleYearClick}
-              >
-                <option value="All">All</option>
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter">
-              <label>Month:</label>
-              <select
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="status-dropdown"
-              >
-                <option value="All">All</option>
-                {availableMonths.map((month) => (
-                  <option key={month} value={month}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter">
-              <label>Day:</label>
-              <select
-                value={dayFilter}
-                onChange={(e) => setDayFilter(e.target.value)}
-                className="status-dropdown"
-              >
-                <option value="All">All</option>
-                {availableDays.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
+  <label>Month:</label>
+  <select
+    value={monthFilter}
+    onChange={(e) => setMonthFilter(e.target.value)}
+    className="status-dropdown"
+  >
+    <option value="All">All</option>
+    {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map((num) => {
+      const monthName = new Date(2000, parseInt(num) - 1).toLocaleString("en-US", { month: "long" });
+      return (
+        <option key={num} value={num}>
+          {monthName}
+        </option>
+      );
+    })}
+  </select>
+</div>
+           
           </div>
 
-          <p className="appointments-heading">All Accepted Appointments</p>
+       {/* Subheading */}
+        <p className="appointments-heading">All Accepted Appointments</p>
 
-          <div className="table-container">
-            <table className="appointments-table">
+        {/* Table */}
+        <div className="table-container">
+           <table className="appointments-table">
               <thead>
                 <tr>
                   <th>User ID</th>
                   <th>Patient ID</th>
-                  <th>Last Name</th>
-                  <th>First Name</th>
+                  <th>Lastname</th>
+                  <th>Firstname</th>
                 
+                 
                   <th>Services</th>
                   <th>Request Date</th>
                   <th>Slot</th>
@@ -596,63 +730,88 @@ const PatientRecords_DDE: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={13} className="no-records">
-                      Loading dde patient records...
-                    </td>
-                  </tr>
-                ) : filteredPatientRecords.length > 0 ? (
-                  filteredPatientRecords.map((rec) => (
-                    <tr key={rec.id}>
-                      <td>{rec.UserId}</td>
-                      <td>{rec.patientCode}</td>
-                      <td>{rec.lastName}</td>
-                      <td>{rec.firstName}</td>
-                     
-                     
-                      <td>{rec.services.join(", ")}</td>
-                      <td>{rec.requestDate}</td>
-                      <td>
-                          {rec.slotTime
-                            ? new Date(`2000-01-01 ${rec.slotTime}`).toLocaleTimeString(
-                                "en-US",
-                                { hour: "numeric", minute: "2-digit", hour12: true }
-                              )
-                            : "N/A"}
-                        </td>
-                      <td>
-                        <span className={`status-text ${rec.status.toLowerCase()}`}>
-                          {rec.status}
-                        </span>
-                      </td>
-                      <td>
-                        {rec.status === "Approved" && (
-                          <button
-                            onClick={() => handleAction("Completed", rec)}
-                            className="action-btns completed"
-                          >
-                            Complete
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleAction("View Record", rec)}
-                          className="action-btns view"
-                        >
-                          View More
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={13} className="no-records">
-                      No dde patient records found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
+  {currentRecords.length > 0 ? (
+    currentRecords.map((rec) => (
+      <tr key={rec.id}>
+        <td>{rec.UserId}</td>
+        <td>{rec.patientCode}</td>
+        <td>{rec.lastName}</td>
+        <td>{rec.firstName}</td>
+        <td>{rec.services.join(", ")}</td>
+        <td>{rec.requestDate}</td>
+        <td>{rec.slotTime}</td>
+        <td>
+          <span className={`status-text ${rec.status.toLowerCase()}`}>
+            {rec.status}
+          </span>
+        </td>
+        <td>
+           <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+          {rec.status === "Approved" && (
+            <button
+              onClick={() => handleAction("Completed", rec)}
+              className="action-btnssss completed"
+            >
+             <FaCheckCircle size={20} />
+              <span className="btn-text desktop-only"> </span>
+            </button>
+          )}
+          <button
+            onClick={() => handleAction("View Record", rec)}
+            className="action-btnssss view"
+          >
+           <FaEye size={20} />
+          </button>
+          </div>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={9} className="no-records">
+        No records found.
+      </td>
+    </tr>
+  )}
+</tbody>
             </table>
+
+
+            {/* PAGINATION - Same style sa Radiology */}
+<div className="pagination-wrapper">
+  <div className="pagination-info">
+    Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredAndSortedRecords.length)} of {filteredAndSortedRecords.length} records
+  </div>
+
+  <div className="pagination-controls">
+    <button
+      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+      className="pagination-btn prev-btn"
+    >
+      Previous
+    </button>
+
+    {getPageNumbers().map((page, index) => (
+      <button
+        key={index}
+        onClick={() => typeof page === "number" && setCurrentPage(page)}
+        className={`pagination-btn page-num ${page === currentPage ? "active" : ""} ${page === "..." ? "ellipsis" : ""}`}
+        disabled={page === "..."}
+      >
+        {page}
+      </button>
+    ))}
+
+    <button
+      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages || totalPages === 0}
+      className="pagination-btn next-btn"
+    >
+      Next
+    </button>
+  </div>
+</div>
           </div>
 
           {showCompletedModal && selectedPatientRecord && (
@@ -809,12 +968,48 @@ const PatientRecords_DDE: React.FC = () => {
                       <tr className="section-header">
                         <th colSpan={2}>Form Data</th>
                       </tr>
-                      {renderFormData(selectedPatientRecord.validIDData, "Valid ID Data", "validIDFiles")}
-                      {renderFormData(selectedPatientRecord.courtOrderData, "Court Order Data", "courtFiles")}
-                      {renderFormData(selectedPatientRecord.paoData, "PAO Data", "paoFiles")}
-                      {renderFormData(selectedPatientRecord.empData, "Employee Data", "empFiles")}
-                      {renderFormData(selectedPatientRecord.lawyersRequestData, "Lawyer's Request Data", "lawyersRequestFiles")}
-                      {renderFormData(selectedPatientRecord.receiptData, "Receipt Data", "officialReceiptFiles")}
+                      <tr>
+  <th>Appointment Type</th>
+  <td>
+    <span
+      style={{
+        padding: "6px 12px",
+        borderRadius: "6px",
+        fontWeight: "bold",
+        backgroundColor: selectedPatientRecord?.appointmentType === "voluntary" ? "#d4edda" : "#f8d7da",
+        color: selectedPatientRecord?.appointmentType === "voluntary" ? "#155724" : "#721c24",
+      }}
+    >
+      {selectedPatientRecord?.admissionTypeDisplay || "Not Specified"}
+    </span>
+  </td>
+</tr>
+<tr>
+  <th>Admission Mode</th>
+  <td>
+    {selectedPatientRecord?.appointmentType === "voluntary"
+      ? "Self-referred / Walk-in"
+      : selectedPatientRecord?.appointmentType === "pleabargain"
+        ? "Court-Ordered via Plea Bargain Agreement"
+        : "Unknown"}
+  </td>
+</tr>
+                    {selectedPatientRecord?.appointmentType === "voluntary" ? (
+  <>
+    {renderFormData(selectedPatientRecord.voluntaryAdmissionFiles, "Voluntary Admission Document", "voluntaryAdmissionFiles")}
+    {renderFormData(selectedPatientRecord.validIDFiles, "Valid ID", "validIDFiles")}
+  </>
+) : (
+  /* PLEA BARGAIN / COURT-ORDERED */
+  <>
+    {renderFormData(selectedPatientRecord.validIDData, "Valid ID Data", "validIDData")}
+    {renderFormData(selectedPatientRecord.courtOrderData, "Court Order Data", "courtFiles")}
+    {renderFormData(selectedPatientRecord.paoData, "PAO Data", "paoFiles")}
+    {renderFormData(selectedPatientRecord.empData, "Employee Data", "empFiles")}
+    {renderFormData(selectedPatientRecord.lawyersRequestData, "Lawyer's Request Data", "lawyersRequestFiles")}
+    {renderFormData(selectedPatientRecord.receiptData, "Receipt Data", "officialReceiptFiles")}
+  </>
+)}
                     </tbody>
                   </table>
                 </div>
@@ -838,6 +1033,59 @@ const PatientRecords_DDE: React.FC = () => {
             </div>
           )}
         </div>
+
+         {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+        {showCustomModal && (
+          <>
+            <audio autoPlay>
+              <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+            </audio>
+            <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+              <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="radiology-modal-header">
+                  <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                  <h3 className="radiology-modal-title">
+                    {customModalType === "success" && "SUCCESS"}
+                    {customModalType === "error" && "ERROR"}
+                    {customModalType === "confirm" && "CONFIRM ACTION"}
+                  </h3>
+                  <button className="radiology-modal-close" onClick={closeCustomModal}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="radiology-modal-body">
+                  <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                    {customModalMessage}
+                  </p>
+                </div>
+                <div className="radiology-modal-footer">
+                  {customModalType === "confirm" && (
+                    <>
+                      <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                        No, Cancel
+                      </button>
+                      <button
+                        className="radiology-modal-btn confirm"
+                        onClick={() => {
+                          closeCustomModal();
+                          onCustomModalConfirm();
+                        }}
+                      >
+                        Yes, Proceed
+                      </button>
+                    </>
+                  )}
+                  {(customModalType === "success" || customModalType === "error") && (
+                    <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                      {customModalType === "success" ? "Done" : "OK"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        
       </main>
     </div>
   );

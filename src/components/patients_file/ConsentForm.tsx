@@ -65,6 +65,20 @@ interface NavigateData extends FormData {
   lawyersRequestData?: any;
   receiptData?: any;
   appointmentData?: any;
+  validIDFiles?: Array<{
+    name: string;
+    base64: string;
+    type: string;
+    size?: number;
+    uploadedAt: string;
+  }> | null;
+  voluntaryAdmissionFiles?: Array<{
+    name: string;
+    base64: string;
+    type: string;
+    size?: number;
+    uploadedAt: string;
+  }> | null;
 }
 
 interface ServicesProps {
@@ -404,6 +418,8 @@ const replaceInputsWithText = (container: HTMLElement) => {
           empData: initialFormData?.empData || null,
           lawyersRequestData: initialFormData?.lawyersRequestData || null,
           receiptData: initialFormData?.receiptData || null,
+          validIDFiles: initialFormData?.validIDFiles || null,
+          voluntaryAdmissionFiles: initialFormData?.voluntaryAdmissionFiles || null,
         });
 
         // Success modal + navigate
@@ -427,6 +443,8 @@ const replaceInputsWithText = (container: HTMLElement) => {
               empData: initialFormData?.empData || null,
               lawyersRequestData: initialFormData?.lawyersRequestData || null,
               receiptData: initialFormData?.receiptData || null,
+              validIDFiles: initialFormData?.validIDFiles || null,
+              voluntaryAdmissionFiles: initialFormData?.voluntaryAdmissionFiles || null,
             };
             onNavigate("transaction", navigateData);
           }

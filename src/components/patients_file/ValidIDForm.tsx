@@ -261,20 +261,25 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
 
   /* -------------------------- NEXT / UPLOAD -------------------------- */
   const handleNext = () => {
-    // 1. Wait for all base64
-    if (uploadedFiles.some((f) => !f.base64)) {
-      openModal("Please wait while files are being processed.", "error");
-      return;
-    }
+  // 1. Check if may na-upload
+  if (uploadedFiles.length === 0) {
+    openModal("Please upload at least one Valid ID before proceeding.", "error");
+    return;
+  }
 
-    // 2. Build confirm message
-    const msg =
-      uploadedFiles.length > 0
-        ? `You are about to submit ${uploadedFiles.length} Valid ID file(s).\n\nOnce submitted you **cannot** edit them.`
-        : `No Valid ID uploaded.\n\nYou may continue, but you **cannot** add one later.`;
+  // 2. Wait for all base64 to finish processing
+  if (uploadedFiles.some((f) => !f.base64)) {
+    openModal("Please wait while your files are being processed...", "error");
+    return;
+  }
 
-    openModal(msg, "confirm", performUpload);
-  };
+  // 3. Confirm submission (cannot edit after)
+  openModal(
+    `You are about to submit ${uploadedFiles.length} Valid ID file(s).\nOnce submitted, you cannot edit or remove them.`,
+    "confirm",
+    performUpload
+  );
+};
 
   const performUpload = async () => {
     try {
@@ -361,11 +366,10 @@ const ValidIDForm: React.FC<ValidIDFormProps> = ({
       <form className="space-y-6">
         <div className="mt-6">
           <h3 className="font-semibold text-lg mb-3">
-            Upload Valid ID (OPTIONAL)
+            Upload Valid ID 
           </h3>
           <p className="note-message mb-2">
-            Valid ID / Certificate of Discharge or Detention with picture (for
-            PDL). You may proceed without uploading.
+           Valid ID is REQUIRED. You cannot proceed without uploading at least one.
           </p>
           <input
             type="file"

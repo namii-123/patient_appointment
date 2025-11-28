@@ -7,6 +7,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { collection, addDoc } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
+import type { ReactNode } from "react";
+
 
 interface FormData {
   requestDate: string;
@@ -57,7 +59,7 @@ interface Barangay {
 
 interface ServicesProps {
   onNavigate?: (
-    view: "allservices" | "calendar" | "courtorder",
+    view: "allservices" | "calendar" | "courtorder" | "voluntaryform",
     data?: NavigateData
   ) => void;
 }
@@ -165,16 +167,23 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
 
   // ADD THIS BEFORE return() - MODAL SYSTEM
 const [showModal, setShowModal] = useState(false);
-const [modalMessage, setModalMessage] = useState("");
 const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
 const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
 
-const openModal = (msg: string, type: "confirm" | "error" | "success", callback?: () => void) => {
+const [modalMessage, setModalMessage] = useState<ReactNode>(null);
+
+
+const openModal = (
+  msg: ReactNode,
+  type: "confirm" | "error" | "success",
+  callback?: () => void
+) => {
   setModalMessage(msg);
   setModalType(type);
   if (callback) setOnConfirm(() => callback);
   setShowModal(true);
 };
+
 
 const closeModal = () => {
   setShowModal(false);
@@ -371,68 +380,147 @@ const closeModal = () => {
       .padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}-${randomNum}`;
   };
 
- const handleNext = async (e: MouseEvent<HTMLButtonElement>) => {
+  
+
+
+const [appointmentType, setAppointmentType] = useState<"voluntary" | "pleabargain" | null>(null);
+
+
+const handleNext = (e: MouseEvent<HTMLButtonElement>) => {
   e.preventDefault();
 
-  // 1. Check if form is complete
-  if (!isFormComplete()) {
-    openModal("Please fill out all required fields before proceeding.", "error");
+  // Kung naa na siyay napili before (rare case), diretso dayon
+  if (appointmentType !== null) {
+    proceedToSaveAndNavigate(appointmentType);
     return;
   }
 
-  // 2. Check contact number length
-  if (formData.contact.length !== 11) {
-    openModal("Contact number must be exactly 11 digits.", "error");
-    return;
-  }
-
-  // 3. Confirm save
+  // Kung wala pa, pugson siya og pili gamit ang modal
   openModal(
-    "Do you want to save this patient information and proceed?",
-    "confirm",
-    async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
+    <div style={{ textAlign: "center", padding: "10px 0" }}>
+      <h3 style={{ marginBottom: "20px", color: "#2c3e50" }}>
+        Please Select Type of Admission
+      </h3>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "15px", margin: "20px 0" }}>
+        <button
+          className="modal-btn confirm"
+          style={{ 
+            padding: "16px", 
+            fontSize: "18px", 
+            backgroundColor: "#27ae60",
+            border: "none",
+            borderRadius: "8px",
+            color: "white",
+            fontWeight: "bold"
+          }}
+          onClick={() => {
+            setAppointmentType("voluntary");
+            closeModal();
+            proceedToSaveAndNavigate("voluntary");
+          }}
+        >
+          VOLUNTARY ADMISSION
+          <br />
+          <small style={{ fontWeight: "normal" }}>Self-referred / Walk-in</small>
+        </button>
 
-      if (!user) {
-        openModal("No authenticated user found. Please login again.", "error");
-        return;
-      }
+        <button
+          className="modal-btn confirm"
+          style={{ 
+            padding: "16px", 
+            fontSize: "18px", 
+            backgroundColor: "#e74c3c",
+            border: "none",
+            borderRadius: "8px",
+            color: "white",
+            fontWeight: "bold"
+          }}
+          onClick={() => {
+            setAppointmentType("pleabargain");
+            closeModal();
+            proceedToSaveAndNavigate("pleabargain");
+          }}
+        >
+          PLEA BARGAIN
+          <br />
+          <small style={{ fontWeight: "normal" }}>Court-Ordered via PDEA</small>
+        </button>
+      </div>
 
-      try {
-        const newControlNo = generateControlNumber();
-        const uid = new ShortUniqueId({ length: 6 });
-        const patientCode = `PAT-${uid.rnd()}`;
-
-        const patientDocRef = await addDoc(collection(db, "Patients"), {
-          ...formData,
-          controlNo: newControlNo,
-          uid: user.uid,
-          patientCode,
-          createdAt: new Date().toISOString(),
-        });
-
-        // Success modal
-        openModal(`Patient saved successfully!\nPatient Code: ${patientCode}`, "success");
-
-        // Navigate after 2 seconds
-        setTimeout(() => {
-          if (onNavigate) {
-            onNavigate("courtorder", {
-              ...formData,
-              patientId: patientDocRef.id,
-              controlNo: newControlNo,
-              patientCode,
-            });
-          }
-        }, 2000);
-
-      } catch (error) {
-        console.error("Error saving patient:", error);
-        openModal("Failed to save patient. Please try again.", "error");
-      }
-    }
+      <p style={{ marginTop: "20px", color: "#e74c3c", fontWeight: "bold" }}>
+        This is required. You cannot proceed without choosing.
+      </p>
+    </div>,
+    "confirm"
   );
+};
+
+const proceedToSaveAndNavigate = async (type: "voluntary" | "pleabargain") => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    openModal("No authenticated user found. Please login again.", "error");
+    return;
+  }
+
+  try {
+    const newControlNo = generateControlNumber();
+    const uid = new ShortUniqueId({ length: 6 });
+    const patientCode = `PAT-${uid.rnd()}`;
+
+    // 1. Save to Patients
+    const patientDocRef = await addDoc(collection(db, "Patients"), {
+      ...formData,
+      controlNo: newControlNo,
+      uid: user.uid,
+      patientCode,
+      appointmentType: type,
+      admissionType: type,
+      status: "pending-assessment",
+      createdAt: new Date().toISOString(),
+    });
+
+    // 2. CREATE Appointments document RIGHT AWAY (IMPORTANT!)
+    const appointmentRef = await addDoc(collection(db, "Appointments"), {
+      patientId: patientDocRef.id,
+      patientCode,
+      controlNo: newControlNo,
+      displayId: newControlNo, // or generate separate displayId if needed
+      appointmentType: type,
+      status: "pending-documents",
+      createdAt: new Date().toISOString(),
+      uid: user.uid,
+    });
+
+    // Success
+    openModal(
+      `Patient registered successfully!\nControl No: ${newControlNo}\nType: ${type.toUpperCase()}`,
+      "success"
+    );
+
+    setTimeout(() => {
+      const navigateData = {
+        ...formData,
+        patientId: patientDocRef.id,
+        controlNo: newControlNo,
+        patientCode,
+        appointmentId: appointmentRef.id, // ← SUPER IMPORTANT!
+        displayId: newControlNo,
+      };
+
+      if (type === "voluntary") {
+       onNavigate?.("voluntaryform", navigateData);
+      } else {
+       onNavigate?.("courtorder", navigateData);
+      }
+    }, 2000);
+
+  } catch (error) {
+    console.error("Error:", error);
+    openModal("Failed to register. Please try again.", "error");
+  }
 };
 
   const calculateAge = (birthdate: string): number => {
@@ -450,17 +538,34 @@ const closeModal = () => {
   };
 
   useEffect(() => {
+  const updateDateTimeAndControl = () => {
     const now = new Date();
-    const formattedDate = now.toISOString().split("T")[0];
-    const formattedTime = now.toTimeString().split(":").slice(0, 2).join(":");
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+
+    const formattedDate = `${year}-${month}-${day}`;
+    const formattedTime = `${hours}:${minutes}`;
 
     setFormData((prev) => ({
       ...prev,
       requestDate: formattedDate,
       requestTime: formattedTime,
-      controlNo: generateControlNumber(),
+   
+      controlNo: prev.controlNo || generateControlNumber(),
     }));
-  }, []);
+  };
+
+ 
+  updateDateTimeAndControl();
+
+  
+  const interval = setInterval(updateDateTimeAndControl, 30_000);
+
+  return () => clearInterval(interval);
+}, []);
 
   return (
     <div className="main-holder">
@@ -733,75 +838,75 @@ const closeModal = () => {
             />
           </div>
 
-          <div>
-            <label htmlFor="contact">Mobile/Contact Number</label>
-            <input
-              type="tel"
-              id="contact"
-              name="contact"
-              value={formData.contact}
-              placeholder="Contact Number"
-              onChange={handleChange}
-              required
-            />
-          </div>
+           <div>
+  <label htmlFor="contact">Mobile/Contact Number</label>
+  <input
+    type="tel"
+    id="contact"
+    name="contact"
+    value={formData.contact}
+    onChange={handleChange}
+    placeholder="11-digit mobile number"
+    required
+    style={{
+      borderColor: formData.contact && formData.contact.length !== 11 ? "red" : "",
+    }}
+  />
+  {formData.contact && formData.contact.length !== 11 && (
+    <small style={{ color: "red" }}>
+      Contact number must be exactly 11 digits (e.g., 09123456789)
+    </small>
+  )}
+</div>
+
+
           </div>
           <div className="button-containerss">
-            <button type="button" className="next-buttons" onClick={handleNext}>
-              Next ➡
-            </button>
+           <button
+  type="button"
+  className="next-buttons"
+  onClick={handleNext}
+  disabled={!isFormComplete() || formData.contact.length !== 11}
+  style={{
+    opacity: !isFormComplete() || formData.contact.length !== 11 ? 0.5 : 1,
+    cursor: !isFormComplete() || formData.contact.length !== 11 ? "not-allowed" : "pointer"
+  }}
+>
+  Next
+</button>
           </div>
         </form>
 
 {/* MODAL - SAME SA AllServices */}
-        {showModal && (
-          <>
-            <audio autoPlay className="modal-sound">
-              <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
-            </audio>
+       {showModal && (
+  <>
+    <audio autoPlay className="modal-sound">
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+    </audio>
 
-            <div className="modal-overlay-services" onClick={closeModal}>
-              <div className="modal-content-services" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header-services">
-                  <img src="/logo.png" alt="DOH" className="modal-logo" />
-                  <h5>
-                    {modalType === "success" && "SUCCESS"}
-                    {modalType === "error" && "ERROR"}
-                    {modalType === "confirm" && "CONFIRM ACTION"}
-                  </h5>
-                </div>
+    <div 
+      className="modal-overlay-services" 
+  
+    >
+      <div className="modal-content-services" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header-services">
+          <img src="/logo.png" alt="DOH" className="modal-logo" />
+          <h5>REQUIRED ACTION</h5>
+        
+        </div>
 
-                <div className="modal-body">
-                  <p>{modalMessage}</p>
-                </div>
+        <div className="modal-message-content">
+          {modalMessage}
+        </div>
 
-                <div className="modal-footer">
-                  {modalType === "confirm" && (
-                    <>
-                      <button className="modal-btn cancel" onClick={closeModal}>
-                        Cancel
-                      </button>
-                      <button
-                        className="modal-btn confirm"
-                        onClick={() => {
-                          closeModal();
-                          onConfirm();
-                        }}
-                      >
-                        Confirm
-                      </button>
-                    </>
-                  )}
-                  {(modalType === "error" || modalType === "success") && (
-                    <button className="modal-btn ok" onClick={closeModal}>
-                      {modalType === "success" ? "Continue" : "OK"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        
+        <div className="modal-footer">
+          
+        </div>
+      </div>
+    </div>
+  </>
+)}
       </div>
     </div>
   );
@@ -812,3 +917,5 @@ const closeModal = () => {
   
 
 export default FormDDE;
+
+

@@ -227,7 +227,7 @@ const MedicalConsultations: React.FC<MedicalConsultationsProps> = ({
 
   return (
     <div className="labservices-container p-6">
-      <h2 className="text-2xl font-bold mb-4">Medical Consultations</h2>
+      <h2 className="text-2xl font-bold mb-4">Medical Services</h2>
 
       <form className="services-list">
         <div className="services-grid">

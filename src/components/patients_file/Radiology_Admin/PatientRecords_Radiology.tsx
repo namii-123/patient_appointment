@@ -1,7 +1,7 @@
 import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import type { ChangeEvent } from "react";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock, FaStethoscope } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock, FaStethoscope, FaCheckCircle, FaEye } from "react-icons/fa";
 import "../../../assets/PatientRecords_Radiology.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
@@ -46,6 +46,13 @@ interface PatientRecord {
   slotID: string;
   purpose: string;
   status: "Approved" | "Rejected" | "Completed";
+  rescheduled?: boolean;
+  originalDate?: string;
+  originalSlot?: string;
+  endTime?: string;        
+  endTime24?: string;     
+  time24?: string;
+  
 }
 
 
@@ -89,105 +96,85 @@ const PatientRecords_Radiology: React.FC = () => {
     navigate(path);
   };
 
-      useEffect(() => {
-        const fetchPatientRecords = async () => {
-          setLoading(true);
-          try {
-           
-            const transQuery = query(
-              collection(db, "Transactions"),
-              where("purpose", "==", "Radiographic"),
-              where("status", "in", ["Approved", "Rejected", "Completed"]) 
-            );
-            const transSnap = await getDocs(transQuery);
-            const loaded: PatientRecord[] = [];
-    
-            for (const t of transSnap.docs) {
-              const tData = t.data();
-    
-              let patientData: any = {
-                UserId: " ",
-                lastName: "Unknown",
-                firstName: "Unknown",
-                middleInitial: "Unknown",
-                age: 0,
-                gender: "",
-                patientCode: "",
-                controlNo: "",
-                birthdate: "",
-                citizenship: "",
-                houseNo: "",
-                street: "",
-                barangay: "",
-                municipality: "",
-                province: "",
-                email: "",
-                contact: "",
-              };
-
-              let userId = " ";
-                              if (tData.uid) {
-                                const userRef = doc(db, "Users", tData.uid);
-                                const userSnap = await getDoc(userRef);
-                                if (userSnap.exists()) {
-                                  userId = userSnap.data().UserId || " ";
-                                }
-                              }
-              
-    
-              if (tData.patientId) {
-                const pRef = doc(db, "Patients", tData.patientId);
-                const pSnap = await getDoc(pRef);
-                if (pSnap.exists()) {
-                  patientData = pSnap.data();
-                  console.log(`Fetched patient data for ID ${tData.patientId}:`, patientData);
-                } else {
-                  console.warn(`No patient document found for patientId: ${tData.patientId}`);
+     useEffect(() => {
+          const fetchPatientRecords = async () => {
+            setLoading(true);
+            try {
+              const transQuery = query(
+                collection(db, "Transactions"),
+                where("purpose", "==", "Radiographic"),
+                where("status", "in", ["Approved", "Rejected", "Completed", "Rescheduled"])
+              );
+              const transSnap = await getDocs(transQuery);
+              const loaded: PatientRecord[] = [];
+      
+              for (const t of transSnap.docs) {
+                const tData = t.data();
+      
+                let patientData: any = {};
+                let userId = "N/A";
+      
+                if (tData.uid) {
+                  const userSnap = await getDoc(doc(db, "Users", tData.uid));
+                  if (userSnap.exists()) {
+                    userId = userSnap.data().UserId || "N/A";
+                  }
                 }
-              } else {
-                console.warn(`No patientId in transaction: ${t.id}`);
+      
+                if (tData.patientId) {
+                  const pSnap = await getDoc(doc(db, "Patients", tData.patientId));
+                  if (pSnap.exists()) {
+                    patientData = pSnap.data();
+                  }
+                }
+      
+                loaded.push({
+                  id: t.id,
+                  UserId: userId,
+                  patientId: tData.patientId || "",
+                  patientCode: patientData.patientCode || "N/A",
+                  lastName: patientData.lastName || "Unknown",
+                  firstName: patientData.firstName || "Unknown",
+                  middleInitial: patientData.middleInitial || "",
+                  age: patientData.age || 0,
+                  gender: patientData.gender || "",
+                  services: Array.isArray(tData.services) ? tData.services : [],
+                  controlNo: patientData.controlNo || "",
+                  birthdate: patientData.birthdate || "",
+                  citizenship: patientData.citizenship || "",
+                  houseNo: patientData.houseNo || "",
+                  street: patientData.street || "",
+                  barangay: patientData.barangay || "",
+                  municipality: patientData.municipality || "",
+                  province: patientData.province || "",
+                  email: patientData.email || "",
+                  contact: patientData.contact || "",
+                  date: tData.date || "",
+                  slotTime: tData.slotTime || "",
+                  slotID: tData.slotID || "",
+                  purpose: tData.purpose || "Radiographic",
+                  status: tData.status || "Approved",
+                  rescheduled: tData.rescheduled || false,
+                  originalDate: tData.originalDate || "",
+                  originalSlot: tData.originalSlot || "",
+                  endTime: tData.endTime || "",
+                });
               }
-    
-              loaded.push({
-                id: t.id,
-                UserId: userId,
-                patientId: tData.patientId || "",
-                patientCode: patientData.patientCode || "",
-                lastName: patientData.lastName || "Unknown",
-                firstName: patientData.firstName || "Unknown",
-                middleInitial: patientData.middleInitial || "Unknown",
-                age: patientData.age || 0,
-                gender: patientData.gender || "",
-                services: Array.isArray(tData.services) ? tData.services : [],
-                controlNo: patientData.controlNo || "",
-                birthdate: patientData.birthdate || "",
-                citizenship: patientData.citizenship || "",
-                houseNo: patientData.houseNo || "",
-                street: patientData.street || "",
-                barangay: patientData.barangay || "",
-                municipality: patientData.municipality || "",
-                province: patientData.province || "",
-                email: patientData.email || "",
-                contact: patientData.contact || "",
-                date: tData.date || "",
-                slotTime: tData.slotTime || "",
-                slotID: tData.slotID || "",
-                purpose: tData.purpose || "",
-                status: tData.status || "Approved",
-              });
+      
+              // Sort by date DESCENDING (latest first)
+              loaded.sort((a, b) => b.date.localeCompare(a.date));
+      
+              setPatientRecords(loaded);
+            } catch (error) {
+              console.error("Error fetching records:", error);
+              openCustomModal("Failed to load patient records.", "error");
+            } finally {
+              setLoading(false);
             }
-    
-            console.log("Loaded patient records:", loaded);
-            setPatientRecords(loaded);
-          } catch (error) {
-            console.error("Error fetching patient records:", error);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchPatientRecords();
-      }, []);
-    
+          };
+      
+          fetchPatientRecords();
+        }, []);
   
 
   const handleAction = (action: string, patientRecord: PatientRecord) => {
@@ -257,8 +244,7 @@ const filteredPatientRecords = patientRecords.filter((rec) => {
 });
 
 
- const [showInfoModal, setShowInfoModal] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+ 
   const [showCustomModal, setShowCustomModal] = useState(false);
 const [customModalMessage, setCustomModalMessage] = useState("");
 const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
@@ -281,27 +267,16 @@ const closeCustomModal = () => {
 };
 
 
-// 2. I-ADD LANG NI NGA LINE DIRE (human sa filter, sa wala pa ang return)
+
 const sortedAndFilteredRecords = [...filteredPatientRecords].sort((a, b) => {
   // Sort by date: newest first (2025-11-19 comes before 2025-10-01)
   return b.date.localeCompare(a.date);
 });
 
 
- const [availableYears, setAvailableYears] = useState(() => {
-      const currentYear = new Date().getFullYear();
-      return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
-    });
+
   
-    const handleYearClick = () => {
-      const maxYear = Math.max(...availableYears);
-      const currentYear = new Date().getFullYear();
-      if (maxYear < currentYear + 50) {
-       
-        const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
-        setAvailableYears((prev) => [...prev, ...newYears]);
-      }
-    };
+    
 
 
     const [currentPage, setCurrentPage] = useState<number>(1);
@@ -340,6 +315,8 @@ const getPageNumbers = () => {
   }
   return pages;
 };
+
+
 
   return (
     <div className="dashboards">
@@ -589,7 +566,8 @@ const getPageNumbers = () => {
                 
                  
                   <th>Services</th>
-                  <th>Appointment Date</th>
+
+                  <th>Appointment Date <br/></th>
                   <th>Slot</th>
                   <th>Status</th>
                   <th>Action</th>
@@ -604,29 +582,61 @@ const getPageNumbers = () => {
         <td>{rec.lastName}</td>
         <td>{rec.firstName}</td>
         <td>{rec.services.join(", ")}</td>
-        <td>{rec.date}</td>
-        <td>{rec.slotTime}</td>
+          <td>
+  {rec.date}
+  {rec.rescheduled && (
+    <div style={{ marginTop: "4px" }}>
+      <small style={{ 
+        color: "#e67e22", 
+        fontStyle: "italic", 
+        fontSize: "11px",
+        backgroundColor: "#fff3e0",
+        padding: "2px 6px",
+        borderRadius: "4px",
+        display: "inline-block"
+      }}>
+        Rescheduled from {rec.originalDate} {rec.originalSlot && `at ${rec.originalSlot}`}
+      </small>
+    </div>
+  )}
+</td>
+        <td>
+  {rec.slotTime}
+  {rec.endTime && (
+    <span >
+      {" - "}{rec.endTime}
+    </span>
+  )}
+</td>
         <td>
           <span className={`status-text ${rec.status.toLowerCase()}`}>
             {rec.status}
           </span>
         </td>
-        <td>
-          {rec.status === "Approved" && (
-            <button
-              onClick={() => handleAction("Completed", rec)}
-              className="action-btns completed"
-            >
-              Completed
-            </button>
-          )}
-          <button
-            onClick={() => handleAction("View Record", rec)}
-            className="action-btns view"
-          >
-            View More
-          </button>
-        </td>
+       <td>
+  {/* Mobile: Icons only, Desktop: Text + Icon */}
+<div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+  {rec.status === "Approved" && (
+    <button
+      onClick={() => handleAction("Completed", rec)}
+      className="action-btnssss completed"
+      title="Mark as Completed"
+    >
+      <FaCheckCircle size={20} />
+      <span className="btn-text desktop-only"> </span>
+    </button>
+  )}
+
+  <button
+    onClick={() => handleAction("View Record", rec)}
+    className="action-btnssss view"
+    title="View Details"
+  >
+    <FaEye size={20} />
+    <span className="btn-text desktop-only"> </span>
+  </button>
+</div>
+</td>
       </tr>
     ))
   ) : (
@@ -755,6 +765,9 @@ const getPageNumbers = () => {
   </>
 )}
 
+
+
+
       {/* View Record Modal */}
        {showRecordModal && selectedPatientRecord && (
               <div className="modal-overlay">
@@ -791,9 +804,53 @@ const getPageNumbers = () => {
                         <tr><th>Contact</th><td>{selectedPatientRecord.contact}</td></tr>
                         <tr><th>Department</th><td>{selectedPatientRecord.purpose}</td></tr>
                         <tr><th>Services</th><td>{selectedPatientRecord.services.join(", ")}</td></tr>
-                        <tr><th>Appointment Date</th><td>{selectedPatientRecord.date}</td></tr>
+                        <tr>
+  <th>Appointment Date</th>
+  <td>
+    {selectedPatientRecord.date}
+    {selectedPatientRecord.rescheduled && (
+      <div style={{ marginTop: "4px" }}>
+        <small style={{ 
+          color: "#e67e22", 
+          fontStyle: "italic", 
+          backgroundColor: "#fff3e0",
+          padding: "2px 6px",
+          borderRadius: "4px"
+        }}>
+          Rescheduled from {selectedPatientRecord.originalDate}
+          {selectedPatientRecord.originalSlot && ` at ${selectedPatientRecord.originalSlot}`}
+        </small>
+      </div>
+    )}
+  </td>
+</tr>
                         <tr><th>Slot ID</th><td>{selectedPatientRecord.slotID}</td></tr>
-                        <tr><th>Slot</th><td>{selectedPatientRecord.slotTime}</td></tr>
+                        <tr>
+  <th>Time Slot</th>
+  <td>
+    {selectedPatientRecord.slotTime}
+    {selectedPatientRecord.endTime ? (
+      <span style={{ fontWeight: "bold", color: "#28a745" }}>
+        {" "} - {selectedPatientRecord.endTime}
+      </span>
+    ) : (
+      " (1-hour slot)" // or leave blank: ""
+    )}
+    {selectedPatientRecord.rescheduled && (
+      <div style={{ marginTop: "4px" }}>
+        <small style={{ 
+          color: "#e67e22", 
+          fontStyle: "italic", 
+          backgroundColor: "#fff3e0",
+          padding: "2px 6px",
+          borderRadius: "4px"
+        }}>
+          Rescheduled from {selectedPatientRecord.originalDate} at {selectedPatientRecord.originalSlot}
+        </small>
+      </div>
+    )}
+  </td>
+</tr>
                         <tr><th>Status</th><td>{selectedPatientRecord.status}</td></tr>
                       </tbody>
                     </table>

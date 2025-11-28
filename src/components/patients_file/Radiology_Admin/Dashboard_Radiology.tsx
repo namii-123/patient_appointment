@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar,
-   FaSignOutAlt, FaClock, FaTimesCircle, FaCheckCircle } from "react-icons/fa";
+   FaSignOutAlt, FaClock,  FaCheckCircle } from "react-icons/fa";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, } from "recharts";
 import "../../../assets/Dashboard_Clinical.css";
 import logo from "/logo.png";
@@ -45,7 +45,7 @@ const Dashboard_Radiology: React.FC = () => {
     const [pendingCount, setPendingCount] = useState(0);
     const [cancelledCount, setCancelledCount] = useState(0);
     const [approvedCount, setApprovedCount] = useState(0);
-  const [rejectedCount, setRejectedCount] = useState(0);
+ 
   const [completedCount, setCompletedCount] = useState(0);
   
   
@@ -149,6 +149,7 @@ const Dashboard_Radiology: React.FC = () => {
   
       // Count Patients
   
+// Count Patients — EXCLUDE patients who only have REJECTED appointments
 const fetchPatients = async () => {
   const q = query(
     collection(db, "Transactions"),
@@ -156,15 +157,19 @@ const fetchPatients = async () => {
   );
   const snap = await getDocs(q);
 
-  const uniquePatients = new Set<string>();
+  const validPatientIds = new Set<string>();
+
   snap.forEach((doc) => {
     const data = doc.data();
-    if (data.patientId) {
-      uniquePatients.add(data.patientId);
+    const status = (data.status || "").toString().toLowerCase().trim();
+
+    // Kung ang transaction DILI Rejected → valid patient
+    if (status !== "rejected" && data.patientId) {
+      validPatientIds.add(data.patientId);
     }
   });
 
-  setTotalPatients(uniquePatients.size);
+  setTotalPatients(validPatientIds.size);
 };
 
 
@@ -180,24 +185,29 @@ const fetchPatients = async () => {
     let pending = 0;
     let cancelled = 0;
     let approved = 0;
-    let rejected = 0;
+
     let completed = 0;
   
     snap.forEach((doc) => {
-      const data = doc.data();
-      total++;
-      if (data.status === "Pending") pending++;
-      if (data.status === "Cancelled") cancelled++;
-      if (data.status === "Approved") approved++;
-      if (data.status === "Rejected") rejected++;
-      if (data.status === "Completed") completed++;
-    });
+  const data = doc.data();
+  const status = data.status?.toLowerCase();
+
+  
+  if (status !== "rejected") {
+    total++; 
+  }
+
+  if (status === "pending") pending++;
+  if (status === "cancelled") cancelled++;
+  if (status === "approved") approved++;
+  if (status === "completed") completed++;
+});
   
     setTotalAppointments(total);
     setPendingCount(pending);
     setCancelledCount(cancelled);
     setApprovedCount(approved);
-    setRejectedCount(rejected);
+   
     setCompletedCount(completed);
   });
       fetchUsers();
@@ -223,7 +233,7 @@ const fetchPatients = async () => {
   { name: "Pending", value: pendingCount },
   { name: "Canceled", value: cancelledCount },
   { name: "Completed", value: completedCount },
-  { name: "Rejected", value: rejectedCount },
+  
 ];
 
   const COLORS: string[] = ["#4CAF50", "#FFC107", "#F44336", "#2196F3", "#FF5722"];
@@ -440,11 +450,13 @@ const fetchPatients = async () => {
                   </div>
         
                   <div className="card-row">
+                      {/*
                     <div className="cardss">
                       <FaTimesCircle className="card-icon" />
                       <h5>{rejectedCount}</h5>
                       <p>Total Rejected</p>
                     </div>
+                    */}
                     <div className="cardss">
                       <FaCheckCircle className="card-icon" />
                       <h5>{completedCount}</h5>

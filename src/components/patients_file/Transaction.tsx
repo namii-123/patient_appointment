@@ -39,6 +39,12 @@ interface TransactionItem {
   patientId?: string;
   controlNo?: string;
   patientCode?: string;
+  endTime?: string;        // ← I-add ni
+  endTime24?: string;      // ← Optional, kung gamiton sa backend
+  time24?: string;
+  rescheduled?: boolean;   // ← Pwede pud i-add para klaro
+  originalDate?: string;
+  originalSlot?: string;
   checklist?: {
     courtOrder: boolean;
     officialReceipt: boolean;
@@ -137,6 +143,12 @@ const closeModal = () => {
             purpose: docData?.purpose || "N/A",
             date: docData?.date || "",
             slotTime: docData?.slotTime || "",
+            endTime: docData?.endTime || "",           // ← I-add ni
+  endTime24: docData?.endTime24 || "",
+  time24: docData?.time24 || "",
+  rescheduled: docData?.rescheduled || false,
+  originalDate: docData?.originalDate || "",
+  originalSlot: docData?.originalSlot || "",
             slotID: docData?.slotID || "",
             status: docData?.status || "Pending",
             services: Array.isArray(docData?.services) ? docData.services : [],
@@ -529,10 +541,37 @@ const handleCancel = async (transactionId: string) => {
                   </div>
                 )}
                 {(item.purpose !== "DDE" || item.status !== "Pending") && item.slotTime && (
-                  <div className="detail-line">
-                    <strong>Time Slot:</strong> {item.slotTime}
-                  </div>
-                )}
+  <div className="detail-line">
+    <strong>Time Slot:</strong>{" "}
+    <span style={{ 
+      fontWeight: "bold", 
+      color: item.endTime ? "#28a745" : "#333",
+      backgroundColor: item.endTime ? "#f0fff4" : "transparent",
+      padding: item.endTime ? "4px 10px" : "0",
+      borderRadius: "6px",
+      display: "inline-block"
+    }}>
+      {item.slotTime}
+      {item.endTime && ` → ${item.endTime}`}  {/* ← Ipakita ang end time */}
+    </span>
+
+    {/* Kung gi-reschedule, ipakita ang original */}
+    {item.rescheduled && item.originalSlot && (
+      <div style={{ marginTop: "6px", fontSize: "12px" }}>
+        <small style={{ 
+          color: "#e67e22", 
+          fontStyle: "italic",
+          backgroundColor: "#fff3e0",
+          padding: "3px 8px",
+          borderRadius: "4px",
+          display: "inline-block"
+        }}>
+          Rescheduled from {item.originalDate || item.date} at {item.originalSlot}
+        </small>
+      </div>
+    )}
+  </div>
+)}
                 <div className="detail-line">
                   <strong>Services:</strong>
                   <div className="services-list">

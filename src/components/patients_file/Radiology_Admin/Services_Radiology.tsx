@@ -70,39 +70,59 @@ const Services_Radiology: React.FC = () => {
   }, [services]);
 
   // CLEANUP DUPLICATES (One-time only)
-  const cleanupDuplicates = async () => {
-    if (!window.confirm("Permanently delete duplicate services? (Keeps the first one)")) return;
+ const cleanupDuplicates = async () => {
+  openCustomModal(
+    `Permanently delete duplicate services?\n\nThis will keep only the first occurrence of each service (based on name + category) and permanently remove the rest.\n\nThis action CANNOT be undone!`,
+    "confirm",
+    async () => {
+      try {
+        const q = query(collection(db, "RadiologyServices"), where("department", "==", "Radiographic"));
+        const snapshot = await getDocs(q);
 
-    const q = query(collection(db, "RadiologyServices"), where("department", "==", "Radiographic"));
-    const snapshot = await getDocs(q);
+        const seen = new Map<string, string>(); // key: "category|lowercase-name" → docId (first one)
+        const toDelete: string[] = [];
 
-    const seen = new Map<string, string>(); // "category|lowercase-name" → docId
-    const toDelete: string[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (!data.category || !data.name) return; // skip invalid docs
 
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const key = `${data.category}|${data.name.trim().toLowerCase()}`;
+          const key = `${data.category}|${data.name.trim().toLowerCase()}`;
 
-      if (seen.has(key)) {
-        toDelete.push(doc.id);
-      } else {
-        seen.set(key, doc.id);
+          if (seen.has(key)) {
+            toDelete.push(doc.id);
+          } else {
+            seen.set(key, doc.id); // keep the first one
+          }
+        });
+
+        if (toDelete.length === 0) {
+          openCustomModal("No duplicates found! All services are clean!", "success");
+          setShowCleanupBtn(false);
+          return;
+        }
+
+        // Proceed with deletion
+        const batch = writeBatch(db);
+        toDelete.forEach((id) => {
+          batch.delete(doc(db, "RadiologyServices", id));
+        });
+        await batch.commit();
+
+        const deletedCount = toDelete.length;
+        openCustomModal(
+          `Cleanup complete!\n\nPermanently deleted ${deletedCount} duplicate service${deletedCount > 1 ? "s" : ""}.`,
+          "success"
+        );
+        setShowCleanupBtn(false); // hide button after successful cleanup
+      } catch (error) {
+        console.error("Cleanup failed:", error);
+        openCustomModal("Cleanup failed. Please try again or check your connection.", "error");
       }
-    });
-
-    if (toDelete.length === 0) {
-      alert("No duplicates found! All clean!");
-      setShowCleanupBtn(false);
-      return;
     }
+  );
+};
 
-    const batch = writeBatch(db);
-    toDelete.forEach((id) => batch.delete(doc(db, "RadiologyServices", id)));
-    await batch.commit();
-
-    alert(`Cleaned up  ${toDelete.length} duplicate(s)!`);
-    setShowCleanupBtn(false);
-  };
+   
 
   // BULLETPROOF SEEDING (Same as Clinical — never adds duplicates)
   useEffect(() => {
@@ -181,8 +201,8 @@ const Services_Radiology: React.FC = () => {
       ? otherCategory.trim()
       : newServiceCategory.trim();
 
-    if (!name) return alert("Service name is required");
-    if (!cat) return alert("Category is required");
+    if (!name) return  openCustomModal("Service name is required");
+    if (!cat) return  openCustomModal("Category is required");
 
     // Prevent duplicate when adding
     const key = `${cat}|${name.toLowerCase()}`;
@@ -191,7 +211,7 @@ const Services_Radiology: React.FC = () => {
     );
 
     if (!editingId && exists) {
-      return alert("This service already exists in this category!");
+      return  openCustomModal("This service already exists in this category!");
     }
 
     try {
@@ -210,7 +230,7 @@ const Services_Radiology: React.FC = () => {
       closeModal();
     } catch (e) {
       console.error(e);
-      alert("Failed to save service");
+       openCustomModal("Failed to save service");
     }
   };
 
@@ -218,20 +238,53 @@ const Services_Radiology: React.FC = () => {
     await updateDoc(doc(db, "RadiologyServices", id), { enabled: !cur });
   };
 
-  const softDeleteService = async (id: string) => {
-    if (!window.confirm("Move to trash?")) return;
-    await updateDoc(doc(db, "RadiologyServices", id), { isDeleted: true, enabled: false });
-  };
+ const softDeleteService = async (id: string) => {
+  openCustomModal(
+    "Are you sure you want to move this service to trash?",
+    "confirm",
+    async () => {
+      try {
+        await updateDoc(doc(db, "RadiologyServices", id), { isDeleted: true, enabled: false });
+        openCustomModal("Service moved to trash successfully!", "success");
+      } catch (e) {
+        console.error(e);
+        openCustomModal("Failed to move service to trash", "error");
+      }
+    }
+  );
+};
 
-  const restoreService = async (id: string) => {
-    if (!window.confirm("Restore this service?")) return;
-    await updateDoc(doc(db, "RadiologyServices", id), { isDeleted: false });
-  };
+const restoreService = async (id: string) => {
+  openCustomModal(
+    "Are you sure you want to restore this service?",
+    "confirm",
+    async () => {
+      try {
+        await updateDoc(doc(db, "RadiologyServices", id), { isDeleted: false });
+        openCustomModal("Service restored successfully!", "success");
+      } catch (e) {
+        console.error(e);
+        openCustomModal("Failed to restore service", "error");
+      }
+    }
+  );
+};
 
-  const permanentlyDeleteService = async (id: string) => {
-    if (!window.confirm("PERMANENTLY DELETE? Cannot undo!")) return;
-    await deleteDoc(doc(db, "RadiologyServices", id));
-  };
+const permanentlyDeleteService = async (id: string) => {
+  openCustomModal(
+    "Are you sure you want to PERMANENTLY DELETE this service? This action cannot be undone!",
+    "confirm",
+    async () => {
+      try {
+        await deleteDoc(doc(db, "RadiologyServices", id));
+        openCustomModal("Service permanently deleted!", "success");
+      } catch (e) {
+        console.error(e);
+        openCustomModal("Failed to delete service", "error");
+      }
+    }
+  );
+};
 
   const openAddModal = () => {
     setEditingId(null);
@@ -267,8 +320,7 @@ const Services_Radiology: React.FC = () => {
     }
   };
 
-     const [showInfoModal, setShowInfoModal] = useState(false);
-      const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+   
       const [showCustomModal, setShowCustomModal] = useState(false);
     const [customModalMessage, setCustomModalMessage] = useState("");
     const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");

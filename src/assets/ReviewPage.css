@@ -527,46 +527,97 @@ select {
   transform: translateY(0);
 }
 
-/* Responsive adjustments */
-@media (max-width: 480px) {
-  .review-modal-content {
-    width: 95%;
-    border-radius: 16px;
-  }
-  
-  .review-modal-header {
-    padding: 20px 16px;
-    
-  }
-  
-  .review-modal-logo {
-    height: 36px;
-   
-  }
-  
-  .review-modal-title {
-    font-size: 15px;
-    letter-spacing: 1px;
-    margin-right: 10%;
-  }
-  
-  .review-modal-body {
-    padding: 24px 20px;
-    font-size: 14px;
-  }
-  
-  .review-modal-footer {
-    padding: 0 20px 24px;
-    flex-direction: column;
-  }
-  
-  .review-modal-btn {
-    width: 100%;
-    min-width: unset;
-  }
 
+
+
+/* RESPONSIVE SERVICES GRID - PHONE, TABLET, DESKTOP + PDF SAFE */
+.services-wrapper {
+  margin: 24px 0;
 }
 
+.services-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Each column stacks its boxes vertically */
+.services-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+
+/* SERVICE BOX HEADER - Clean & Consistent */
+.service-header {
+  background: #003087;
+  color: white;
+  padding: 14px 12px;
+  margin: 0;
+  text-align: center;
+  font-weight: bold;
+  font-size: 12.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 3px solid #001f5b;
+}
+
+/* SERVICE BOX - Clean borders */
+.service-box {
+  border: 1px solid #003087;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Optional hover effect (desktop only) */
+@media (min-width: 993px) {
+  .service-box:hover {
+    box-shadow: 0 8px 20px rgba(0, 48, 135, 0.15);
+    transition: box-shadow 0.3s ease;
+  }
+}
+
+
+
+/* Add this sa imong existing CSS */
+
+/* PDF-SAFE 2-COLUMN LAYOUT */
+.pdf-two-column-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* ← CRUCIAL PARA EQUAL WIDTH */
+}
+
+.pdf-two-column-table td {
+  width: 50%;
+  vertical-align: top;
+  padding: 0 8px;
+}
+
+.pdf-two-column-table .service-box {
+  width: 100%;
+  margin-bottom: 20px;
+  page-break-inside: avoid; /* ← Prevent breaking inside box */
+}
+
+/* Force 2-column even in print */
+@media print and (min-width: 1px) {
+  .force-pdf-two-columns {
+    display: table !important;
+    width: 100% !important;
+  }
+  .force-pdf-two-columns > div {
+    display: table-cell !important;
+    width: 50% !important;
+    vertical-align: top !important;
+    padding: 0 10px !important;
+  }
+}
 
 /* =========================
    📱 RESPONSIVE ADJUSTMENTS

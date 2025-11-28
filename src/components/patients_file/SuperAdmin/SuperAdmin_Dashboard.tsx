@@ -31,6 +31,7 @@ import { db } from "../firebase";
 import { collection, query, onSnapshot, where } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
+import { X } from "lucide-react";
 
 
 
@@ -190,40 +191,53 @@ const SuperAdmin_Dashboard: React.FC = () => {
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, []);
 
-  // Fetch patient counts
-  useEffect(() => {
-    const unsubscribers: (() => void)[] = [];
+ 
+ // Fetch patient counts (Rejected = wala sa uban, pero naa sa DDE)
+useEffect(() => {
+  const unsubscribers: (() => void)[] = [];
 
-    Object.entries(departmentQueries).forEach(([dept, queryConfig]) => {
-      const { patientPurpose } = queryConfig;
-      if (!patientPurpose) return;
-      const transQuery = query(
+  Object.entries(departmentQueries).forEach(([dept, queryConfig]) => {
+    const { patientPurpose } = queryConfig;
+    if (!patientPurpose) return;
+
+    let transQuery;
+
+    if (dept === "DDE") {
+    
+      transQuery = query(
         collection(db, "Transactions"),
         where("purpose", "==", patientPurpose)
       );
-      const unsubscribe = onSnapshot(
-        transQuery,
-        (snap) => {
-          const patientIds = new Set<string>();
-          snap.forEach((doc) => {
-            const data = doc.data();
-            if (data.patientId) patientIds.add(data.patientId);
-          });
-          const count = patientIds.size;
-          setPatientCounts((prev) => ({ ...prev, [dept]: count }));
-        },
-        (error) => {
-          console.error(`Error fetching ${dept} patients:`, error);
-          toast.error(`Failed to fetch ${dept} patients: ${error.message}`, {
-            position: "top-center",
-          });
-        }
+    } else {
+   
+      transQuery = query(
+        collection(db, "Transactions"),
+        where("purpose", "==", patientPurpose),
+        where("status", "in", ["Pending", "Approved", "Completed", "Cancelled"])
       );
-      unsubscribers.push(unsubscribe);
-    });
+    }
 
-    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, []);
+    const unsubscribe = onSnapshot(
+      transQuery,
+      (snap) => {
+        const patientIds = new Set<string>();
+        snap.forEach((doc) => {
+          const data = doc.data();
+          if (data.patientId) patientIds.add(data.patientId);
+        });
+        const count = patientIds.size;
+
+        setPatientCounts((prev) => ({ ...prev, [dept]: count }));
+      },
+      (error) => {
+        console.error(`Error fetching ${dept} patients:`, error);
+      }
+    );
+    unsubscribers.push(unsubscribe);
+  });
+
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+}, []);
 
   const patientUserData = [
     { name: "Clinical Patients", value: patientCounts.Clinical },
@@ -242,6 +256,30 @@ const SuperAdmin_Dashboard: React.FC = () => {
     { name: "DDE Admins", value: adminCounts.DDE },
     { name: "Rejected Admins", value: adminCounts.Rejected },
   ];
+
+
+
+   const [showCustomModal, setShowCustomModal] = useState(false);
+    const [customModalMessage, setCustomModalMessage] = useState("");
+    const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+    const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+    
+    const openCustomModal = (
+      message: string,
+      type: "success" | "error" | "confirm" = "success",
+      onConfirm?: () => void
+    ) => {
+      setCustomModalMessage(message);
+      setCustomModalType(type);
+      if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+      setShowCustomModal(true);
+    };
+    
+    const closeCustomModal = () => {
+      setShowCustomModal(false);
+      setOnCustomModalConfirm(() => {});
+    };
+
 
   return (
     <div className="dashboard">
@@ -292,27 +330,30 @@ const SuperAdmin_Dashboard: React.FC = () => {
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-                                 <FaSignOutAlt className="signout-icon" />
-                                 <span
-                                   onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
-                                   className="signout-label"
-                                   style={{ cursor: "pointer" }}
-                                 >
-                                   Sign Out
-                                 </span>
-                               </div>
-                               </div>
+                                                    <FaSignOutAlt className="signout-icon" />
+                                                    <span
+                                                      onClick={async () => {
+                     openCustomModal(
+                       "Are you sure you want to sign out?",
+                       "confirm",
+                       async () => {
+                         try {
+                           await signOut(auth);
+                           navigate("/loginadmin", { replace: true });
+                         } catch (error) {
+                           console.error("Error signing out:", error);
+                           openCustomModal("Failed to sign out. Please try again.", "error");
+                         }
+                       }
+                     );
+                   }}
+                                                      className="signout-label"
+                                                      style={{ cursor: "pointer" }}
+                                                    >
+                                                      Sign Out
+                                                    </span>
+                                                  </div>
+                                        </div>
       </aside>
 
       {/* Main Content */}
@@ -515,6 +556,58 @@ const SuperAdmin_Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+
+        {showCustomModal && (
+          <>
+            <audio autoPlay>
+              <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+            </audio>
+            <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+              <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="radiology-modal-header">
+                  <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                  <h3 className="radiology-modal-title">
+                    {customModalType === "success" && "SUCCESS"}
+                    {customModalType === "error" && "ERROR"}
+                    {customModalType === "confirm" && "CONFIRM ACTION"}
+                  </h3>
+                  <button className="radiology-modal-close" onClick={closeCustomModal}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="radiology-modal-body">
+                  <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                    {customModalMessage}
+                  </p>
+                </div>
+                <div className="radiology-modal-footer">
+                  {customModalType === "confirm" && (
+                    <>
+                      <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                        No, Cancel
+                      </button>
+                      <button
+                        className="radiology-modal-btn confirm"
+                        onClick={() => {
+                          closeCustomModal();
+                          onCustomModalConfirm();
+                        }}
+                      >
+                        Yes, Proceed
+                      </button>
+                    </>
+                  )}
+                  {(customModalType === "success" || customModalType === "error") && (
+                    <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                      {customModalType === "success" ? "Done" : "OK"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

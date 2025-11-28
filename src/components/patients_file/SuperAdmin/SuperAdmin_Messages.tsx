@@ -21,6 +21,7 @@ import logo from "/logo.png";
 import { getFirestore, collection, onSnapshot, Timestamp, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
+import { X } from "lucide-react";
 
 
 interface Message {
@@ -153,25 +154,38 @@ const SuperAdmin_Messages: React.FC = () => {
     }
   };
 
-  const handleDelete = async (messageId: string) => {
-    const isConfirmed = window.confirm("Are you sure you want to delete this message?");
-    if (!isConfirmed) return;
+const handleDelete = (messageId: string, previewText?: string) => {
+  const displayText = previewText 
+    ? `"${previewText.length > 60 ? previewText.slice(0, 60) + "..." : previewText}"`
+    : "this message";
 
-    try {
-      await deleteDoc(doc(db, "Messages", messageId));
-      toast.success("Message deleted successfully!", { position: "top-center" });
-      setRepliedMessages((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(messageId);
-        return newSet;
-      });
-    } catch (error) {
-      console.error("Error deleting message:", error);
-      toast.error("Failed to delete message. Please try again.", {
-        position: "top-center",
-      });
+  openCustomModal(
+    `Are you sure you want to delete ${displayText}?\n\nThis action cannot be undone.`,
+    "confirm",
+    async () => {
+      try {
+        await deleteDoc(doc(db, "Messages", messageId));
+
+        // Update local state
+        setRepliedMessages((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(messageId);
+          return newSet;
+        });
+
+        // Success toast
+        toast.success("Message deleted successfully!", { 
+          position: "top-center" 
+        });
+      } catch (error) {
+        console.error("Error deleting message:", error);
+        toast.error("Failed to delete message. Please try again.", {
+          position: "top-center",
+        });
+      }
     }
-  };
+  );
+};
 
   const availableMonths = [
     "January",
@@ -205,8 +219,18 @@ const SuperAdmin_Messages: React.FC = () => {
   };
 
   const [yearFilter, setYearFilter] = useState("All");
-  const [monthFilter, setMonthFilter] = useState("All");
-  const [dayFilter, setDayFilter] = useState("All");
+const [monthFilter, setMonthFilter] = useState("All");
+
+const [currentPage, setCurrentPage] = useState<number>(1);
+// ← Ibutang diri ang useEffect
+useEffect(() => {
+  const now = new Date();
+  const currentYear = now.getFullYear().toString();
+  const currentMonth = now.toLocaleString("default", { month: "long" });
+
+  setYearFilter(currentYear);
+  setMonthFilter(currentMonth);
+}, []);
 
   const filteredMessages = messages.filter((msg) => {
     const matchesSearch =
@@ -231,11 +255,9 @@ const SuperAdmin_Messages: React.FC = () => {
       if (monthFilter !== "All" && month !== monthFilter) {
         matchesDate = false;
       }
-      if (dayFilter !== "All" && day.toString() !== dayFilter) {
-        matchesDate = false;
-      }
+     
     } else {
-      if (yearFilter !== "All" || monthFilter !== "All" || dayFilter !== "All") {
+      if (yearFilter !== "All" || monthFilter !== "All" ) {
         matchesDate = false;
       }
     }
@@ -243,11 +265,68 @@ const SuperAdmin_Messages: React.FC = () => {
     return matchesSearch && matchesDate;
   });
 
-  const displayedMessages = filteredMessages.slice(
-    0,
-    rowsPerPage === -1 ? filteredMessages.length : rowsPerPage
-  );
+  // PAGINATION LOGIC (same sa UserRequests)
+const indexOfLastRecord = currentPage * rowsPerPage;
+const indexOfFirstRecord = indexOfLastRecord - rowsPerPage;
 
+const currentMessages = rowsPerPage === -1
+  ? filteredMessages
+  : filteredMessages.slice(indexOfFirstRecord, indexOfLastRecord);
+
+const totalPages = Math.ceil(filteredMessages.length / rowsPerPage);
+
+
+
+     const [showCustomModal, setShowCustomModal] = useState(false);
+      const [customModalMessage, setCustomModalMessage] = useState("");
+      const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+      const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+      
+      const openCustomModal = (
+        message: string,
+        type: "success" | "error" | "confirm" = "success",
+        onConfirm?: () => void
+      ) => {
+        setCustomModalMessage(message);
+        setCustomModalType(type);
+        if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+        setShowCustomModal(true);
+      };
+      
+      const closeCustomModal = () => {
+        setShowCustomModal(false);
+        setOnCustomModalConfirm(() => {});
+      };
+      
+
+const getPageNumbers = () => {
+  const pages: (number | string)[] = [];
+  if (totalPages <= 5) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push("...");
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push("...");
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push("...");
+      pages.push(currentPage - 1);
+      pages.push(currentPage);
+      pages.push(currentPage + 1);
+      pages.push("...");
+      pages.push(totalPages);
+    }
+  }
+  return pages;
+};
+
+
+      
   return (
     <div className="dashboard">
       <aside className="sidebar">
@@ -299,27 +378,30 @@ const SuperAdmin_Messages: React.FC = () => {
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-                                 <FaSignOutAlt className="signout-icon" />
-                                 <span
-                                   onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
-                                   className="signout-label"
-                                   style={{ cursor: "pointer" }}
-                                 >
-                                   Sign Out
-                                 </span>
-                               </div>
-                               </div>
+                                                            <FaSignOutAlt className="signout-icon" />
+                                                            <span
+                                                              onClick={async () => {
+                             openCustomModal(
+                               "Are you sure you want to sign out?",
+                               "confirm",
+                               async () => {
+                                 try {
+                                   await signOut(auth);
+                                   navigate("/loginadmin", { replace: true });
+                                 } catch (error) {
+                                   console.error("Error signing out:", error);
+                                   openCustomModal("Failed to sign out. Please try again.", "error");
+                                 }
+                               }
+                             );
+                           }}
+                                                              className="signout-label"
+                                                              style={{ cursor: "pointer" }}
+                                                            >
+                                                              Sign Out
+                                                            </span>
+                                                          </div>
+                                        </div>
       </aside>
 
       <main className="main-contents">
@@ -381,7 +463,7 @@ const SuperAdmin_Messages: React.FC = () => {
                 />
               </div>
             </div>
-
+<div className="filter-group">
             <div className="filtersss">
               <label>Year:</label>
               <select
@@ -415,25 +497,9 @@ const SuperAdmin_Messages: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div className="filtersss">
-              <label>Day:</label>
-              <select
-                className="status-dropdowns"
-                value={dayFilter}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setDayFilter(e.target.value)
-                }
-              >
-                <option value="All">All</option>
-                {availableDays.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
+           
           </div>
-
+</div>
           <p className="user-request-header">All Messages</p>
 
           <table className="requests-table">
@@ -449,8 +515,8 @@ const SuperAdmin_Messages: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {displayedMessages.length > 0 ? (
-                displayedMessages.map((msg) => (
+              {currentMessages.length > 0 ? (
+                currentMessages.map((msg) => (
                   <tr key={msg.id}>
                     <td>{msg.UserId || "Anonymous"}</td>
                     <td>{msg.lastName}</td>
@@ -493,23 +559,42 @@ const SuperAdmin_Messages: React.FC = () => {
             </tbody>
           </table>
 
-          <div className="table-footer">
-            <div className="rows-per-page">
-              <label>Show </label>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                className="rows-dropdown"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={-1}>All</option>
-              </select>
-            </div>
-          </div>
-        </div>
+         {/* PAGINATION - SAME STYLE SA USER REQUESTS */}
+<div className="pagination-wrapper" style={{ marginTop: "20px" }}>
+  <div className="pagination-info">
+    Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredMessages.length)} of {filteredMessages.length} messages
+  </div>
+  
+  <div className="pagination-controls">
+    <button
+      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1 || rowsPerPage === -1}
+      className="pagination-btn prev-btn"
+    >
+      Previous
+    </button>
+
+    {getPageNumbers().map((page, index) => (
+      <button
+        key={index}
+        onClick={() => typeof page === "number" && setCurrentPage(page)}
+        disabled={page === "..." || rowsPerPage === -1}
+        className={`pagination-btn page-num ${page === currentPage ? "active" : ""} ${page === "..." ? "ellipsis" : ""}`}
+      >
+        {page}
+      </button>
+    ))}
+
+    <button
+      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages || totalPages === 0 || rowsPerPage === -1}
+      className="pagination-btn next-btn"
+    >
+      Next
+    </button>
+  </div>
+</div>
+</div>
 
         {showReplyModal && selectedMessage && (
           <div className="modal-overlay-message">
@@ -537,6 +622,58 @@ const SuperAdmin_Messages: React.FC = () => {
             </div>
           </div>
         )}
+
+
+            {showCustomModal && (
+                  <>
+                    <audio autoPlay>
+                      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+                    </audio>
+                    <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+                      <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="radiology-modal-header">
+                          <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                          <h3 className="radiology-modal-title">
+                            {customModalType === "success" && "SUCCESS"}
+                            {customModalType === "error" && "ERROR"}
+                            {customModalType === "confirm" && "CONFIRM ACTION"}
+                          </h3>
+                          <button className="radiology-modal-close" onClick={closeCustomModal}>
+                            <X size={20} />
+                          </button>
+                        </div>
+                        <div className="radiology-modal-body">
+                          <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                            {customModalMessage}
+                          </p>
+                        </div>
+                        <div className="radiology-modal-footer">
+                          {customModalType === "confirm" && (
+                            <>
+                              <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                                No, Cancel
+                              </button>
+                              <button
+                                className="radiology-modal-btn confirm"
+                                onClick={() => {
+                                  closeCustomModal();
+                                  onCustomModalConfirm();
+                                }}
+                              >
+                                Yes, Proceed
+                              </button>
+                            </>
+                          )}
+                          {(customModalType === "success" || customModalType === "error") && (
+                            <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                              {customModalType === "success" ? "Done" : "OK"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
       </main>
     </div>
   );

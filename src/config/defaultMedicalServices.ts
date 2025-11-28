@@ -3,6 +3,8 @@ export const DEFAULT_MEDICAL_SERVICES: Record<string, string[]> = {
   "General & Pediatric": [
     "General Consultation",
     "Pediatric Consultation",
+    "Medical Consultations",
+    "Medical Certificate",
   ],
   "Maternal Health": [
     "Prenatal Consultation",

@@ -19,6 +19,7 @@ import { getFirestore, collection, onSnapshot, doc, Timestamp, setDoc, deleteDoc
 import emailjs from "@emailjs/browser";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
+import { X } from "lucide-react";
 
 interface Notification {
   text: string;
@@ -49,8 +50,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<string>("");
   const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [rejectReason, setRejectReason] = useState<string>("");
-  const [rowsPerPage, setRowsPerPage] = useState<number>(5);
-
+ 
   const handleNavigation = (path: string) => {
     navigate(path);
   };
@@ -217,7 +217,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
     "July", "August", "September", "October", "November", "December",
   ];
 
-  const availableDays = Array.from({ length: 31 }, (_, index) => index + 1);
+ 
 
   const [availableYears, setAvailableYears] = useState(() => {
     const currentYear = new Date().getFullYear();
@@ -233,9 +233,18 @@ const SuperAdmin_UserRequests: React.FC = () => {
     }
   };
 
-  const [yearFilter, setYearFilter] = useState("All");
-  const [monthFilter, setMonthFilter] = useState("All");
-  const [dayFilter, setDayFilter] = useState("All");
+  
+  const [yearFilter, setYearFilter] = useState<string>("All");
+const [monthFilter, setMonthFilter] = useState<string>("All");
+
+useEffect(() => {
+  const now = new Date();
+  const currentYear = now.getFullYear().toString();
+  const currentMonth = now.toLocaleString("default", { month: "long" }); // e.g., "November"
+
+  setYearFilter(currentYear);
+  setMonthFilter(currentMonth);
+}, []); // Runs only once on mount
 
   const filteredRequests = userRequests.filter((req) => {
     const matchesSearch =
@@ -257,19 +266,16 @@ const SuperAdmin_UserRequests: React.FC = () => {
 
       const year = dateObj.getFullYear();
       const month = dateObj.toLocaleString("default", { month: "long" });
-      const day = dateObj.getDate();
-
+    
       if (yearFilter !== "All" && year.toString() !== yearFilter) {
         matchesDate = false;
       }
       if (monthFilter !== "All" && month !== monthFilter) {
         matchesDate = false;
       }
-      if (dayFilter !== "All" && day.toString() !== dayFilter) {
-        matchesDate = false;
-      }
+     
     } else {
-      if (yearFilter !== "All" || monthFilter !== "All" || dayFilter !== "All") {
+      if (yearFilter !== "All" || monthFilter !== "All" ) {
         matchesDate = false;
       }
     }
@@ -277,8 +283,73 @@ const SuperAdmin_UserRequests: React.FC = () => {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  const displayedRequests = filteredRequests.slice(0, rowsPerPage === -1 ? filteredRequests.length : rowsPerPage);
+   const [currentPage, setCurrentPage] = useState<number>(1);
+const [rowsPerPage, setRowsPerPage] = useState<number>(5); // naa nani sa imong code, gamiton na lang ni
 
+
+ // PAGINATION LOGIC (same sa Radiology)
+const indexOfLastRecord = currentPage * rowsPerPage;
+const indexOfFirstRecord = indexOfLastRecord - rowsPerPage;
+const currentRequests = rowsPerPage === -1 
+  ? filteredRequests 
+  : filteredRequests.slice(indexOfFirstRecord, indexOfLastRecord);
+
+const totalPages = Math.ceil(filteredRequests.length / rowsPerPage);
+
+// Same getPageNumbers function sa Radiology (ellipsis style)
+const getPageNumbers = () => {
+  const pages: (number | string)[] = [];
+  if (totalPages <= 5) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push("...");
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push("...");
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push("...");
+      pages.push(currentPage - 1);
+      pages.push(currentPage);
+      pages.push(currentPage + 1);
+      pages.push("...");
+      pages.push(totalPages);
+    }
+  }
+  return pages;
+};
+
+
+     const [showCustomModal, setShowCustomModal] = useState(false);
+    const [customModalMessage, setCustomModalMessage] = useState("");
+    const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+    const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+    
+    const openCustomModal = (
+      message: string,
+      type: "success" | "error" | "confirm" = "success",
+      onConfirm?: () => void
+    ) => {
+      setCustomModalMessage(message);
+      setCustomModalType(type);
+      if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+      setShowCustomModal(true);
+    };
+    
+    const closeCustomModal = () => {
+      setShowCustomModal(false);
+      setOnCustomModalConfirm(() => {});
+    };
+    
+
+   
+
+    
+  
   return (
     <div className="dashboard">
       <aside className="sidebar">
@@ -329,27 +400,30 @@ const SuperAdmin_UserRequests: React.FC = () => {
             <FaUser className="user-icon" />
             <span className="user-label">Super Admin</span>
           </div>
-          <div className="signout-box">
-                                 <FaSignOutAlt className="signout-icon" />
-                                 <span
-                                   onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
-                                   className="signout-label"
-                                   style={{ cursor: "pointer" }}
-                                 >
-                                   Sign Out
-                                 </span>
-                               </div>
+        <div className="signout-box">
+                                                   <FaSignOutAlt className="signout-icon" />
+                                                   <span
+                                                     onClick={async () => {
+                    openCustomModal(
+                      "Are you sure you want to sign out?",
+                      "confirm",
+                      async () => {
+                        try {
+                          await signOut(auth);
+                          navigate("/loginadmin", { replace: true });
+                        } catch (error) {
+                          console.error("Error signing out:", error);
+                          openCustomModal("Failed to sign out. Please try again.", "error");
+                        }
+                      }
+                    );
+                  }}
+                                                     className="signout-label"
+                                                     style={{ cursor: "pointer" }}
+                                                   >
+                                                     Sign Out
+                                                   </span>
+                                                 </div>
                                </div>
       </aside>
 
@@ -414,7 +488,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
             </div>
 
            
-
+<div className="filter-group">
             <div className="filtersss">
               <label>Year:</label>
               <select
@@ -446,21 +520,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div className="filtersss">
-              <label>Day:</label>
-              <select
-                className="status-dropdowns"
-                value={dayFilter}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setDayFilter(e.target.value)}
-              >
-                <option value="All">All</option>
-                {availableDays.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
+           </div>
           </div>
 
           <p className="user-request-header">All User Access Requests</p>
@@ -479,8 +539,8 @@ const SuperAdmin_UserRequests: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {displayedRequests.length > 0 ? (
-                displayedRequests.map((req) => (
+             {currentRequests.length > 0 ? (
+  currentRequests.map((req) => (
                   <tr key={req.id}>
                     <td>{req.adminId}</td>
                     <td>{req.lastname}</td>
@@ -494,7 +554,7 @@ const SuperAdmin_UserRequests: React.FC = () => {
                           : (req.createdAt as Timestamp).toDate().toLocaleString()
                         : "N/A"}
                     </td>
-                    <td className={`status-cell ${(req.status || "").toLowerCase()}`}>
+                    <td className={`status-cellss ${(req.status || "").toLowerCase()}`}>
                       {req.status}
                     </td>
                     <td>
@@ -524,22 +584,43 @@ const SuperAdmin_UserRequests: React.FC = () => {
             </tbody>
           </table>
 
-          <div className="table-footer">
-            <div className="rows-per-page">
-              <label>Show </label>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                className="rows-dropdown"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={-1}>All</option>
-              </select>
-            </div>
-          </div>
+         
+           {/* PAGINATION - SAME STYLE SA RADIOLOGY */}
+<div className="pagination-wrapper" style={{ marginTop: "20px" }}>
+  <div className="pagination-info">
+    Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredRequests.length)} of {filteredRequests.length} requests
+  </div>
+  
+  <div className="pagination-controls">
+    <button
+      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1 || rowsPerPage === -1}
+      className="pagination-btn prev-btn"
+    >
+      Previous
+    </button>
+
+    {getPageNumbers().map((page, index) => (
+      <button
+        key={index}
+        onClick={() => typeof page === "number" && setCurrentPage(page)}
+        disabled={page === "..." || rowsPerPage === -1}
+        className={`pagination-btn page-num ${page === currentPage ? "active" : ""} ${page === "..." ? "ellipsis" : ""}`}
+      >
+        {page}
+      </button>
+    ))}
+
+    <button
+      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages || totalPages === 0 || rowsPerPage === -1}
+      className="pagination-btn next-btn"
+    >
+      Next
+    </button>
+  </div>
+</div>
+        
         </div>
 
         {showModal && (
@@ -588,6 +669,61 @@ const SuperAdmin_UserRequests: React.FC = () => {
             </div>
           </div>
         )}
+
+
+
+
+        {showCustomModal && (
+          <>
+            <audio autoPlay>
+              <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+            </audio>
+            <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+              <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="radiology-modal-header">
+                  <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                  <h3 className="radiology-modal-title">
+                    {customModalType === "success" && "SUCCESS"}
+                    {customModalType === "error" && "ERROR"}
+                    {customModalType === "confirm" && "CONFIRM ACTION"}
+                  </h3>
+                  <button className="radiology-modal-close" onClick={closeCustomModal}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="radiology-modal-body">
+                  <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                    {customModalMessage}
+                  </p>
+                </div>
+                <div className="radiology-modal-footer">
+                  {customModalType === "confirm" && (
+                    <>
+                      <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                        No, Cancel
+                      </button>
+                      <button
+                        className="radiology-modal-btn confirm"
+                        onClick={() => {
+                          closeCustomModal();
+                          onCustomModalConfirm();
+                        }}
+                      >
+                        Yes, Proceed
+                      </button>
+                    </>
+                  )}
+                  {(customModalType === "success" || customModalType === "error") && (
+                    <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                      {customModalType === "success" ? "Done" : "OK"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
       </main>
     </div>
   );

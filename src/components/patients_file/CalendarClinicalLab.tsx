@@ -6,9 +6,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  setDoc,
   collection,
-  deleteDoc,
   runTransaction,
 } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
@@ -25,10 +23,9 @@ interface CalendarClinicalLabProps {
     [key: string]: any;
   };
   onNavigate?: (
-    targetView: "allservices" | "calendar" | "labservices" | "radioservices" | "dental" | "review",
+    targetView: "allservices" | "calendar" | "labservices" | "radioservices" | "dental" | "medical" | "review" | "transaction",
     data?: any
   ) => void;
-  onConfirm?: (date: string, slotId: string) => void;
 }
 
 interface Slot {
@@ -37,49 +34,45 @@ interface Slot {
   remaining: number;
 }
 
-const predefinedSlots: { time: string; capacity: number }[] = [
-  { time: "8:00 AM - 9:00 AM", capacity: 3 },
-  { time: "9:00 AM - 10:00 AM", capacity: 3 },
-  { time: "10:00 AM - 11:00 AM", capacity: 3 },
-  { time: "11:00 AM - 12:00 PM", capacity: 2 },
-  { time: "13:00 PM - 14:00 PM", capacity: 2 },
-  { time: "14:00 PM - 15:00 PM", capacity: 2 },
+const predefinedTimes = [
+  "8:00 AM - 9:00 AM",
+  "9:00 AM - 10:00 AM",
+  "10:00 AM - 11:00 AM",
+  "11:00 AM - 12:00 PM",
+  "13:00 PM - 14:00 PM",
+  "14:00 PM - 15:00 PM",
 ];
 
 const CalendarClinicalLab: React.FC<CalendarClinicalLabProps> = ({
   formData,
-  onConfirm,
   onNavigate,
 }) => {
   const today = new Date();
-  const uidGenerator = new ShortUniqueId({ length: 8 });
+  today.setHours(0, 0, 0, 0);
+  const uid = new ShortUniqueId({ length: 10 });
+  const department = "Clinical Laboratory";
+
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [daysInfo, setDaysInfo] = useState<{ day: number; weekday: string }[]>([]);
-  const [slots, setSlots] = useState<{ [key: number]: number }>({});
-  const [isClosed, setIsClosed] = useState<{ [key: number]: boolean }>({});
+
+  const [dayStatus, setDayStatus] = useState<
+    Record<number, { unlimited: boolean; closed: boolean; totalSlots: number; slots?: Slot[] }>
+  >({});
+
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<{ slotID: string; time: string } | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [reservationId, setReservationId] = useState<string | null>(null);
   const [maxYear, setMaxYear] = useState(today.getFullYear() + 20);
-  const [error, setError] = useState<string | null>(null);
 
-  // MODAL STATES
+  // Modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
   const [onConfirmAction, setOnConfirmAction] = useState<() => void>(() => {});
 
-  const department = "Clinical Laboratory";
-
-  // REUSABLE MODAL OPENER
-  const openModal = (
-    msg: string,
-    type: "confirm" | "error" | "success",
-    callback?: () => void
-  ) => {
+  const openModal = (msg: string, type: "confirm" | "error" | "success" = "confirm", callback?: () => void) => {
     setModalMessage(msg);
     setModalType(type);
     if (callback) setOnConfirmAction(() => callback);
@@ -91,267 +84,202 @@ const CalendarClinicalLab: React.FC<CalendarClinicalLabProps> = ({
     setOnConfirmAction(() => {});
   };
 
-  useEffect(() => {
-    if (!formData?.patientId || !formData?.appointmentId) {
-      setError("Invalid appointment data. Please try again.");
-    }
-    setSelectedDate(null);
-    setSelectedSlot(null);
-    setShowModal(false);
-    setReservationId(null);
-    setError(null);
-  }, [formData]);
-
+  // Load calendar + real-time status (UNLIMITED by default!)
   useEffect(() => {
     const totalDays = new Date(year, month, 0).getDate();
-    const dayArray = Array.from({ length: totalDays }, (_, i) => {
+    const days = Array.from({ length: totalDays }, (_, i) => {
       const date = new Date(year, month - 1, i + 1);
-      const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-      return { day: i + 1, weekday };
+      return { day: i + 1, weekday: date.toLocaleDateString("en-US", { weekday: "short" }) };
     });
+    setDaysInfo(days);
 
-    const unsubscribeFns: (() => void)[] = [];
+    const unsubs: (() => void)[] = [];
 
     for (let d = 1; d <= totalDays; d++) {
-      const date = new Date(year, month - 1, d);
-      const dayOfWeek = date.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const slotRef = doc(db, "Departments", department, "Slots", dateKey);
+      const ref = doc(db, "Departments", department, "Slots", dateKey);
 
-      const unsub = onSnapshot(
-        slotRef,
-        (slotDoc) => {
-          setSlots((prev) => ({
-            ...prev,
-            [d]: slotDoc.exists()
-              ? slotDoc.data().closed
-                ? 0
-                : slotDoc.data().slots.reduce((sum: number, s: any) => sum + s.remaining, 0)
-              : isWeekend || isPast
-              ? 0
-              : predefinedSlots.reduce((sum, s) => sum + s.capacity, 0),
-          }));
+      const unsub = onSnapshot(ref, (snap) => {
+        let status: any = {
+          unlimited: true,     // <<< DEFAULT IS NOW UNLIMITED
+          closed: false,
+          totalSlots: 999,
+          slots: [],
+        };
 
-          setIsClosed((prev) => ({
-            ...prev,
-            [d]: slotDoc.exists() && slotDoc.data().closed,
-          }));
-        },
-        () => setError("Failed to load slot data.")
-      );
+        if (snap.exists()) {
+          const data = snap.data()!;
+          if (data.closed) {
+            status = { unlimited: false, closed: true, totalSlots: 0 };
+          } else if (data.unlimited === true) {
+            status = { unlimited: true, closed: false, totalSlots: 999 };
+          } else if (data.slots) {
+            const total = data.slots.reduce((sum: number, s: any) => sum + (s.remaining || 0), 0);
+            status = { unlimited: false, closed: false, totalSlots: total, slots: data.slots };
+          }
+        }
+        // else → no data = unlimited (already set above)
 
-      unsubscribeFns.push(unsub);
+        setDayStatus((prev) => ({ ...prev, [d]: status }));
+      });
+
+      unsubs.push(unsub);
     }
 
-    setDaysInfo(dayArray);
-    return () => unsubscribeFns.forEach((fn) => fn());
-  }, [month, year]);
+    return () => unsubs.forEach((u) => u());
+  }, [year, month, department]);
 
+  // Select Date
   const handleSelectDate = async (day: number) => {
-    const date = new Date(year, month - 1, day);
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      openModal("Weekends are not available for appointments.", "error");
-      return;
-    }
+    const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dateObj = new Date(year, month - 1, day);
+    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+    const isPast = dateObj < today;
 
-    const selected = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const slotRef = doc(db, "Departments", department, "Slots", selected);
-    const slotDoc = await getDoc(slotRef);
+    if (isWeekend) return openModal("Weekends are closed.", "error");
+    if (isPast) return openModal("Cannot select past dates.", "error");
 
-    if (slotDoc.exists() && slotDoc.data().closed) {
-      openModal("Selected date is closed.", "error");
-      return;
-    }
+    const status = dayStatus[day];
+    if (!status) return;
+    if (status.closed) return openModal("This date is closed by admin.", "error");
 
-    setSelectedDate(selected);
-    let slotsData: Slot[] = [];
+    let slots: Slot[] = [];
 
-    if (slotDoc.exists() && !slotDoc.data().closed) {
-      slotsData = (slotDoc.data().slots as Slot[]).map((slot) => ({
-        ...slot,
-        slotID: slot.slotID.startsWith("SLOT-")
-          ? slot.slotID
-          : `SLOT-${uidGenerator.randomUUID()}`,
+    if (status.unlimited) {
+      // Unlimited → generate virtual unlimited slots
+      slots = predefinedTimes.map((time) => ({
+        slotID: `UNLIMITED-${dateKey}-${time.replace(/[^a-zA-Z0-9]/g, "")}`,
+        time,
+        remaining: 999,
       }));
-
-      if (slotsData.every((s) => s.remaining === 0)) {
-        openModal("No slots available for the selected date.", "error");
+    } else {
+      // Limited → load actual slots from Firestore
+      const snap = await getDoc(doc(db, "Departments", department, "Slots", dateKey));
+      if (snap.exists()) {
+        slots = (snap.data()?.slots || []).map((s: any) => ({
+          ...s,
+          remaining: s.remaining ?? 0,
+        }));
+      }
+      // If limited but no slots array → fallback to zero
+      if (slots.length === 0) {
+        openModal("No slots configured for this date.", "error");
         return;
       }
-    } else {
-      slotsData = predefinedSlots.map((s) => ({
-        slotID: `SLOT-${uidGenerator.randomUUID()}`,
-        time: s.time,
-        remaining: s.capacity,
-      }));
-
-      await setDoc(
-        slotRef,
-        {
-          date: selected,
-          closed: false,
-          slots: slotsData,
-          totalSlots: slotsData.reduce((sum: number, s: Slot) => sum + s.remaining, 0),
-          createdAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
     }
 
-    setTimeSlots(slotsData);
+    setSelectedDate(dateKey);
+    setTimeSlots(slots);
     setSelectedSlot(null);
     setShowModal(true);
   };
 
+  // Confirm Slot Selection
   const handleSelectSlot = async (slotTime: string) => {
-  if (!selectedDate || !slotTime) return;
+    if (!selectedDate || !selectedSlot) return;
 
-  const slotRef = doc(db, "Departments", department, "Slots", selectedDate);
-  const slotDoc = await getDoc(slotRef);
+    const targetSlot = timeSlots.find(s => s.time === slotTime);
+    if (!targetSlot) return openModal("Slot not found.", "error");
 
-  if (!slotDoc.exists() || slotDoc.data().closed) {
-    openModal("Selected slot is unavailable.", "error");
-    return;
-  }
+    const isUnlimited = dayStatus[parseInt(selectedDate.split("-")[2])]?.unlimited;
 
-  const availableSlot = (slotDoc.data().slots as Slot[]).find(
-    (s) => s.time === slotTime && s.remaining > 0
-  );
+    if (!isUnlimited && targetSlot.remaining <= 0) {
+      return openModal("This time slot is fully booked.", "error");
+    }
 
-  if (!availableSlot) {
-    openModal("This time slot is no longer available.", "error");
-    return;
-  }
+    try {
+      await runTransaction(db, async (transaction) => {
+        // Remove old draft reservation
+        if (formData?.previousReservationId) {
+          const oldRef = doc(db, "Departments", department, "Reservations", formData.previousReservationId);
+          transaction.delete(oldRef);
+        }
 
-  try {
-    await runTransaction(db, async (transaction) => {
-      const oldReservationRef = formData?.previousReservationId
-        ? doc(db, "Departments", department, "Reservations", formData.previousReservationId)
-        : null;
+        // Create new draft
+        const newResRef = doc(collection(db, "Departments", department, "Reservations"));
+        transaction.set(newResRef, {
+          slotID: targetSlot.slotID,
+          date: selectedDate,
+          time: slotTime,
+          appointmentId: formData!.appointmentId,
+          patientId: formData!.patientId,
+          status: "draft",
+          createdAt: new Date().toISOString(),
+        });
 
-      const appointmentRef = doc(db, "Appointments", formData!.appointmentId);
-      const appointmentDoc = await transaction.get(appointmentRef);
-      if (!appointmentDoc.exists()) throw new Error("Appointment not found");
-
-      if (appointmentDoc.data().department && appointmentDoc.data().department !== department) {
-        throw new Error("Appointment already assigned to another department");
-      }
-
-      // Delete old draft reservation
-      if (oldReservationRef) {
-        transaction.delete(oldReservationRef);
-      }
-
-      // Create DRAFT reservation
-      const reservationRef = doc(collection(db, "Departments", department, "Reservations"));
-      transaction.set(reservationRef, {
-        slotID: availableSlot.slotID,
-        date: selectedDate,
-        time: availableSlot.time,
-        appointmentId: formData!.appointmentId,
-        patientId: formData!.patientId,
-        status: "draft", // ← DRAFT LANG
-        createdAt: new Date().toISOString(),
+        // Update appointment
+        transaction.update(doc(db, "Appointments", formData!.appointmentId), {
+          department,
+          date: selectedDate,
+          slotID: targetSlot.slotID,
+          slotTime: slotTime,
+          reservationId: newResRef.id,
+          status: "pending",
+          updatedAt: new Date().toISOString(),
+        });
       });
 
-      // Update appointment (draft selection)
-      transaction.update(appointmentRef, {
-        department,
-        date: selectedDate,
-        slotID: availableSlot.slotID,
-        slotTime: availableSlot.time,
-        reservationId: reservationRef.id,
-        patientId: formData!.patientId,
-        status: "pending",
-        updatedAt: new Date().toISOString(),
-      });
-
-      // AYAW NA I-MINUS ANG SLOT KANI!
-      // Hulat sa ReviewPage → handleSubmit → finalizeBooking()
-
-      setSelectedSlot({ slotID: availableSlot.slotID, time: availableSlot.time });
-      setReservationId(reservationRef.id);
-    });
-
-    setShowModal(false);
-    openModal("Time slot selected! You can change it later.", "success");
-  } catch (err: any) {
-    openModal("Failed to select slot: " + err.message, "error");
-  }
-};
-
-  const closeModal = () => {
-    setShowModal(false);
-    setSelectedSlot(null);
-    setTimeSlots([]);
+      openModal(`Slot selected!\n${slotTime}\nYou can change this later.`, "success");
+      setShowModal(false);
+    } catch (err) {
+      console.error("Booking error:", err);
+      openModal("Failed to reserve slot. Please try again.", "error");
+    }
   };
 
   return (
     <div className="calendar-container pb-24">
       <h2>Select Appointment Date ({department})</h2>
-      {error && <div className="error-message text-red-500 mb-4">{error}</div>}
 
-      {/* Calendar Controls */}
       <div className="calendar-controls">
         <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-            <option key={m} value={m}>
-              {new Date(0, m - 1).toLocaleString("default", { month: "long" })}
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {new Date(0, i).toLocaleString("default", { month: "long" })}
             </option>
           ))}
         </select>
-        <select
-          value={year}
-          onChange={(e) => {
-            const y = Number(e.target.value);
-            setYear(y);
-            if (y === maxYear) setMaxYear(maxYear + 20);
-          }}
-        >
-          {Array.from({ length: maxYear - today.getFullYear() + 1 }, (_, i) => today.getFullYear() + i).map(
-            (y) => (
-              <option key={y} value={y}>{y}</option>
-            )
-          )}
+        <select value={year} onChange={(e) => {
+          const y = Number(e.target.value);
+          setYear(y);
+          if (y === maxYear) setMaxYear(maxYear + 20);
+        }}>
+          {Array.from({ length: maxYear - today.getFullYear() + 1 }, (_, i) => today.getFullYear() + i)
+            .map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
 
-      {/* Calendar Grid */}
       <div className="calendar-grid-wrapper">
         <div className="weekday-headers">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
             <div key={d} className="weekday-header">{d}</div>
           ))}
         </div>
-
         <div className="calendar-grid">
           {Array.from({ length: new Date(year, month - 1, 1).getDay() }).map((_, i) => (
             <div key={`empty-${i}`} className="calendar-day empty" />
           ))}
 
           {daysInfo.map(({ day, weekday }) => {
-            const isWeekend = new Date(year, month - 1, day).getDay() % 6 === 0;
-            const isPast = new Date(year, month - 1, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const isDayClosed = isClosed[day];
+            const date = new Date(year, month - 1, day);
+            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+            const isPast = date < today;
+            const status = dayStatus[day] || { unlimited: true, closed: false, totalSlots: 999 };
             const isSelected = selectedDate?.endsWith(`-${String(day).padStart(2, "0")}`);
+
+            const disabled = isWeekend || isPast || status.closed;
+            const display = isWeekend ? "Closed" : isPast ? "Past" : status.closed ? "Closed" : status.unlimited ? "Unlimited" : `${status.totalSlots} slots`;
 
             return (
               <div
                 key={day}
-                className={`calendar-day ${
-                  slots[day] === 0 || isWeekend || isPast || isDayClosed ? "fully-booked" : ""
-                } ${isWeekend ? "weekend" : ""} ${isDayClosed ? "closed" : ""} ${
-                  isSelected ? "selected-date" : ""
-                }`}
-                onClick={() => !isWeekend && !isPast && !isDayClosed && handleSelectDate(day)}
+                className={`calendar-day ${disabled ? "fully-booked" : ""} ${isSelected ? "selected-date" : ""}`}
+                onClick={() => !disabled && handleSelectDate(day)}
               >
                 <p className="day-number">{day}</p>
                 <small className="weekday">{weekday}</small>
-                <span className="slots-info">
-                  {isWeekend ? "Closed" : isPast ? "Past" : isDayClosed ? "Closed" : `${slots[day] || 0} slots`}
+                <span className={`slots-info ${status.unlimited ? 'unlimited' : ''}`}>
+                  {display}
                 </span>
                 {isSelected && selectedSlot && <CheckCircle className="selected-checkmark" size={16} />}
               </div>
@@ -364,51 +292,58 @@ const CalendarClinicalLab: React.FC<CalendarClinicalLabProps> = ({
       {showModal && (
         <div className="modal-overlay">
           <div className="modal relative">
-            <button className="close-buttons absolute top-3 right-3 text-gray-600 hover:text-red-500" onClick={closeModal}>
+            <button className="close-buttons absolute top-3 right-3" onClick={() => setShowModal(false)}>
               <X size={24} />
             </button>
             <h3 className="text-lg font-bold mb-4 text-center">
-              Available Time Slots for {selectedDate}
+              Available Time Slots - {selectedDate}
             </h3>
             <div className="time-slots-grid">
-              {timeSlots.map((slot) => (
-                <button
-                  key={slot.slotID}
-                  className={`time-slot-btn ${
-                    selectedSlot?.slotID === slot.slotID ? "selected" : ""
-                  } ${slot.remaining === 0 ? "disabled" : ""}`}
-                  disabled={slot.remaining === 0}
-                  onClick={() => setSelectedSlot({ slotID: slot.slotID, time: slot.time })}
-                >
-                  {slot.time} ({slot.remaining} left)
-                </button>
-              ))}
+              {timeSlots.map((slot) => {
+                const isUnlimited = dayStatus[parseInt(selectedDate!.split("-")[2])]?.unlimited;
+                const remaining = isUnlimited ? 999 : slot.remaining;
+
+                return (
+                  <button
+                    key={slot.slotID}
+                    disabled={!isUnlimited && remaining === 0}
+                    className={`time-slot-btn ${selectedSlot?.slotID === slot.slotID ? "selected" : ""} ${!isUnlimited && remaining === 0 ? "disabled" : ""}`}
+                    onClick={() => setSelectedSlot({ slotID: slot.slotID, time: slot.time })}
+                  >
+                    <div className="leading-tight">
+                      <div className="text-base font-bold">{slot.time}</div>
+                      <div className="text-xs mt-1">
+                        {isUnlimited ? (
+                          <span className="text-emerald-600 font-bold">Unlimited</span>
+                        ) : remaining === 0 ? (
+                          <span className="text-red-600 font-bold">Fully Booked</span>
+                        ) : remaining <= 3 ? (
+                          <span className="text-orange-600 font-bold">Only {remaining} left!</span>
+                        ) : (
+                          <span className="text-blue-600">{remaining} available</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            <div className="mt-4 flex justify-center">
+
+            <div className="mt-6 flex justify-center">
               <button
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: selectedSlot ? "#2563eb" : "#9ca3af",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: selectedSlot ? "pointer" : "not-allowed",
-                  fontWeight: "bold",
-                  fontSize: "16px",
-                  boxShadow: "0px 2px 6px rgba(0,0,0,0.2)",
-                }}
                 disabled={!selectedSlot}
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold disabled:bg-gray-400"
                 onClick={() => {
                   if (selectedSlot) {
                     openModal(
-                      `Book this slot?\n${selectedSlot.time}\n\nYou can change this later.`,
+                      `Confirm this time?\n${selectedSlot.time}\n\nYou can change it later.`,
                       "confirm",
                       () => handleSelectSlot(selectedSlot.time)
                     );
                   }
                 }}
               >
-                OK
+                Confirm Selection
               </button>
             </div>
           </div>
@@ -420,26 +355,20 @@ const CalendarClinicalLab: React.FC<CalendarClinicalLabProps> = ({
         <div className="nav-right">
           <button
             className={`next-btn ${!selectedDate || !selectedSlot ? "disabled" : ""}`}
+            disabled={!selectedDate || !selectedSlot}
             onClick={() => {
-              if (!selectedDate || !selectedSlot) {
-                openModal("Please select a date and time slot first.", "error");
-                return;
-              }
+              const msg = formData?.fromReview
+                ? `Update appointment?\n\n${selectedDate} | ${selectedSlot?.time}`
+                : `Proceed with selected slot?\n\n${selectedDate} | ${selectedSlot?.time}`;
 
-              const message = formData?.fromReview
-                ? `Update lab appointment?\n\n${selectedDate} | ${selectedSlot.time}\n\nReturn to review?`
-                : `Proceed to next page?\n\n${selectedDate} | ${selectedSlot.time}`;
-
-              openModal(message, "confirm", () => {
-  const data = {
-    ...formData,
-    labDate: selectedDate,
-    labSlotId: selectedSlot.slotID,
-    labSlotTime: selectedSlot.time,
-    labReservationId: reservationId || "",
-  };
-  onNavigate?.(formData?.fromReview ? "review" : "dental", data);
-});
+              openModal(msg, "confirm", () => {
+                onNavigate?.(formData?.fromReview ? "review" : "dental", {
+                  ...formData,
+                  labDate: selectedDate,
+                  labSlotId: selectedSlot!.slotID,
+                  labSlotTime: selectedSlot!.time,
+                });
+              });
             }}
           >
             Next
@@ -447,51 +376,34 @@ const CalendarClinicalLab: React.FC<CalendarClinicalLabProps> = ({
         </div>
       </div>
 
-      {/* Reusable Confirm/Error/Success Modal */}
+      {/* Reusable Confirmation Modal */}
       {showConfirmModal && (
         <>
           <audio autoPlay>
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" />
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
           </audio>
-
           <div className="modal-overlay-servicess" onClick={closeConfirmModal}>
-            <div className="modal-content-servicess" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content-servicess" onClick={e => e.stopPropagation()}>
               <div className="modal-header-servicess">
-                <img src="/logo.png" alt="DOH" className="modal-logo" />
-                <h5>
-                  {modalType === "success" && "SUCCESS"}
-                  {modalType === "error" && "ERROR"}
-                  {modalType === "confirm" && "CONFIRM ACTION"}
-                </h5>
+                <img src="/logo.png" alt="Logo" className="modal-logo" />
+                <h5>{modalType === "success" ? "SUCCESS" : modalType === "error" ? "ERROR" : "CONFIRM ACTION"}</h5>
               </div>
-
               <div className="modal-body">
                 <p style={{ whiteSpace: "pre-line", textAlign: "center", fontWeight: "600" }}>
                   {modalMessage}
                 </p>
               </div>
-
               <div className="modal-footer">
                 {modalType === "confirm" && (
                   <>
-                    <button className="modal-btn cancel" onClick={closeConfirmModal}>
-                      Cancel
-                    </button>
-                    <button
-                      className="modal-btn confirm"
-                      onClick={() => {
-                        closeConfirmModal();
-                        onConfirmAction();
-                      }}
-                    >
+                    <button className="modal-btn cancel" onClick={closeConfirmModal}>Cancel</button>
+                    <button className="modal-btn confirm" onClick={() => { closeConfirmModal(); onConfirmAction(); }}>
                       Confirm
                     </button>
                   </>
                 )}
                 {(modalType === "error" || modalType === "success") && (
-                  <button className="modal-btn ok" onClick={closeConfirmModal}>
-                    OK
-                  </button>
+                  <button className="modal-btn ok" onClick={closeConfirmModal}>OK</button>
                 )}
               </div>
             </div>

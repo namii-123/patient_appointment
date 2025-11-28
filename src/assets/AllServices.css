@@ -336,6 +336,32 @@ background: #1a276d;
   background: #218838;
 }
 
+
+.modal-message-content {
+  text-align: center;
+  padding: 20px 10px;
+}
+
+.modal-message-content button {
+  margin: 8px 0;
+  padding: 12px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.modal-message-content button:first-child {
+  background-color: #27ae60;
+  color: white;
+}
+
+.modal-message-content button:last-child {
+  background-color: #e74c3c;
+  color: white;
+}
+
 /* SMOOTH ANIMATION */
 @keyframes slideDown {
   from { transform: translateY(-80px); opacity: 0; }

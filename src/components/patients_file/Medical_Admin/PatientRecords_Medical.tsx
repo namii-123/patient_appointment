@@ -1,7 +1,7 @@
 import React, { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import type { ChangeEvent } from "react";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock, FaStethoscope } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaClock, FaStethoscope, FaCheckCircle, FaEye } from "react-icons/fa";
 import "../../../assets/PatientRecords_Radiology.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
@@ -17,6 +17,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { X } from "lucide-react";
 
 
 
@@ -46,6 +47,12 @@ interface PatientRecord {
   slotID: string;
   purpose: string;
   status: "Approved" | "Rejected" | "Completed";
+  rescheduled?: boolean;
+  originalDate?: string;
+  originalSlot?: string;
+  endTime?: string;        
+  endTime24?: string;     
+  time24?: string;
 }
 
 
@@ -69,7 +76,7 @@ const PatientRecords_Medical: React.FC = () => {
       const [statusFilter, setStatusFilter] = useState<string>("All");
     const [yearFilter, setYearFilter] = useState<string>("All");
     const [monthFilter, setMonthFilter] = useState<string>("All");
-    const [dayFilter, setDayFilter] = useState<string>("All");
+ 
     
 
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
@@ -89,104 +96,86 @@ const PatientRecords_Medical: React.FC = () => {
     navigate(path);
   };
 
-      useEffect(() => {
-        const fetchPatientRecords = async () => {
-          setLoading(true);
-          try {
-           
-            const transQuery = query(
-              collection(db, "Transactions"),
-              where("purpose", "==", "Medical"),
-              where("status", "in", ["Approved", "Rejected", "Completed"]) 
-            );
-            const transSnap = await getDocs(transQuery);
-            const loaded: PatientRecord[] = [];
-    
-            for (const t of transSnap.docs) {
-              const tData = t.data();
-    
-              let patientData: any = {
-                UserId: " ",
-                lastName: "Unknown",
-                firstName: "Unknown",
-                middleInitial: "Unknown",
-                age: 0,
-                gender: "",
-                patientCode: "",
-                controlNo: "",
-                birthdate: "",
-                citizenship: "",
-                houseNo: "",
-                street: "",
-                barangay: "",
-                municipality: "",
-                province: "",
-                email: "",
-                contact: "",
-              };
-
-              let userId = " ";
-                              if (tData.uid) {
-                                const userRef = doc(db, "Users", tData.uid);
-                                const userSnap = await getDoc(userRef);
-                                if (userSnap.exists()) {
-                                  userId = userSnap.data().UserId || " ";
-                                }
-                              }
-              
-    
-              if (tData.patientId) {
-                const pRef = doc(db, "Patients", tData.patientId);
-                const pSnap = await getDoc(pRef);
-                if (pSnap.exists()) {
-                  patientData = pSnap.data();
-                  console.log(`Fetched patient data for ID ${tData.patientId}:`, patientData);
-                } else {
-                  console.warn(`No patient document found for patientId: ${tData.patientId}`);
-                }
-              } else {
-                console.warn(`No patientId in transaction: ${t.id}`);
-              }
-    
-              loaded.push({
-                id: t.id,
-                UserId: userId,
-                patientId: tData.patientId || "",
-                patientCode: patientData.patientCode || "",
-                lastName: patientData.lastName || "Unknown",
-                firstName: patientData.firstName || "Unknown",
-                middleInitial: patientData.middleInitial || "Unknown",
-                age: patientData.age || 0,
-                gender: patientData.gender || "",
-                services: Array.isArray(tData.services) ? tData.services : [],
-                controlNo: patientData.controlNo || "",
-                birthdate: patientData.birthdate || "",
-                citizenship: patientData.citizenship || "",
-                houseNo: patientData.houseNo || "",
-                street: patientData.street || "",
-                barangay: patientData.barangay || "",
-                municipality: patientData.municipality || "",
-                province: patientData.province || "",
-                email: patientData.email || "",
-                contact: patientData.contact || "",
-                date: tData.date || "",
-                slotTime: tData.slotTime || "",
-                slotID: tData.slotID || "",
-                purpose: tData.purpose || "",
-                status: tData.status || "Approved",
-              });
-            }
-    
-            console.log("Loaded patient records:", loaded);
-            setPatientRecords(loaded);
-          } catch (error) {
-            console.error("Error fetching patient records:", error);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchPatientRecords();
-      }, []);
+        useEffect(() => {
+                const fetchPatientRecords = async () => {
+                  setLoading(true);
+                  try {
+                    const transQuery = query(
+                      collection(db, "Transactions"),
+                      where("purpose", "==", "Medical"),
+                      where("status", "in", ["Approved", "Rejected", "Completed", "Rescheduled"])
+                    );
+                    const transSnap = await getDocs(transQuery);
+                    const loaded: PatientRecord[] = [];
+            
+                    for (const t of transSnap.docs) {
+                      const tData = t.data();
+            
+                      let patientData: any = {};
+                      let userId = "N/A";
+            
+                      if (tData.uid) {
+                        const userSnap = await getDoc(doc(db, "Users", tData.uid));
+                        if (userSnap.exists()) {
+                          userId = userSnap.data().UserId || "N/A";
+                        }
+                      }
+            
+                      if (tData.patientId) {
+                        const pSnap = await getDoc(doc(db, "Patients", tData.patientId));
+                        if (pSnap.exists()) {
+                          patientData = pSnap.data();
+                        }
+                      }
+            
+                      loaded.push({
+                        id: t.id,
+                        UserId: userId,
+                        patientId: tData.patientId || "",
+                        patientCode: patientData.patientCode || "N/A",
+                        lastName: patientData.lastName || "Unknown",
+                        firstName: patientData.firstName || "Unknown",
+                        middleInitial: patientData.middleInitial || "",
+                        age: patientData.age || 0,
+                        gender: patientData.gender || "",
+                        services: Array.isArray(tData.services) ? tData.services : [],
+                        controlNo: patientData.controlNo || "",
+                        birthdate: patientData.birthdate || "",
+                        citizenship: patientData.citizenship || "",
+                        houseNo: patientData.houseNo || "",
+                        street: patientData.street || "",
+                        barangay: patientData.barangay || "",
+                        municipality: patientData.municipality || "",
+                        province: patientData.province || "",
+                        email: patientData.email || "",
+                        contact: patientData.contact || "",
+                        date: tData.date || "",
+                        slotTime: tData.slotTime || "",
+                        slotID: tData.slotID || "",
+                        purpose: tData.purpose || "Medical",
+                        status: tData.status || "Approved",
+                        rescheduled: tData.rescheduled || false,
+                        originalDate: tData.originalDate || "",
+                        originalSlot: tData.originalSlot || "",
+                        endTime: tData.endTime || "",
+                      });
+                    }
+            
+                    // Sort by date DESCENDING (latest first)
+                    loaded.sort((a, b) => b.date.localeCompare(a.date));
+            
+                    setPatientRecords(loaded);
+                  } catch (error) {
+                    console.error("Error fetching records:", error);
+                    openCustomModal("Failed to load patient records.", "error");
+                  } finally {
+                    setLoading(false);
+                  }
+                };
+            
+                fetchPatientRecords();
+              }, []);
+        
     
   
 
@@ -228,42 +217,112 @@ const PatientRecords_Medical: React.FC = () => {
 
   
 
-    const filteredPatientRecords = patientRecords.filter((rec) => {
-  const fullName = `${rec.firstName} ${rec.lastName} ${rec.middleInitial}`.toLowerCase();
-  const matchesSearch =
-    fullName.includes(searchTerm.toLowerCase()) ||
-     rec.patientCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rec.UserId.toLowerCase().includes(searchTerm.toLowerCase())  ||
-    rec.patientId.toLowerCase().includes(searchTerm.toLowerCase());
-
-  // Extract date parts (assume format YYYY-MM-DD)
-  const [year, month, day] = rec.date.split("-");
-
-  const matchesStatus =
-    statusFilter === "All" || rec.status === statusFilter;
-
-  const matchesYear = yearFilter === "All" || year === yearFilter;
-  const matchesMonth = monthFilter === "All" || month === monthFilter;
-  const matchesDay = dayFilter === "All" || day === dayFilter;
-
-  return matchesSearch && matchesStatus && matchesYear && matchesMonth && matchesDay;
-});
-
-
- const [availableYears, setAvailableYears] = useState(() => {
-      const currentYear = new Date().getFullYear();
-      return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
-    });
-  
-    const handleYearClick = () => {
-      const maxYear = Math.max(...availableYears);
-      const currentYear = new Date().getFullYear();
-      if (maxYear < currentYear + 50) {
        
-        const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
-        setAvailableYears((prev) => [...prev, ...newYears]);
-      }
-    };
+   useEffect(() => {
+     const today = new Date();
+     setYearFilter(today.getFullYear().toString());
+     setMonthFilter(String(today.getMonth() + 1).padStart(2, "0")); // e.g., "11" for November
+   }, []);
+   
+   
+   // 1. Human sa imong existing filter (kini naa nimo na)
+   const filteredPatientRecords = patientRecords.filter((rec) => {
+     const fullName = `${rec.firstName} ${rec.lastName} ${rec.middleInitial || ""}`.trim().toLowerCase();
+     const searchLower = searchTerm.toLowerCase();
+   
+     const matchesSearch =
+       fullName.includes(searchLower) ||
+       rec.patientCode.toLowerCase().includes(searchLower) ||
+       rec.UserId.toLowerCase().includes(searchLower) ||
+       rec.patientId.toLowerCase().includes(searchLower);
+   
+     const [year, month] = rec.date.split("-");
+   
+     const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
+     const matchesYear = yearFilter === "All" || year === yearFilter;
+     const matchesMonth = monthFilter === "All" || month === monthFilter;
+   
+     return matchesSearch && matchesStatus && matchesYear && matchesMonth;
+   });
+   
+
+
+ 
+
+
+    
+        const [showCustomModal, setShowCustomModal] = useState(false);
+      const [customModalMessage, setCustomModalMessage] = useState("");
+      const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+      const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+      
+      const openCustomModal = (
+        message: string,
+        type: "success" | "error" | "confirm" = "success",
+        onConfirm?: () => void
+      ) => {
+        setCustomModalMessage(message);
+        setCustomModalType(type);
+        if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+        setShowCustomModal(true);
+      };
+      
+      const closeCustomModal = () => {
+        setShowCustomModal(false);
+        setOnCustomModalConfirm(() => {});
+      };
+
+
+      
+
+      
+      const sortedAndFilteredRecords = [...filteredPatientRecords].sort((a, b) => {
+        // Sort by date: newest first (2025-11-19 comes before 2025-10-01)
+        return b.date.localeCompare(a.date);
+      });
+      
+      
+      
+        
+          
+      
+      
+          const [currentPage, setCurrentPage] = useState<number>(1);
+      const recordsPerPage = 5;
+      // PAGINATION LOGIC - Ibutang human sa sortedAndFilteredRecords
+      const indexOfLastRecord = currentPage * recordsPerPage;
+      const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+      const currentRecords = sortedAndFilteredRecords.slice(indexOfFirstRecord, indexOfLastRecord);
+      
+      // Calculate total pages
+      const totalPages = Math.ceil(sortedAndFilteredRecords.length / recordsPerPage);
+      
+      // Generate page numbers (max 5 visible, with ellipsis if needed)
+      const getPageNumbers = () => {
+        const pages: (number | string)[] = [];
+        if (totalPages <= 5) {
+          for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+          if (currentPage <= 3) {
+            for (let i = 1; i <= 4; i++) pages.push(i);
+            pages.push("...");
+            pages.push(totalPages);
+          } else if (currentPage >= totalPages - 2) {
+            pages.push(1);
+            pages.push("...");
+            for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+          } else {
+            pages.push(1);
+            pages.push("...");
+            pages.push(currentPage - 1);
+            pages.push(currentPage);
+            pages.push(currentPage + 1);
+            pages.push("...");
+            pages.push(totalPages);
+          }
+        }
+        return pages;
+      };
 
 
   return (
@@ -325,27 +384,30 @@ const PatientRecords_Medical: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
 
-             <div className="signout-box">
-                                  <FaSignOutAlt className="signout-icon" />
-                                  <span
-                                    onClick={async () => {
-                                      const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                      if (isConfirmed) {
-                                        try {
-                                          await signOut(auth);
-                                          navigate("/loginadmin", { replace: true });
-                                        } catch (error) {
-                                          console.error("Error signing out:", error);
-                                          alert("Failed to sign out. Please try again.");
-                                        }
-                                      }
-                                    }}
-                                    className="signout-label"
-                                    style={{ cursor: "pointer" }}
-                                  >
-                                    Sign Out
-                                  </span>
-                                </div>
+              <div className="signout-box">
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+  openCustomModal(
+    "Are you sure you want to sign out?",
+    "confirm",
+    async () => {
+      try {
+        await signOut(auth);
+        navigate("/loginadmin", { replace: true });
+      } catch (error) {
+        console.error("Error signing out:", error);
+        openCustomModal("Failed to sign out. Please try again.", "error");
+      }
+    }
+  );
+}}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
                                 </div>
       </aside>
 
@@ -414,55 +476,87 @@ const PatientRecords_Medical: React.FC = () => {
                        <option value="Completed">Completed</option>
                      </select>
                     </div>
-                       <div className="filter">
-      <label>Year:</label>
-      <select
-        className="status-dropdown"
-        value={yearFilter}
-        onChange={(e) => setYearFilter(e.target.value)}
-        onClick={handleYearClick} 
-      >
-        <option value="All Years">All Years</option>
-        {availableYears.map((year) => (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        ))}
-      </select>
-    </div>
+                        <div className="filter">
+  <label>Year:</label>
+  <select
+    className="status-dropdown"
+    value={yearFilter}
+    onChange={(e) => setYearFilter(e.target.value)}
+  >
+    {(() => {
+      const currentYear = new Date().getFullYear();
+      const startYear = 2025;
+      const endYear = currentYear + 20;
+
+      const years = [];
+      for (let y = endYear; y >= startYear; y--) {
+        years.push(y);
+      }
+
+      return (
+        <>
+          {years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+          <option value="All">All</option>
+        </>
+      );
+    })()}
+  </select>
+</div>
                    
-                     <div className="filter">
-                        <label>Month:</label>
-                     <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
-                       <option value="All">All Months</option>
-                       <option value="01">January</option>
-                       <option value="02">February</option>
-                       <option value="03">March</option>
-                       <option value="04">April</option>
-                       <option value="05">May</option>
-                       <option value="06">June</option>
-                       <option value="07">July</option>
-                       <option value="08">August</option>
-                       <option value="09">September</option>
-                       <option value="10">October</option>
-                       <option value="11">November</option>
-                       <option value="12">December</option>
-                     </select>
-                   </div>
-       
                     <div className="filter">
-                     <label>Day:</label>
+  <label>Month:</label>
+  <select
+    className="status-dropdown"
+    value={monthFilter}
+    onChange={(e) => setMonthFilter(e.target.value)}
+  >
+    {(() => {
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+
+      const currentMonthIdx = new Date().getMonth();
+      const recent: { name: string; value: string }[] = [];
+
+      // Current month + last 2 months una (priority)
+      for (let i = 0; i < 3; i++) {
+        const idx = (currentMonthIdx - i + 12) % 12;
+        const monthNum = String(idx + 1).padStart(2, "0");
+        recent.push({ name: monthNames[idx], value: monthNum });
+      }
+
+      return (
+        <>
+          {/* Current + last 2 months una */}
+          {recent.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.name} 
+            </option>
+          ))}
+          {/* Uban nga months */}
+          {monthNames.map((name, i) => {
+            const val = String(i + 1).padStart(2, "0");
+            if (recent.some((r) => r.value === val)) return null;
+            return (
+              <option key={val} value={val}>
+                {name}
+              </option>
+            );
+          })}
+          <option value="All">All</option>
+        </>
+      );
+    })()}
+  </select>
+</div>
        
-                     <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
-                       
-                       <option value="All">All Days</option>
-                       {Array.from({ length: 31 }, (_, i) => (
-                         <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-                           {i + 1}
-                         </option>
-                       ))}
-                     </select>
-                   </div>
+       
+                  
                    </div>
                  
         {/* Subheading */}
@@ -495,28 +589,60 @@ const PatientRecords_Medical: React.FC = () => {
                       <td>{rec.firstName}</td> 
                      
                       <td>{rec.services.join(", ")}</td>
-                      <td>{rec.date}</td>
-                      <td>{rec.slotTime}</td>
+                         <td>
+  {rec.date}
+  {rec.rescheduled && (
+    <div style={{ marginTop: "4px" }}>
+      <small style={{ 
+        color: "#e67e22", 
+        fontStyle: "italic", 
+        fontSize: "11px",
+        backgroundColor: "#fff3e0",
+        padding: "2px 6px",
+        borderRadius: "4px",
+        display: "inline-block"
+      }}>
+        Rescheduled from {rec.originalDate} {rec.originalSlot && `at ${rec.originalSlot}`}
+      </small>
+    </div>
+  )}
+</td>
+                      <td>
+  {rec.slotTime}
+  {rec.endTime && (
+    <span >
+      {" - "}{rec.endTime}
+    </span>
+  )}
+</td>
                       <td>
                         <span className={`status-text ${rec.status.toLowerCase()}`}>
                           {rec.status}
                         </span>
                       </td>
-                      <td>
+                        <td>
+                        {/* Mobile: Icons only, Desktop: Text + Icon */}
+                      <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
                         {rec.status === "Approved" && (
                           <button
                             onClick={() => handleAction("Completed", rec)}
-                            className="action-btns completed"
+                            className="action-btnssss completed"
+                            title="Mark as Completed"
                           >
-                            Completed
+                            <FaCheckCircle size={20} />
+                            <span className="btn-text desktop-only"> </span>
                           </button>
                         )}
+                      
                         <button
                           onClick={() => handleAction("View Record", rec)}
-                          className="action-btns view"
+                          className="action-btnssss view"
+                          title="View Details"
                         >
-                          View More
+                          <FaEye size={20} />
+                          <span className="btn-text desktop-only"> </span>
                         </button>
+                      </div>
                       </td>
                     </tr>
                   ))
@@ -529,9 +655,103 @@ const PatientRecords_Medical: React.FC = () => {
                 )}
               </tbody>
             </table>
+
+
+               {/* PAGINATION - Ibutang after </table> pero inside .table-container */}
+<div className="pagination-wrapper">
+  <div className="pagination-info">
+    Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, sortedAndFilteredRecords.length)} of {sortedAndFilteredRecords.length} records
+  </div>
+  
+  <div className="pagination-controls">
+    <button
+      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+      className="pagination-btn prev-btn"
+    >
+      Previous
+    </button>
+
+    {getPageNumbers().map((page, index) => (
+      <button
+        key={index}
+        onClick={() => typeof page === "number" && setCurrentPage(page)}
+        className={`pagination-btn page-num ${
+          page === currentPage ? "active" : ""
+        } ${page === "..." ? "ellipsis" : ""}`}
+        disabled={page === "..."}
+      >
+        {page}
+      </button>
+    ))}
+
+    <button
+      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages || totalPages === 0}
+      className="pagination-btn next-btn"
+    >
+      Next
+    </button>
+  </div>
+</div>
         </div>
       </div>
       </main>
+
+
+
+
+    {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+      {showCustomModal && (
+        <>
+          <audio autoPlay>
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+          </audio>
+          <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+            <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="radiology-modal-header">
+                <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                <h3 className="radiology-modal-title">
+                  {customModalType === "success" && "SUCCESS"}
+                  {customModalType === "error" && "ERROR"}
+                  {customModalType === "confirm" && "CONFIRM ACTION"}
+                </h3>
+                <button className="radiology-modal-close" onClick={closeCustomModal}>
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="radiology-modal-body">
+                <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                  {customModalMessage}
+                </p>
+              </div>
+              <div className="radiology-modal-footer">
+                {customModalType === "confirm" && (
+                  <>
+                    <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                      No, Cancel
+                    </button>
+                    <button
+                      className="radiology-modal-btn confirm"
+                      onClick={() => {
+                        closeCustomModal();
+                        onCustomModalConfirm();
+                      }}
+                    >
+                      Yes, Proceed
+                    </button>
+                  </>
+                )}
+                {(customModalType === "success" || customModalType === "error") && (
+                  <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                    {customModalType === "success" ? "Done" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Completed Modal */}
      {showCompletedModal && (
@@ -589,11 +809,55 @@ const PatientRecords_Medical: React.FC = () => {
                         <tr><th>Province</th><td>{selectedPatientRecord.province}</td></tr>
                         <tr><th>Email</th><td>{selectedPatientRecord.email}</td></tr>
                         <tr><th>Contact</th><td>{selectedPatientRecord.contact}</td></tr>
-                        <tr><th>Department</th><td>{selectedPatientRecord.purpose}</td></tr>
+                        <tr>
+                          <th>Appointment Date</th>
+  <td>
+    {selectedPatientRecord.date}
+    {selectedPatientRecord.rescheduled && (
+      <div style={{ marginTop: "4px" }}>
+        <small style={{ 
+          color: "#e67e22", 
+          fontStyle: "italic", 
+          backgroundColor: "#fff3e0",
+          padding: "2px 6px",
+          borderRadius: "4px"
+        }}>
+          Rescheduled from {selectedPatientRecord.originalDate}
+          {selectedPatientRecord.originalSlot && ` at ${selectedPatientRecord.originalSlot}`}
+        </small>
+      </div>
+    )}
+  </td>
+                          </tr>
                         <tr><th>Services</th><td>{selectedPatientRecord.services.join(", ")}</td></tr>
                         <tr><th>Appointment Date</th><td>{selectedPatientRecord.date}</td></tr>
                         <tr><th>Slot ID</th><td>{selectedPatientRecord.slotID}</td></tr>
-                        <tr><th>Slot</th><td>{selectedPatientRecord.slotTime}</td></tr>
+                          <tr>
+  <th>Time Slot</th>
+  <td>
+    {selectedPatientRecord.slotTime}
+    {selectedPatientRecord.endTime ? (
+      <span style={{ fontWeight: "bold", color: "#28a745" }}>
+        {" "} - {selectedPatientRecord.endTime}
+      </span>
+    ) : (
+      " (1-hour slot)" // or leave blank: ""
+    )}
+    {selectedPatientRecord.rescheduled && (
+      <div style={{ marginTop: "4px" }}>
+        <small style={{ 
+          color: "#e67e22", 
+          fontStyle: "italic", 
+          backgroundColor: "#fff3e0",
+          padding: "2px 6px",
+          borderRadius: "4px"
+        }}>
+          Rescheduled from {selectedPatientRecord.originalDate} at {selectedPatientRecord.originalSlot}
+        </small>
+      </div>
+    )}
+  </td>
+</tr>
                         <tr><th>Status</th><td>{selectedPatientRecord.status}</td></tr>
                       </tbody>
                     </table>

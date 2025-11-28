@@ -54,13 +54,10 @@ const ReportsAnalytics_Radiology: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [year, setYear] = useState<string>("");
   const [month, setMonth] = useState<string>("");
-  const [day, setDay] = useState<string>("");
   const [appointments, setAppointments] = useState<any[]>([]);
  const contentRef = useRef<HTMLDivElement>(null);
 
 
-const [showInfoModal, setShowInfoModal] = useState(false);
-    const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
     const [showCustomModal, setShowCustomModal] = useState(false);
   const [customModalMessage, setCustomModalMessage] = useState("");
   const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
@@ -87,30 +84,30 @@ const [showInfoModal, setShowInfoModal] = useState(false);
     total: 0,
     pending: 0,
     approved: 0,
-    rejected: 0,
     cancelled: 0,
     completed: 0,
   });
 
-  useEffect(() => {
-    const q = query(collection(db, "Transactions"), where("purpose", "==", "Radiographic"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: any[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setAppointments(data);
-  
-      const counts = {
-        total: data.length,
-        pending: data.filter((a) => a.status === "Pending").length,
-        approved: data.filter((a) => a.status === "Approved").length,
-        rejected: data.filter((a) => a.status === "Rejected").length,
-        cancelled: data.filter((a) => a.status === "Cancelled").length,
-        completed: data.filter((a) => a.status === "Completed").length,
-      };
-      setStatusCounts(counts);
-    });
-  
-    return () => unsubscribe();
-  }, []);
+ useEffect(() => {
+  const q = query(collection(db, "Transactions"), where("purpose", "==", "Radiographic"));
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const data: any[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setAppointments(data);
+
+    // CORRECT LOGIC: EXCLUDE REJECTED SA TOTAL APPOINTMENTS
+    const counts = {
+      total: data.filter((appt) => appt.status !== "Rejected").length,
+      pending: data.filter((a) => a.status === "Pending").length,
+      approved: data.filter((a) => a.status === "Approved").length,
+      cancelled: data.filter((a) => a.status === "Cancelled").length,
+      completed: data.filter((a) => a.status === "Completed").length,
+    };
+
+    setStatusCounts(counts);
+  });
+
+  return () => unsubscribe();
+}, []);
 
 
 
@@ -166,11 +163,7 @@ const filteredData = useMemo(() => {
   }
 
   
-  if (day) {
-    filtered = filtered.filter((item) =>
-      item.date.includes(day.toString().padStart(2, "0")) // ensures 01, 02, etc.
-    );
-  }
+ 
 
   // Apply Status filter
   if (status !== "all") {
@@ -189,7 +182,7 @@ const filteredData = useMemo(() => {
   }
 
   return filtered;
-}, [status, year, month, day, chartData]);
+}, [status, year, month, chartData]);
 
   
 
@@ -227,7 +220,7 @@ const handlePrint = () => {
             <p style="margin: 0; font-size: 14px; font-weight: bold;">DEPARTMENT OF HEALTH</p>
             <p style="margin: 0; font-size: 14px; font-weight: bold;">TREATMENT AND REHABILITATION CENTER ARGAO</p>
             <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">RADIOLOGY SECTION REPORT</p>
-            <p style="margin: 0; font-size: 12px;">DATE: ${year || "ALL"}-${month || "ALL"}-${day || "ALL"} | STATUS: ${status.toUpperCase()}</p>
+            <p style="margin: 0; font-size: 12px;">DATE: ${year || "ALL"}-${month  || "ALL"} | STATUS: ${status.toUpperCase()}</p>
           </div>
           <div style="flex: 1; text-align: right;">
             <img src="/pilipinas.png" alt="Pilipinas Logo" style="height: 60px;" onerror="this.style.display='none'">
@@ -261,7 +254,7 @@ const handlePrint = () => {
       
       
       filteredData.forEach((row, idx) => {
-        const total = row.completed + row.pending + row.approved + row.rejected + row.cancelled;
+        const total = row.completed + row.pending + row.approved + row.cancelled;
         tableHTML += `
           <tr>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.date}</td>
@@ -269,7 +262,7 @@ const handlePrint = () => {
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.completed}</td>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.pending}</td>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.approved}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.rejected}</td>
+           
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.cancelled}</td>
           </tr>
         `;
@@ -316,10 +309,7 @@ summaryGrid.innerHTML = `
     <div>Approved</div>
     <div style="font-weight: bold; font-size: 16px;">${statusCounts.approved}</div>
   </div>
-  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-    <div>Rejected</div>
-    <div style="font-weight: bold; font-size: 16px;">${statusCounts.rejected}</div>
-  </div>
+  
   <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
     <div>Cancelled</div>
     <div style="font-weight: bold; font-size: 16px;">${statusCounts.cancelled}</div>
@@ -355,6 +345,15 @@ pdfContainer.appendChild(summary);
       alert("Failed to generate PDF. Please check the console for details.");
     }
   };
+
+  useEffect(() => {
+  const today = new Date();
+  setYear(today.getFullYear().toString());
+  setMonth(String(today.getMonth() + 1).padStart(2, "0")); // e.g., "11" for November
+}, []);
+
+
+
   return (
     <div className="dashboards">
       {/* Sidebar */}
@@ -487,53 +486,82 @@ pdfContainer.appendChild(summary);
         {/* Filters */}
         <div className="content-wrapper" ref={contentRef}>
           <div className="filters-containerss">
-            {/* Year Filter */}
-            <div className="filterss">
-              <label>Year:</label>
-              <select onChange={(e) => setYear(e.target.value)}>
-                <option value="">Select Year</option>
-                {Array.from({ length: 2050 - 2020 + 1 }, (_, i) => 2020 + i).map(
-                  (year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
+            {/* Year Filter - Dynamic & Future-Proof (Newest First) */}
+<div className="filterss">
+  <label>Year:</label>
+  <select
+    value={year}
+    onChange={(e) => setYear(e.target.value)}
+    className="status-dropdown"
+  >
+    <option value="">All</option>
+    {(() => {
+      const currentYear = new Date().getFullYear();
+      const startYear = 2020; // or 2025 if gusto nimo sugdan later
+      const futureBuffer = 30; // 30 years into the future
 
-            {/* Month Filter */}
-            <div className="filterss">
-              <label>Month:</label>
-              <select onChange={(e) => setMonth(e.target.value)}>
-                <option value="">Select Month</option>
-                <option value="01">January</option>
-                <option value="02">February</option>
-                <option value="03">March</option>
-                <option value="04">April</option>
-                <option value="05">May</option>
-                <option value="06">June</option>
-                <option value="07">July</option>
-                <option value="08">August</option>
-                <option value="09">September</option>
-                <option value="10">October</option>
-                <option value="11">November</option>
-                <option value="12">December</option>
-              </select>
-            </div>
+      const years = [];
+      for (let y = currentYear + futureBuffer; y >= startYear; y--) {
+        years.push(y);
+      }
+      return years.map((y) => (
+        <option key={y} value={y}>
+          {y}
+        </option>
+      ));
+    })()}
+  </select>
+</div>
 
-            {/* Day Filter */}
-            <div className="filterss">
-              <label>Day:</label>
-              <select onChange={(e) => setDay(e.target.value)}>
-                <option value="">Select Day</option>
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Month Filter - Current + Last 2 Months First */}
+<div className="filterss">
+  <label>Month:</label>
+  <select
+    value={month}
+    onChange={(e) => setMonth(e.target.value)}
+    className="status-dropdown"
+  >
+    <option value="">All</option>
+    {(() => {
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const currentMonthIdx = new Date().getMonth(); // 0 = Jan, 11 = Dec
+
+      const recent: { name: string; value: string }[] = [];
+
+      // Add current month + last 2 months (3 total)
+      for (let i = 0; i < 3; i++) {
+        const idx = (currentMonthIdx - i + 12) % 12;
+        const monthNum = String(idx + 1).padStart(2, "0");
+        recent.push({ name: monthNames[idx], value: monthNum });
+      }
+
+      return (
+        <>
+          {/* Recent 3 months sa taas */}
+          {recent.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.name}
+            </option>
+          ))}
+          {/* Remaining months */}
+          {monthNames.map((name, i) => {
+            const val = String(i + 1).padStart(2, "0");
+            if (recent.some((r) => r.value === val)) return null;
+            return (
+              <option key={val} value={val}>
+                {name}
+              </option>
+            );
+          })}
+        </>
+      );
+    })()}
+  </select>
+</div>
+
 
             {/* Status Filter */}
             <div className="filterss">
@@ -542,7 +570,7 @@ pdfContainer.appendChild(summary);
                 <option value="all">All Appointments</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+                {/* <option value="rejected">Rejected</option> */}
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
@@ -585,6 +613,7 @@ pdfContainer.appendChild(summary);
                   strokeWidth={2}
                 />
               )}
+              {/*
               {(status === "all" || status === "rejected") && (
                 <Line
                   type="monotone"
@@ -593,6 +622,7 @@ pdfContainer.appendChild(summary);
                   strokeWidth={2}
                 />
               )}
+                */}
               {(status === "all" || status === "cancelled") && (
                 <Line
                   type="monotone"
@@ -619,7 +649,7 @@ pdfContainer.appendChild(summary);
         <p>TREATMENT AND REHABILITATION CENTER ARGAO</p>
         <p><strong>Radiology Section Report</strong></p>
         <p>
-          Date: {year || "All"}-{month || "All"}-{day || "All"} | Status: {status}
+          Date: {year || "All"}-{month|| "All"} | Status: {status}
         </p>
       </div>
       <div className="header-right">
@@ -636,13 +666,13 @@ pdfContainer.appendChild(summary);
           <th>Completed</th>
           <th>Pending</th>
           <th>Approved</th>
-          <th>Rejected</th>
+          {/*<th>Rejected</th> */}
           <th>Cancelled</th>
         </tr>
       </thead>
       <tbody>
         {filteredData.map((row, idx) => {
-          const total = row.completed + row.pending + row.approved + row.rejected + row.cancelled;
+         const total = row.completed + row.pending + row.approved + row.cancelled;
           return (
             <tr key={idx}>
               <td>{row.date}</td>
@@ -650,7 +680,7 @@ pdfContainer.appendChild(summary);
               <td>{row.completed}</td>
               <td>{row.pending}</td>
               <td>{row.approved}</td>
-              <td>{row.rejected}</td>
+             
               <td>{row.cancelled}</td>
             </tr>
           );
@@ -679,10 +709,7 @@ pdfContainer.appendChild(summary);
         <span>Approved</span>
         <strong>{statusCounts.approved}</strong>
       </div>
-      <div className="summary-cards">
-        <span>Rejected</span>
-        <strong>{statusCounts.rejected}</strong>
-      </div>
+      
       <div className="summary-cards">
         <span>Cancelled</span>
         <strong>{statusCounts.cancelled}</strong>
@@ -703,7 +730,7 @@ pdfContainer.appendChild(summary);
                 <th>Completed</th>
                 <th>Pending</th>
                 <th>Approved</th>
-                <th>Rejected</th>
+                
                 <th>Cancelled</th>
               </tr>
             </thead>
@@ -713,7 +740,7 @@ pdfContainer.appendChild(summary);
                   row.completed +
                   row.pending +
                   row.approved +
-                  row.rejected +
+               
                   row.cancelled;
                 return (
                   <tr key={idx}>
@@ -722,7 +749,7 @@ pdfContainer.appendChild(summary);
                     <td>{row.completed}</td>
                     <td>{row.pending}</td>
                     <td>{row.approved}</td>
-                    <td>{row.rejected}</td>
+                  
                     <td>{row.cancelled}</td>
                   </tr>
                 );
@@ -748,10 +775,7 @@ pdfContainer.appendChild(summary);
               <span>Approved</span>
               <strong>{statusCounts.approved}</strong>
             </div>
-            <div className="summary-card">
-              <span>Rejected</span>
-              <strong>{statusCounts.rejected}</strong>
-            </div>
+           
             <div className="summary-card">
               <span>Cancelled</span>
               <strong>{statusCounts.cancelled}</strong>

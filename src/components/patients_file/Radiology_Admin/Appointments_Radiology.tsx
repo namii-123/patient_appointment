@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaClock, FaStethoscope, } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaCheckCircle, FaEye, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaClock, FaStethoscope, } from "react-icons/fa";
 import "../../../assets/Appointments_Dental.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
@@ -19,6 +19,8 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp,
+  getDocs,
+  writeBatch,
 } from "firebase/firestore";
 import { X } from "lucide-react";
 
@@ -50,6 +52,8 @@ interface Appointment {
   slotID: string;
   purpose: string;
   status: "Pending" | "Approved" | "Rejected" | "Cancelled"; // Include Cancelled
+  endTime?: string;      
+  endTime24?: string;    
 }
 
 interface Notification {
@@ -64,7 +68,6 @@ const Appointments_Radiology: React.FC = () => {
   const [loading, setLoading] = useState(false);
  const [filterYear, setFilterYear] = useState<string>("All");
 const [filterMonth, setFilterMonth] = useState<string>("All");
-  const [dayFilter, setDayFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
 
   const handleNavigation = (path: string) => {
@@ -113,7 +116,7 @@ const closeCustomModal = () => {
       const transQuery = query(
         collection(db, "Transactions"),
         where("purpose", "==", "Radiographic"),
-        where("status", "in", ["Pending", "Cancelled"])
+        where("status", "in", ["Pending", "Cancelled", "Rescheduled"])
       );
     
       const unsubscribe = onSnapshot(transQuery, async (transSnap) => {
@@ -266,26 +269,10 @@ if (!isValidEmail) {
       }
     };
 
-     const [availableYears, setAvailableYears] = useState(() => {
-        const currentYear = new Date().getFullYear();
-        return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
-      });
     
-      const handleYearClick = () => {
-        const maxYear = Math.max(...availableYears);
-        const currentYear = new Date().getFullYear();
-        if (maxYear < currentYear + 50) {
-         
-          const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
-          setAvailableYears((prev) => [...prev, ...newYears]);
-        }
-      };
+    
 
  
-  const availableMonths = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
 
   useEffect(() => {
   const today = new Date();
@@ -357,11 +344,98 @@ const getPageNumbers = () => {
 };
 
 
+
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [rejectReason, setRejectReason] = useState<string>("");
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   const [showAcceptModal, setShowAcceptModal] = useState<boolean>(false);
+
+
+const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+const [rescheduleDate, setRescheduleDate] = useState<string>("");
+const [rescheduleSlot, setRescheduleSlot] = useState<string>("");
+const [availableSlots, setAvailableSlots] = useState<{ id: string; time: string; display: string }[]>([]);
+const [loadingSlots, setLoadingSlots] = useState(false);
+
+
+const fetchAvailableSlots = async (date: string) => {
+  if (!date) {
+    setAvailableSlots([]);
+    setRescheduleSlot("");
+    return;
+  }
+  setLoadingSlots(true);
+
+  try {
+    const slotsQuery = query(
+      collection(db, "Slots_Radiology"),
+      where("date", "==", date)
+    );
+
+    const unsubscribe = onSnapshot(slotsQuery, (snap) => {
+      const allSlots = snap.docs.map(doc => ({
+        id: doc.id,
+        time: doc.data().time as string,
+        isBooked: doc.data().isBooked as boolean,
+      }));
+
+      // Sort by time
+      allSlots.sort((a, b) => a.time.localeCompare(b.time));
+
+      // Filter slots na pwede ma-select (dapat ang current + next hour libre)
+      const availableForTwoHours = allSlots.filter((slot, index) => {
+        if (slot.isBooked) return false;
+
+        const currentHour = parseInt(slot.time.split(":")[0]);
+        const nextSlotTime = `${String(currentHour + 1).padStart(2, "0")}:00`;
+
+        // Check if next hour exists and is free
+        const nextSlot = allSlots.find(s => s.time === nextSlotTime);
+        if (!nextSlot) return false; // walay sunod nga slot (e.g. 4PM → 5PM wala na)
+        return !nextSlot.isBooked;
+      });
+
+      // Format display: 10:00 AM - 11:00 AM
+      const formatted = availableForTwoHours.map(slot => {
+        const [h, m] = slot.time.split(":");
+        let hour = parseInt(h);
+        const ampm = hour >= 12 ? "PM" : "AM";
+        hour = hour % 12 || 12;
+        const start = `${hour}:${m} ${ampm}`;
+
+        const endHour = (parseInt(h) + 1) % 24;
+        const endAmpm = endHour >= 12 ? "PM" : "AM";
+        const endHour12 = endHour % 12 || 12;
+        const end = `${endHour12}:${m} ${endAmpm}`;
+
+        return {
+          id: slot.id,
+          time: slot.time, // original time to save
+          display: `${start} - ${end}`,
+        };
+      });
+
+      setAvailableSlots(formatted);
+      setLoadingSlots(false);
+
+      if (formatted.length > 0) {
+        setRescheduleSlot(formatted[0].time);
+      } else {
+        setRescheduleSlot("");
+      }
+    });
+
+    return unsubscribe;
+  } catch (err) {
+    console.error("Error:", err);
+    setAvailableSlots([]);
+    setLoadingSlots(false);
+  }
+};
+
+
+
 
   return (
     <div className="dashboards">
@@ -534,7 +608,7 @@ const getPageNumbers = () => {
               {year}
             </option>
           ))}
-          <option value="All">All Years</option>
+          <option value="All">All</option>
         </>
       );
     })()}
@@ -616,86 +690,91 @@ const getPageNumbers = () => {
           </span>
         </td>
         <td>
-          {appt.status === "Pending" && (
-            <>
-              <button
-                className="action-btn accept"
-                onClick={async () => {
-                  if (appt.patientId) {
-                    const pRef = doc(db, "Patients", appt.patientId);
-                    const pSnap = await getDoc(pRef);
-                    if (pSnap.exists()) {
-                      const patientData = pSnap.data();
-                      if (!patientData.email) {
-                        openCustomModal("No email address found for this patient.");
-                        return;
-                      }
-                      setSelectedAppointment({
-                        ...appt,
-                        ...patientData,
-                      });
-                      setShowAcceptModal(true);
-                    } else {
-                      openCustomModal("No patient data found.");
-                    }
-                  } else {
-                    openCustomModal("No patientId found for this appointment.");
-                  }
-                }}
-              >
-                Accept
-              </button>
-              <button
-                className="action-btn reject"
-                onClick={async () => {
-                  if (appt.patientId) {
-                    const pRef = doc(db, "Patients", appt.patientId);
-                    const pSnap = await getDoc(pRef);
-                    if (pSnap.exists()) {
-                      const patientData = pSnap.data();
-                      if (!patientData.email) {
-                        openCustomModal("No email address found for this patient.");
-                        return;
-                      }
-                      setSelectedAppointment({
-                        ...appt,
-                        ...patientData,
-                      });
-                      setShowRejectModal(true);
-                    } else {
-                      openCustomModal("No patient data found.");
-                    }
-                  } else {
-                    openCustomModal("No patientId found for this appointment.");
-                  }
-                }}
-              >
-                Reject
-              </button>
-            </>
-          )}
-        </td>
-        <td>
-          <button
-            className="view-more-btn"
-            onClick={async () => {
-              if (appt.patientId) {
-                const pRef = doc(db, "Patients", appt.patientId);
-                const pSnap = await getDoc(pRef);
-                if (pSnap.exists()) {
-                  const patientData = pSnap.data();
-                  setSelectedPatient({
-                    ...appt,
-                    ...patientData
-                  });
-                  setShowInfoModal(true);
-                }
+  {appt.status === "Pending" && (
+    <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+      {/* Accept Button */}
+      <button
+        className="action-btnsss accept"
+        title="Accept Appointment"
+        onClick={async () => {
+          if (appt.patientId) {
+            const pRef = doc(db, "Patients", appt.patientId);
+            const pSnap = await getDoc(pRef);
+            if (pSnap.exists()) {
+              const patientData = pSnap.data();
+              if (!patientData.email) {
+                openCustomModal("No email address found for this patient.");
+                return;
               }
-            }}
-          >
-            View More
-          </button>
-        </td>
+              setSelectedAppointment({
+                ...appt,
+                ...patientData,
+              });
+              setShowAcceptModal(true);
+            } else {
+              openCustomModal("No patient data found.");
+            }
+          } else {
+            openCustomModal("No patientId found for this appointment.");
+          }
+        }}
+      >
+        <FaCheckCircle size={20} />
+      </button>
+
+      {/* Reschedule Button */}
+      <button
+        className="action-btnsss reschedule"
+        title="Reschedule Appointment"
+        onClick={async () => {
+          if (appt.patientId) {
+            const pRef = doc(db, "Patients", appt.patientId);
+            const pSnap = await getDoc(pRef);
+            if (pSnap.exists()) {
+              const patientData = pSnap.data();
+              setSelectedAppointment({
+                ...appt,
+                ...patientData,
+              });
+              setShowRescheduleModal(true);
+              const tomorrow = new Date();
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              const formatted = tomorrow.toISOString().split("T")[0];
+              setRescheduleDate(formatted);
+              fetchAvailableSlots(formatted);
+            }
+          }
+        }}
+      >
+        <FaCalendarAlt size={20} />
+      </button>
+    </div>
+  )}
+</td>
+        <td>
+  <div style={{ display: "flex", justifyContent: "center" }}>
+    <button
+      className="action-btnsss view-more"
+      title="View Patient Details"
+      onClick={async () => {
+        if (appt.patientId) {
+          const pRef = doc(db, "Patients", appt.patientId);
+          const pSnap = await getDoc(pRef);
+          if (pSnap.exists()) {
+            const patientData = pSnap.data();
+            setSelectedPatient({
+              ...appt,
+              ...patientData
+            });
+            setShowInfoModal(true);
+          }
+        }
+      }}
+    >
+      <FaEye size={20} />
+    </button>
+  </div>
+</td>
       </tr>
     ))
   ) : (
@@ -743,6 +822,349 @@ const getPageNumbers = () => {
     </button>
   </div>
 </div>
+
+
+{showRescheduleModal && selectedAppointment && (
+  <div className="modal-overlay">
+    <div className="modal-box" style={{ maxWidth: "550px" }}>
+      <h3>Reschedule Appointment</h3>
+      
+      <div style={{ marginBottom: "20px", padding: "15px", background: "#f9f9f9", borderRadius: "8px" }}>
+        <p style={{ margin: "0 0 8px 0", fontWeight: "600" }}>
+          Patient: {selectedAppointment.lastName}, {selectedAppointment.firstName}
+        </p>
+        <p style={{ margin: 0, fontSize: "14px", color: "#555" }}>
+          Original: {selectedAppointment.date} at {selectedAppointment.slotTime}
+        </p>
+      </div>
+
+      {/* STEP 1: Choose Date */}
+      <div style={{ margin: "20px 0" }}>
+        <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+          Select New Date <span style={{ color: "red" }}>*</span>
+        </label>
+        <input
+          type="date"
+          value={rescheduleDate}
+          min={new Date(Date.now() + 24*60*60*1000).toISOString().split("T")[0]} // tomorrow onwards
+          onChange={(e) => {
+            const newDate = e.target.value;
+            setRescheduleDate(newDate);
+            setRescheduleSlot(""); // reset time
+            
+              {
+              setAvailableSlots([]);
+            }
+          }}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            fontSize: "16px"
+          }}
+        />
+      </div>
+
+   
+    {/* STEP 2: MANUAL TIME INPUT WITH START - END DISPLAY (10:00 AM - 12:00 PM) */}
+<div style={{ margin: "20px 0" }}>
+  <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+    Enter Start Time <span style={{ color: "red" }}>*</span>
+  </label>
+
+  {/* Main Input Field */}
+  <div style={{ marginBottom: "15px" }}>
+    <input
+      type="text"
+      value={rescheduleSlot}
+      onChange={(e) => {
+        let input = e.target.value.toUpperCase().replace(/[^0-9:APM ]/gi, "");
+        
+        if (/^\d{1,2}$/.test(input)) input += ":00";
+        if (/^\d{1,2}:$/.test(input)) input += "00";
+        if (/^\d{1,2}:\d$/.test(input)) input = input.replace(/:(\d)$/, ":0$1");
+        if (/^\d{1,2}:\d{2}$/.test(input)) {
+          const hour = parseInt(input.split(":")[0]);
+          if (!input.includes("AM") && !input.includes("PM") && hour <= 12) {
+            input += " AM";
+          }
+        }
+        
+        setRescheduleSlot(input);
+      }}
+      placeholder="10:00 AM"
+      style={{
+        width: "100%",
+        padding: "18px",
+        fontSize: "22px",
+        fontWeight: "600",
+        textAlign: "center",
+        borderRadius: "14px",
+        border: "4px solid #28a745",
+        backgroundColor: "#f8fff9",
+        color: "#1a1a1a",
+        letterSpacing: "2px",
+        boxShadow: "0 6px 15px rgba(0,0,0,0.15)",
+        outline: "none"
+      }}
+    />
+  </div>
+
+  {/* LIVE PREVIEW: Start - End Time */}
+  {rescheduleSlot && /^(1[0-2]|0?[1-9]):[0-5][0-9]\s?(AM|PM)$/i.test(rescheduleSlot.trim()) && (
+    <div style={{
+      background: "linear-gradient(135deg, #28a745, #20c997)",
+      color: "white",
+      padding: "16px",
+      borderRadius: "12px",
+      textAlign: "center",
+      fontSize: "20px",
+      fontWeight: "700",
+      margin: "15px 0",
+      boxShadow: "0 4px 12px rgba(40,167,69,0.3)"
+    }}>
+      {(() => {
+        const match = rescheduleSlot.trim().match(/^(1[0-2]|0?[1-9]):?([0-5][0-9])\s?(AM|PM)$/i);
+        if (!match) return "";
+        const [_, hourStr, minute, ampm] = match;
+        const hour = parseInt(hourStr);
+        const startTime = `${hour}:${minute} ${ampm.toUpperCase()}`;
+
+        let endHour = hour + 2;
+        let endAmpm = ampm.toUpperCase();
+        if (endHour > 12) {
+          endHour -= 12;
+          endAmpm = endAmpm === "AM" ? "PM" : "AM";
+        }
+        if (endHour === 12) endAmpm = "PM";
+        if (endHour === 0) endHour = 12;
+
+        const endTime = `${endHour}:${minute} ${endAmpm}`;
+        return `${startTime} - ${endTime}`;
+      })()}
+    </div>
+  )}
+
+  {/* Quick Buttons */}
+  {/* Quick Buttons */}
+<div style={{ 
+  display: "grid", 
+  gridTemplateColumns: "repeat(4, 1fr)", 
+  gap: "12px", 
+  marginTop: "10px" 
+}}>
+  {[
+    "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+    "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"
+  ].map((time) => {
+    // Simple display: just show the start time (1-hour label)
+    const display = time; // e.g. "8:00 AM" lang, dili na "8:00 AM - 10:00 AM"
+
+    return (
+      <button
+        key={time}
+        onClick={() => setRescheduleSlot(time)}
+        style={{
+          padding: "14px 8px",
+          fontSize: "15px",
+          fontWeight: "700",
+          backgroundColor: rescheduleSlot === time ? "#28a745" : "#f1f3f5",
+          color: rescheduleSlot === time ? "white" : "#333",
+          border: "none",
+          borderRadius: "12px",
+          cursor: "pointer",
+          transition: "all 0.3s ease",
+          boxShadow: rescheduleSlot === time ? "0 6px 16px rgba(40,167,69,0.5)" : "0 2px 6px rgba(0,0,0,0.1)",
+          transform: rescheduleSlot === time ? "translateY(-2px)" : "none"
+        }}
+        onMouseOver={(e) => {
+          if (rescheduleSlot !== time) {
+            e.currentTarget.style.backgroundColor = "#e0e0e0";
+            e.currentTarget.style.transform = "translateY(-4px)";
+          }
+        }}
+        onMouseOut={(e) => {
+          if (rescheduleSlot !== time) {
+            e.currentTarget.style.backgroundColor = "#f1f3f5";
+            e.currentTarget.style.transform = "translateY(0)";
+          }
+        }}
+      >
+        {display}
+      </button>
+    );
+  })}
+</div>
+
+  {/* Validation */}
+  {/* LIVE PREVIEW: Start - End Time (2-hour block) */}
+{rescheduleSlot && /^(1[0-2]|0?[1-9]):[0-5][0-9]\s?(AM|PM)$/i.test(rescheduleSlot.trim()) && (
+  <div style={{
+    
+  }}>
+    {(() => {
+      const match = rescheduleSlot.trim().match(/^(1[0-2]|0?[1-9]):?([0-5][0-9])\s?(AM|PM)$/i);
+      if (!match) return "";
+      const [_, hourStr, minute, ampm] = match;
+      const hour = parseInt(hourStr);
+      const startTime = `${hour}:${minute.padStart(2, "0")} ${ampm.toUpperCase()}`;
+
+      let endHour = hour + 2;
+      let endAmpm = ampm.toUpperCase();
+      if (endHour > 12) {
+        endHour -= 12;
+        endAmpm = endAmpm === "AM" ? "PM" : "AM";
+      }
+      if (endHour === 12) endAmpm = "PM";
+      if (endHour === 0) endHour = 12;
+
+      const endTime = `${endHour}:${minute.padStart(2, "0")} ${endAmpm}`;
+      return `${startTime} → ${endTime} (2-Hour Slot)`;
+    })()}
+  </div>
+)}
+</div>
+
+      {/* Confirm Button */}
+      <div className="modal-buttons" style={{ marginTop: "25px" }}>
+        <button
+          className="modal-cancel"
+          onClick={() => {
+            setShowRescheduleModal(false);
+            setRescheduleDate("");
+            setRescheduleSlot("");
+            setAvailableSlots([]);
+            setSelectedAppointment(null);
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="modal-confirm"
+          disabled={!rescheduleDate || !rescheduleSlot || loadingSlots}
+          style={{
+            opacity: (!rescheduleDate || !rescheduleSlot) ? 0.6 : 1
+          }}
+       onClick={async () => {
+  if (!selectedAppointment?.email) {
+    openCustomModal("No email found for this patient.", "error");
+    return;
+  }
+
+  const timeMatch = rescheduleSlot.trim().match(/^(1[0-2]|0?[1-9]):?([0-5][0-9])\s?(AM|PM)$/i);
+  if (!timeMatch) {
+    openCustomModal("Invalid time format. Please use: 10:00 AM or 2:30 PM", "error");
+    return;
+  }
+
+  const [_, hourStr, minute, ampm] = timeMatch;
+  let hour24 = parseInt(hourStr);
+  if (ampm.toUpperCase() === "PM" && hour24 !== 12) hour24 += 12;
+  if (ampm.toUpperCase() === "AM" && hour24 === 12) hour24 = 0;
+
+  const startTime24 = `${String(hour24).padStart(2, "0")}:${minute}`;
+  const endHour24 = (hour24 + 2) % 24;
+  const endTime24 = `${String(endHour24).padStart(2, "0")}:${minute}`;
+
+  // Format for display (12-hour)
+  const start12 = rescheduleSlot.trim();
+  const end12Hour = hour24 + 2 > 12 ? (hour24 + 2 - 12) : (hour24 + 2 === 12 ? 12 : hour24 + 2);
+  const end12HourStr = end12Hour === 0 ? 12 : end12Hour;
+  const endAmpm = (hour24 + 2) >= 12 ? "PM" : "AM";
+  const endTimeDisplay = `${end12HourStr}:${minute} ${endAmpm}`;
+
+  try {
+    // 1. Update ang transaction with start & end times
+    const transRef = doc(db, "Transactions", selectedAppointment.id);
+    await updateDoc(transRef, {
+      status: "Approved",
+      date: rescheduleDate,
+      slotTime: start12,                    // e.g., "10:00 AM"
+      endTime: `${endTimeDisplay}`,         // NEW: "12:00 PM"
+      time24: startTime24,                  // "10:00"
+      endTime24: endTime24,                 // "12:00" (for querying)
+      updatedAt: serverTimestamp(),
+      rescheduled: true,
+      originalDate: selectedAppointment.date,
+      originalSlot: selectedAppointment.slotTime,
+    });
+
+    // 2. Book ang 2 ka slots (start + next hour)
+    const timesToBook = [startTime24, endTime24];
+    const slotsQuery = query(
+      collection(db, "Slots_Radiology"),
+      where("date", "==", rescheduleDate),
+      where("time", "in", timesToBook)
+    );
+
+    const slotSnap = await getDocs(slotsQuery);
+    const batch = writeBatch(db);
+
+    slotSnap.forEach((slotDoc) => {
+      batch.update(slotDoc.ref, { isBooked: true });
+    });
+
+    // Kung wala pa ang slots, i-create (optional)
+    if (slotSnap.empty) {
+      console.warn("Slots not found for booking, creating...");
+      timesToBook.forEach(time => {
+        const slotRef = doc(collection(db, "Slots_Radiology"));
+        batch.set(slotRef, {
+          date: rescheduleDate,
+          time: time,
+          isBooked: true,
+          createdBy: "admin_reschedule"
+        });
+      });
+    }
+
+    await batch.commit();
+
+    // 3. Send email with full time range
+    const message = `Your appointment has been RESCHEDULED by the Radiology Department.\n\nNew Schedule:\nDate: ${rescheduleDate}\nTime: ${start12} - ${endTimeDisplay} (2-hour block)\n\nPlease arrive on time.\n\nThank you!\nRadiology Team`;
+
+    await sendEmail(
+      selectedAppointment.email,
+      `${selectedAppointment.firstName} ${selectedAppointment.lastName}`,
+      message,
+      rescheduleDate,
+      `${start12} - ${endTimeDisplay}`
+    );
+
+    // 4. Notification sa patient
+    if (selectedAppointment.uid) {
+      const notifCollection = collection(db, "Users", selectedAppointment.uid, "notifications");
+      await addDoc(notifCollection, {
+        text: `Your Radiology appointment has been RESCHEDULED!\nNew Schedule: ${rescheduleDate} at ${start12} - ${endTimeDisplay} (2 hours)`,
+        read: false,
+        timestamp: serverTimestamp(),
+        type: "rescheduled",
+      });
+    }
+
+    openCustomModal(`Appointment successfully rescheduled!\n${rescheduleDate}\n${start12} - ${endTimeDisplay}`, "success");
+
+    // Close modal
+    setShowRescheduleModal(false);
+    setRescheduleDate("");
+    setRescheduleSlot("");
+    setSelectedAppointment(null);
+  } catch (err: any) {
+    console.error("Reschedule error:", err);
+    openCustomModal("Failed to reschedule: " + err.message, "error");
+  }
+}}
+        >
+          {loadingSlots ? "Processing..." : "Confirm Reschedule"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
 
           {showInfoModal && selectedPatient && (
             <div className="modal-overlayss">

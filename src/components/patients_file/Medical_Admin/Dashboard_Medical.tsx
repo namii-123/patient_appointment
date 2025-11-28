@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
+import { X } from "lucide-react";
 
 
 interface Notification {
@@ -41,7 +42,7 @@ const Dashboard_Medical: React.FC = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [cancelledCount, setCancelledCount] = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
-const [rejectedCount, setRejectedCount] = useState(0);
+
 const [completedCount, setCompletedCount] = useState(0);
 
 
@@ -144,7 +145,7 @@ useEffect(() => {
     
 
 
-   // Count Patients based on Transactions (unique patient IDs)
+
 const fetchPatients = async () => {
   const q = query(
     collection(db, "Transactions"),
@@ -152,15 +153,19 @@ const fetchPatients = async () => {
   );
   const snap = await getDocs(q);
 
-  const uniquePatients = new Set<string>();
+  const validPatientIds = new Set<string>();
+
   snap.forEach((doc) => {
     const data = doc.data();
-    if (data.patientId) {
-      uniquePatients.add(data.patientId);
+    const status = (data.status || "").toString().toLowerCase().trim();
+
+    // Kung ang transaction DILI Rejected → valid patient
+    if (status !== "rejected" && data.patientId) {
+      validPatientIds.add(data.patientId);
     }
   });
 
-  setTotalPatients(uniquePatients.size);
+  setTotalPatients(validPatientIds.size);
 };
 
 
@@ -176,24 +181,29 @@ const fetchPatients = async () => {
   let pending = 0;
   let cancelled = 0;
   let approved = 0;
-  let rejected = 0;
+  
   let completed = 0;
 
-  snap.forEach((doc) => {
-    const data = doc.data();
-    total++;
-    if (data.status === "Pending") pending++;
-    if (data.status === "Cancelled") cancelled++;
-    if (data.status === "Approved") approved++;
-    if (data.status === "Rejected") rejected++;
-    if (data.status === "Completed") completed++;
-  });
+   snap.forEach((doc) => {
+  const data = doc.data();
+  const status = data.status?.toLowerCase();
+
+  
+  if (status !== "rejected") {
+    total++; 
+  }
+
+  if (status === "pending") pending++;
+  if (status === "cancelled") cancelled++;
+  if (status === "approved") approved++;
+  if (status === "completed") completed++;
+});
 
   setTotalAppointments(total);
   setPendingCount(pending);
   setCancelledCount(cancelled);
   setApprovedCount(approved);
-  setRejectedCount(rejected);
+ 
   setCompletedCount(completed);
 });
     fetchUsers();
@@ -219,7 +229,7 @@ const fetchPatients = async () => {
   { name: "Pending", value: pendingCount },
   { name: "Canceled", value: cancelledCount },
   { name: "Completed", value: completedCount },
-  { name: "Rejected", value: rejectedCount },
+ 
 ];
 
 
@@ -231,6 +241,27 @@ const fetchPatients = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
   };
 
+  
+ const [showCustomModal, setShowCustomModal] = useState(false);
+const [customModalMessage, setCustomModalMessage] = useState("");
+const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+
+const openCustomModal = (
+  message: string,
+  type: "success" | "error" | "confirm" = "success",
+  onConfirm?: () => void
+) => {
+  setCustomModalMessage(message);
+  setCustomModalType(type);
+  if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+  setShowCustomModal(true);
+};
+
+const closeCustomModal = () => {
+  setShowCustomModal(false);
+  setOnCustomModalConfirm(() => {});
+};
  
   
 
@@ -297,26 +328,29 @@ const fetchPatients = async () => {
           </div>
 
             <div className="signout-box">
-                       <FaSignOutAlt className="signout-icon" />
-                       <span
-                         onClick={async () => {
-                           const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                           if (isConfirmed) {
-                             try {
-                               await signOut(auth);
-                               navigate("/loginadmin", { replace: true });
-                             } catch (error) {
-                               console.error("Error signing out:", error);
-                               alert("Failed to sign out. Please try again.");
-                             }
-                           }
-                         }}
-                         className="signout-label"
-                         style={{ cursor: "pointer" }}
-                       >
-                         Sign Out
-                       </span>
-                     </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+  openCustomModal(
+    "Are you sure you want to sign out?",
+    "confirm",
+    async () => {
+      try {
+        await signOut(auth);
+        navigate("/loginadmin", { replace: true });
+      } catch (error) {
+        console.error("Error signing out:", error);
+        openCustomModal("Failed to sign out. Please try again.", "error");
+      }
+    }
+  );
+}}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
                      </div>
       </aside>
 
@@ -414,11 +448,7 @@ const fetchPatients = async () => {
                  </div>
        
                  <div className="card-row">
-                  <div className="cardss">
-                               <FaTimesCircle className="card-icon" />
-                               <h5>{rejectedCount}</h5>
-                               <p>Total Rejected</p>
-                             </div>
+                  
                              <div className="cardss">
                                <FaCheckCircle className="card-icon" />
                                <h5>{completedCount}</h5>
@@ -480,7 +510,57 @@ const fetchPatients = async () => {
 </div>
         </div>
 
-        
+      {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+{showCustomModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+    </audio>
+    <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+      <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="radiology-modal-header">
+          <img src={logo} alt="Logo" className="radiology-modal-logo" />
+          <h3 className="radiology-modal-title">
+            {customModalType === "success" && "SUCCESS"}
+            {customModalType === "error" && "ERROR"}
+            {customModalType === "confirm" && "CONFIRM ACTION"}
+          </h3>
+          <button className="radiology-modal-close" onClick={closeCustomModal}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="radiology-modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+            {customModalMessage}
+          </p>
+        </div>
+        <div className="radiology-modal-footer">
+          {customModalType === "confirm" && (
+            <>
+              <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                No, Cancel
+              </button>
+              <button
+                className="radiology-modal-btn confirm"
+                onClick={() => {
+                  closeCustomModal();
+                  onCustomModalConfirm();
+                }}
+              >
+                Yes, Proceed
+              </button>
+            </>
+          )}
+          {(customModalType === "success" || customModalType === "error") && (
+            <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+              {customModalType === "success" ? "Done" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}    
 
        
 </div>

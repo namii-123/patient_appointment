@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaUser, FaFileAlt, FaSignOutAlt, FaHome, FaPhone } from "react-icons/fa";
+import { FaUser, FaFileAlt, FaSignOutAlt, FaHome, FaPhone, FaCalendarAlt } from "react-icons/fa";
 import { signOut } from "firebase/auth";
 import { auth, db } from "./firebase"; 
 import { toast } from "react-toastify";
@@ -37,6 +37,8 @@ import LawyersRequestForm from "./LawyersRequestForm";
 import OfficialReceiptForm from "./OfficialReceiptForm";
 import ValidIDForm from "./ValidIDForm";
 import ConsentForm from "./ConsentForm";
+import VoluntaryAdmissionForm from "./VoluntaryAdmissionForm";
+import VoluntaryValidIDForm from "./VoluntaryValidIDForm";
 import About from "./About";
 import Notifications from "./Notifications";
 import { FaEnvelope, FaCalendarCheck, FaTools, FaInfoCircle } from "react-icons/fa";
@@ -98,6 +100,9 @@ const Home: React.FC = () => {
     | "officialreceipt"
     | "validid"
     | "consentform"
+    | "voluntaryform"
+    | "voluntary-admission"
+    | "voluntaryid"
   >("home");
   const [avatar, setAvatar] = useState<string>("/default-img.jpg"); // State for avatar image
 
@@ -131,6 +136,9 @@ const Home: React.FC = () => {
       | "officialreceipt"
       | "validid"
       | "consentform"
+      | "voluntaryform"
+      | "voluntary-admission"
+      | "voluntaryid"
   ) => {
     setCurrentView(targetView);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -216,11 +224,13 @@ const Home: React.FC = () => {
             const notifs: Notification[] = snap.docs.map(doc => {
               const data = doc.data();
               let icon: React.ReactNode | undefined;
-              if (data.type === "approved") {
-                icon = <FaCalendarCheck />;
-              } else if (data.type === "rejected") {
-                icon = <FaEnvelope />;
-              }
+if (data.type === "approved") {
+  icon = <FaCalendarCheck />;
+} else if (data.type === "rejected") {
+  icon = <FaEnvelope />;
+} else if (data.type === "rescheduled") {
+  icon = <FaCalendarAlt style={{ color: "#28a745" }} />; // or any icon
+}
               return {
                 id: doc.id,
                 text: data.text,
@@ -790,7 +800,19 @@ const Home: React.FC = () => {
           formData={formData}
         />
       )}
+      
 
+{currentView === "voluntaryid" && (
+  <VoluntaryValidIDForm
+    onNavigate={(view, data) => {
+      setCurrentView(view);
+      setFormData(data);
+    }}
+    patientId={formData?.patientId}
+    controlNo={formData?.controlNo}
+    formData={formData}
+  />
+)}
       {currentView === "pao" && (
         <PAOForm
           onNavigate={(view, data) => {
@@ -805,6 +827,18 @@ const Home: React.FC = () => {
 
       {currentView === "employee-recommendation" && (
         <EmployeeRecommendationForm
+          onNavigate={(view, data) => {
+            setCurrentView(view);
+            setFormData(data);
+          }}
+          patientId={formData?.patientId}
+          controlNo={formData?.controlNo}
+          formData={formData}
+        />
+      )}
+
+       {currentView === "voluntaryform" && (
+        <VoluntaryAdmissionForm
           onNavigate={(view, data) => {
             setCurrentView(view);
             setFormData(data);

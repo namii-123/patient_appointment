@@ -177,87 +177,86 @@ const closeModal = () => {
     console.log("All files canceled.");
   };
 
- const handleNext = async () => {
-  try {
-    if (uploadedFiles.length === 0 || uploadedFiles.some((fileData) => !fileData.base64)) {
-      openModal("Please upload at least one employee recommendation document and ensure all files are processed.", "error");
-      return;
-    }
-
-    // SAME MESSAGE AS PAO & COURT ORDER
+const handleNext = async () => {
+  // Kung walay file, directly proceed (OPTIONAL!)
+  if (uploadedFiles.length === 0) {
     openModal(
-      "You are about to submit the Employee Recommendation files.\n\nNote: Once uploaded, the files cannot be changed. Please make sure all details are correct before proceeding.",
+      "No Employee Recommendation uploaded.\n\nYou may proceed without it.",
       "confirm",
-      async () => {
-        try {
-          const appointmentId = formData?.appointmentId;
-          if (!appointmentId) {
-            openModal("No appointment ID provided. Please complete the previous steps first.", "error");
-            return;
-          }
-
-          const appointmentRef = doc(db, "Appointments", appointmentId);
-          const snap = await getDoc(appointmentRef);
-          if (!snap.exists()) {
-            openModal("Appointment not found.", "error");
-            return;
-          }
-
-          const existingData = snap.data();
-          const existingDisplayId = existingData?.displayId || "";
-
-          const auth = getAuth();
-          const currentUser = auth.currentUser;
-          const uid = currentUser?.uid || "";
-          if (!uid) {
-            openModal("User not authenticated. Please sign in.", "error");
-            return;
-          }
-
-          const empData = {
-            patientId: patientId || formData?.patientId || "",
-            controlNo: controlNo || formData?.controlNo || "",
-            empFiles: uploadedFiles.map((fileData) => ({
-              name: fileData.file.name,
-              base64: fileData.base64,
-              type: fileData.file.type,
-              uploadedAt: new Date().toISOString(),
-            })),
-            displayId: existingDisplayId,
-            department: "DDE",
-          };
-
-          await updateDoc(appointmentRef, empData);
-
-          console.log("Employee Recommendation updated in Appointments:", {
-            appointmentId,
-            displayId: existingDisplayId,
+      () => {
+        // Directly navigate without saving anything
+        setTimeout(() => {
+          onNavigate?.("lawyersrequest", {
+            ...formData,
+            empData: { hasEmpRecommendation: false },
+            appointmentId: formData?.appointmentId,
           });
-
-          // SUCCESS MODAL
-          openModal(`Employee Recommendation uploaded successfully!\nAppointment ID: ${existingDisplayId}`, "success");
-
-          // Navigate after 2 seconds
-          setTimeout(() => {
-            onNavigate?.("lawyersrequest", {
-              ...formData,
-              empData,
-              appointmentId,
-            });
-          }, 2000);
-
-        } catch (err: unknown) {
-          console.error("Error updating Employee Recommendation:", err);
-          const errorMessage = err instanceof Error ? err.message : "Unknown error";
-          openModal(`Failed to update Employee Recommendation: ${errorMessage}`, "error");
-        }
+        }, 1000);
       }
     );
-  } catch (err: unknown) {
-    console.error("Error in handleNext:", err);
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    openModal(`Unexpected error: ${errorMessage}`, "error");
+    return;
   }
+
+  // Kung naay file, check if complete ang base64
+  if (uploadedFiles.some((fileData) => !fileData.base64)) {
+    openModal("Please wait while files are being processed...", "error");
+    return;
+  }
+
+  // Kung naay file, i-ask og confirm before save
+  openModal(
+    `You are about to submit ${uploadedFiles.length} Employee Recommendation file(s).\n\nOnce submitted, you cannot edit them.`,
+    "confirm",
+    async () => {
+      try {
+        const appointmentId = formData?.appointmentId;
+        if (!appointmentId) {
+          openModal("Missing appointment ID.", "error");
+          return;
+        }
+
+        const appointmentRef = doc(db, "Appointments", appointmentId);
+        const snap = await getDoc(appointmentRef);
+        if (!snap.exists()) {
+          openModal("Appointment not found.", "error");
+          return;
+        }
+
+        const existingData = snap.data();
+        const displayId = existingData?.displayId || "";
+
+        const empData = {
+          hasEmpRecommendation: true,
+          empFiles: uploadedFiles.map((fileData) => ({
+            name: fileData.file.name,
+            base64: fileData.base64,
+            type: fileData.file.type,
+            uploadedAt: new Date().toISOString(),
+          })),
+          empUploadedAt: new Date().toISOString(),
+        };
+
+        await updateDoc(appointmentRef, empData);
+
+        openModal(
+          `Employee Recommendation uploaded successfully!\nAppointment ID: ${displayId}`,
+          "success"
+        );
+
+        setTimeout(() => {
+          onNavigate?.("lawyersrequest", {
+            ...formData,
+            empData,
+            appointmentId,
+          });
+        }, 2000);
+
+      } catch (err: any) {
+        console.error(err);
+        openModal(`Upload failed: ${err.message}`, "error");
+      }
+    }
+  );
 };
 
   const isWordDocument = (fileType: string) =>
@@ -272,9 +271,9 @@ const closeModal = () => {
 
       <form className="space-y-6">
         <div className="mt-6">
-          <h3 className="font-semibold text-lg mb-3">Upload Employee Recommendation Document</h3>
+          <h3 className="font-semibold text-lg mb-3">Upload Employee Recommendation Document(OPTIONAL)</h3>
           <p className="note-message mb-2">
-            At least one employee recommendation document is required before proceeding.
+            This document is OPTIONAL. You may proceed without uploading.
           </p>
           <input
             type="file"

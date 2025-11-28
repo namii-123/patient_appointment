@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaSearch, FaTimes, FaCheckCircle, FaEye } from "react-icons/fa";
 import "../../../assets/Appointments_Dental.css";
 import logo from "/logo.png";
 import { db } from "../firebase";
@@ -20,6 +20,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { CircleX, X } from "lucide-react";
 
 // Types
 interface FileItem {
@@ -27,7 +28,13 @@ interface FileItem {
   name: string;
   uploadedAt: string;
 }
-
+interface AppointmentWithType extends Appointment {
+  appointmentType?: "voluntary" | "pleabargain" | string;
+  admissionTypeDisplay?: string;
+  voluntaryAdmissionFiles?: FileItem[] | null;
+  validIDFiles?: FileItem[] | null;
+ 
+}
 interface Appointment {
   id: string;
   uid: string;
@@ -74,13 +81,11 @@ const Appointments_DDE: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [yearFilter, setYearFilter] = useState("All");
-  const [monthFilter, setMonthFilter] = useState("All");
-  const [dayFilter, setDayFilter] = useState("All");
+  const [selectedPatient, setSelectedPatient] = useState<AppointmentWithType | null>(null);
+ 
 
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<Appointment | null>(null);
+ 
   const [showEnlargedImage, setShowEnlargedImage] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<{ src: string; name: string } | null>(null);
 
@@ -96,6 +101,26 @@ const Appointments_DDE: React.FC = () => {
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
+
+
+  const getLocalDateString = (timestamp: any): string => {
+    if (!timestamp) return "N/A";
+
+    let date: Date;
+
+    if (typeof timestamp === "string") {
+      date = new Date(timestamp);
+    } else if (timestamp?.toDate) {
+      date = timestamp.toDate(); // Firestore Timestamp
+    } else {
+      return "N/A";
+    }
+
+    // Philippine Time = UTC+8
+    const phDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    return phDate.toISOString().split("T")[0]; // "2025-11-26"
+  };
+
 
   useEffect(() => {
     setLoading(true);
@@ -178,21 +203,10 @@ const Appointments_DDE: React.FC = () => {
         let lawyersRequestData = mapFileData(tData.lawyersRequestData, "lawyersRequestFiles");
         let receiptData = mapFileData(tData.receiptData, "officialReceiptFiles");
 
-        let requestDate: string;
-        if (tData.createdAt) {
-          if (typeof tData.createdAt === 'string') {
-            requestDate = tData.createdAt.split('T')[0];
-          } else if (tData.createdAt && typeof tData.createdAt.toDate === 'function') {
-            requestDate = tData.createdAt.toDate().toISOString().split('T')[0];
-          } else {
-            console.warn(`Unexpected createdAt format for transaction ${t.id}:`, tData.createdAt);
-            requestDate = new Date().toISOString().split('T')[0];
-          }
-        } else {
-          console.warn(`No createdAt field for transaction ${t.id}`);
-          requestDate = new Date().toISOString().split('T')[0];
-        }
+        
 
+
+        const requestDate = getLocalDateString(tData.createdAt);
         loaded.push({
           id: t.id,
           uid: tData.uid || "",
@@ -230,7 +244,13 @@ const Appointments_DDE: React.FC = () => {
         });
       }
 
-      console.log("Loaded appointments:", loaded);
+     loaded.sort((a, b) => {
+        const dateA = a.requestDate || "0000-00-00";
+        const dateB = b.requestDate || "0000-00-00";
+        return dateB.localeCompare(dateA); 
+      });
+
+      console.log("Loaded appointments (sorted newest first):", loaded);
       setAppointments(loaded);
       setLoading(false);
     }, (error) => {
@@ -240,6 +260,9 @@ const Appointments_DDE: React.FC = () => {
 
     return () => unsubscribe();
   }, []);
+
+
+
 
   const handleStatusUpdate = async (
     id: string,
@@ -330,10 +353,10 @@ DDE Team`;
         });
       }
 
-      alert(`DDE appointment ${newStatus} successfully!`);
+        openCustomModal(`DDE appointment ${newStatus} successfully!`);
     } catch (error) {
       console.error(`Error updating status for appointment ${id}:`, error);
-      alert("❌ Error updating DDE appointment status. Please try again.");
+        openCustomModal("❌ Error updating DDE appointment status. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -355,40 +378,43 @@ DDE Team`;
         };
   
    
-    const availableMonths = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-  
-    const availableDays = Array.from({ length: 31 }, (_, index) => index + 1);
-  
+   
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [filterYear, setFilterYear] = useState<string>("All");
+  const [filterMonth, setFilterMonth] = useState<string>("All");
+
+
+  // Set default to current month/year on mount
+  useEffect(() => {
+    const today = new Date();
+    setFilterYear(today.getFullYear().toString());
+    setFilterMonth(String(today.getMonth() + 1).padStart(2, "0")); // e.g., "06"
+  }, []);
+
+  // ... (your existing modals, notifications, etc.)
+
+  // ==================== FILTERED APPOINTMENTS ====================
   const filteredAppointments = appointments.filter((appt) => {
-  const matchesSearch =
-    appt.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.UserId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appt.patientCode.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      appt.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appt.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appt.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appt.UserId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      
+      appt.patientCode.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const appointmentDate = appt.appointmentDate ? new Date(appt.appointmentDate) : null;
-  const matchesYear =
-    yearFilter === "All" || (appointmentDate && appointmentDate.getFullYear() === parseInt(yearFilter));
-  const matchesMonth =
-    monthFilter === "All" ||
-    (appointmentDate && availableMonths[appointmentDate.getMonth()] === monthFilter);
-  const matchesDay =
-    dayFilter === "All" || (appointmentDate && appointmentDate.getDate() === parseInt(dayFilter));
-  const matchesStatus =
-    statusFilter === "All" || appt.status === statusFilter;
+    const matchesStatus = statusFilter === "All" || appt.status === statusFilter;
 
-  return (
-    matchesSearch &&
-    matchesYear &&
-    matchesMonth &&
-    matchesDay &&
-    matchesStatus
-  );
-});
+    // Handle appointmentDate (which is the requested date, format: "YYYY-MM-DD")
+    if (!appt.appointmentDate) return false;
+   const [year, month, day] = (appt.appointmentDate || "").split("-");
+
+    const matchesYear = filterYear === "All" || year === filterYear;
+    const matchesMonth = filterMonth === "All" || month === filterMonth;
+    
+
+    return matchesSearch && matchesStatus && matchesYear && matchesMonth ;
+  });
 
 
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
@@ -401,104 +427,84 @@ DDE Team`;
   const [newMinutes, setNewMinutes] = useState<string>("00");
   const [selectedAmPm, setSelectedAmPm] = useState<"AM" | "PM">("AM");
 
-  const renderFormData = (
-    data: { [key: string]: FileItem[] | null } | null | undefined,
-    label: string,
-    fileKey: string
-  ): React.ReactNode => {
-    if (!data) {
-      console.warn(`No data for ${label} in appointment`);
-      return (
-        <tr>
-          <th>{label}</th>
-          <td>N/A</td>
-        </tr>
-      );
-    }
+ const renderFormData = (
+  data: any,
+  label: string,
+  fileKey?: string
+): React.ReactNode => {
+  let files: FileItem[] = [];
 
-    const files = data[fileKey] || [];
-    if (!Array.isArray(files) || files.length === 0) {
-      console.warn(`No valid files for ${label} in appointment:`, data);
-      return (
-        <tr>
-          <th>{label}</th>
-          <td>N/A</td>
-        </tr>
-      );
-    }
+  if (Array.isArray(data)) {
+    files = data;
+  } else if (data && typeof data === "object" && fileKey && Array.isArray(data[fileKey])) {
+    files = data[fileKey];
+  }
 
+  if (files.length === 0) {
     return (
       <tr>
         <th>{label}</th>
-        <td>
-          {files.map((file, index) => {
-            const isValidBase64 = file.base64 && (
-              file.base64.startsWith("data:image/") ||
-              file.base64.startsWith("data:application/pdf;") ||
-              file.base64.startsWith("data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;")
-            );
-            if (!isValidBase64) {
-              console.warn(`Invalid base64 data for ${file.name}:`, file.base64);
-              return (
-                <div key={index} style={{ marginBottom: "1rem" }}>
-                  <p>Unsupported file format for {file.name}</p>
-                </div>
-              );
-            }
-
-            return (
-              <div key={index} style={{ marginBottom: "1rem" }}>
-                {file.base64.startsWith("data:image/") ? (
-                  <img
-                    src={file.base64}
-                    alt={`${label} - ${file.name}`}
-                    className="form-image"
-                    style={{ maxWidth: "200px", maxHeight: "200px", marginLeft: "0.5rem", cursor: "pointer" }}
-                    onClick={() => {
-                      if (file.base64) {
-                        setEnlargedImage({ src: file.base64, name: file.name });
-                        setShowEnlargedImage(true);
-                      }
-                    }}
-                  />
-                ) : file.base64.startsWith("data:application/pdf;") ? (
-                  <div>
-                    <iframe
-                      src={file.base64}
-                      title={`${label} - ${file.name}`}
-                      style={{ width: "200px", height: "200px", marginLeft: "0.5rem" }}
-                      onError={(e) => console.error(`Failed to load PDF for ${file.name}:`, e)}
-                    />
-                    <a
-                      href={file.base64}
-                      download={file.name}
-                      style={{ display: "block", marginTop: "0.5rem" }}
-                    >
-                      Download {file.name}
-                    </a>
-                  </div>
-                ) : file.base64.startsWith("data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;") ? (
-                  <div>
-                    <a
-                      href={file.base64}
-                      download={file.name}
-                      style={{ display: "block", marginLeft: "0.5rem", color: "#2563eb", textDecoration: "underline" }}
-                    >
-                      Download {file.name}
-                    </a>
-                    <p>(Uploaded: {new Date(file.uploadedAt).toLocaleString()})</p>
-                  </div>
-                ) : null}
-                {file.base64.startsWith("data:image/") && (
-                  <p>{file.name} (Uploaded: {new Date(file.uploadedAt).toLocaleString()})</p>
-                )}
-              </div>
-            );
-          })}
-        </td>
+        <td>N/A</td>
       </tr>
     );
-  };
+  }
+
+  return (
+    <tr>
+      <th>{label}</th>
+      <td>
+        {files.map((file: any, index: number) => {
+          const base64 = file.base64 || "";
+          const name = file.name || `File ${index + 1}`;
+          const uploadedAt = file.uploadedAt || new Date().toISOString();
+
+          if (!base64.startsWith("data:")) {
+            return <p key={index}>Invalid file</p>;
+          }
+
+          const isImage = base64.startsWith("data:image/");
+          const isPDF = base64.startsWith("data:application/pdf");
+
+          return (
+            <div key={index} className="file-item" style={{ marginBottom: "1rem" }}>
+              {isImage ? (
+                <img
+                  src={base64}
+                  alt={name}
+                  className="form-image"
+                  style={{ maxWidth: "250px", maxHeight: "250px", cursor: "pointer", borderRadius: "8px" }}
+                  onClick={() => {
+                    setEnlargedImage({ src: base64, name });
+                    setShowEnlargedImage(true);
+                  }}
+                />
+              ) : isPDF ? (
+                <div>
+                  <iframe src={base64} style={{ width: "250px", height: "300px" }} title={name} />
+                  <br />
+                  <a href={base64} download={name} style={{ color: "#2563eb" }}>
+                    Download {name}
+                  </a>
+                </div>
+              ) : (
+                <a href={base64} download={name} style={{ color: "#2563eb" }}>
+                  Download {name}
+                </a>
+              )}
+              <p style={{ fontSize: "0.9rem", color: "#555", marginTop: "0.5rem" }}>
+                {name} <br />
+                <small>Uploaded: {new Date(uploadedAt).toLocaleString()}</small>
+              </p>
+            </div>
+          );
+        })}
+      </td>
+    </tr>
+  );
+};
+
+  
+
 
   const convertTo24Hour = (time: string, amPm: "AM" | "PM"): string => {
     const [hours, minutes] = time.split(":");
@@ -511,6 +517,66 @@ DDE Team`;
   const formatSlotTime = (hours: string, minutes: string, amPm: "AM" | "PM"): string => {
     return `${hours}:${minutes} ${amPm}`;
   };
+
+
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customModalMessage, setCustomModalMessage] = useState("");
+  const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+  const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+  
+  const openCustomModal = (
+    message: string,
+    type: "success" | "error" | "confirm" = "success",
+    onConfirm?: () => void
+  ) => {
+    setCustomModalMessage(message);
+    setCustomModalType(type);
+    if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+    setShowCustomModal(true);
+  };
+  
+  const closeCustomModal = () => {
+    setShowCustomModal(false);
+    setOnCustomModalConfirm(() => {});
+  };
+  
+// PAGINATION STATES (ibutang after sa imong existing useState)
+const [currentPage, setCurrentPage] = useState<number>(1);
+const recordsPerPage = 5; // same sa radiology
+
+// PAGINATION LOGIC - ibutang dire human sa filteredAppointments
+const indexOfLastRecord = currentPage * recordsPerPage;
+const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+const currentAppointments = filteredAppointments.slice(indexOfFirstRecord, indexOfLastRecord);
+
+const totalPages = Math.ceil(filteredAppointments.length / recordsPerPage);
+
+// Same function sa radiology
+const getPageNumbers = () => {
+  const pages: (number | string)[] = [];
+  if (totalPages <= 5) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push("...");
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push("...");
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push("...");
+      pages.push(currentPage - 1);
+      pages.push(currentPage);
+      pages.push(currentPage + 1);
+      pages.push("...");
+      pages.push(totalPages);
+    }
+  }
+  return pages;
+};
 
   return (
     <div className="dashboards">
@@ -557,26 +623,29 @@ DDE Team`;
             <span className="user-label"> Admin</span>
           </div>
            <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={async () => {
-                const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                if (isConfirmed) {
-                  try {
-                    await signOut(auth);
-                    navigate("/loginadmin", { replace: true });
-                  } catch (error) {
-                    console.error("Error signing out:", error);
-                    alert("Failed to sign out. Please try again.");
-                  }
-                }
-              }}
-              className="signout-label"
-              style={{ cursor: "pointer" }}
-            >
-              Sign Out
-            </span>
-          </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+  openCustomModal(
+    "Are you sure you want to sign out?",
+    "confirm",
+    async () => {
+      try {
+        await signOut(auth);
+        navigate("/loginadmin", { replace: true });
+      } catch (error) {
+        console.error("Error signing out:", error);
+        openCustomModal("Failed to sign out. Please try again.", "error");
+      }
+    }
+  );
+}}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
                   </div>
       </aside>
 
@@ -645,55 +714,81 @@ DDE Team`;
                                                               <option value="Cancelled">Cancelled</option>
                                                             </select>
                                                           </div>
-                                   <div className="filter">
-                          <label>Year:</label>
-                          <select
-                            className="status-dropdown"
-                            value={yearFilter}
-                            onChange={(e) => setYearFilter(e.target.value)}
-                            onClick={handleYearClick} 
-                          >
-                            <option value="All Years">All Years</option>
-                            {availableYears.map((year) => (
-                              <option key={year} value={year}>
-                                {year}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                                
-                                  <div className="filter">
-                                     <label>Month:</label>
-                                  <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="status-dropdown">
-                                    <option value="All">All Months</option>
-                                    <option value="01">January</option>
-                                    <option value="02">February</option>
-                                    <option value="03">March</option>
-                                    <option value="04">April</option>
-                                    <option value="05">May</option>
-                                    <option value="06">June</option>
-                                    <option value="07">July</option>
-                                    <option value="08">August</option>
-                                    <option value="09">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
-                                  </select>
-                                </div>
-                    
-                                 <div className="filter">
-                                  <label>Day:</label>
-                    
-                                  <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className="status-dropdown">
-                                    
-                                    <option value="All">All Days</option>
-                                    {Array.from({ length: 31 }, (_, i) => (
-                                      <option key={i + 1} value={(i + 1).toString().padStart(2, "0")}>
-                                        {i + 1}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                             {/* Year Filter - Dynamic +20 years */}
+            <div className="filter">
+              <label>Year:</label>
+              <select
+                className="status-dropdown"
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+              >
+                {(() => {
+                  const currentYear = new Date().getFullYear();
+                  const startYear = 2025;
+                  const endYear = currentYear + 20;
+                  const years = [];
+                  for (let y = endYear; y >= startYear; y--) {
+                    years.push(y);
+                  }
+                  return (
+                    <>
+                      {years.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                      <option value="All">All Years</option>
+                    </>
+                  );
+                })()}
+              </select>
+            </div>
+
+            {/* Month Filter - Current + last 2 months on top */}
+            <div className="filter">
+              <label>Month:</label>
+              <select
+                className="status-dropdown"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+              >
+                {(() => {
+                  const monthNames = [
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                  ];
+                  const currentMonthIdx = new Date().getMonth();
+                  const recent: { name: string; value: string }[] = [];
+
+                  // Current month + previous 2 months
+                  for (let i = 0; i < 3; i++) {
+                    const idx = (currentMonthIdx - i + 12) % 12;
+                    const monthNum = String(idx + 1).padStart(2, "0");
+                    recent.push({ name: monthNames[idx], value: monthNum });
+                  }
+
+                  return (
+                    <>
+                      {recent.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.name}
+                        </option>
+                      ))}
+                      {monthNames.map((name, i) => {
+                        const val = String(i + 1).padStart(2, "0");
+                        if (recent.some((r) => r.value === val)) return null;
+                        return (
+                          <option key={val} value={val}>
+                            {name}
+                          </option>
+                        );
+                      })}
+                      <option value="All">All Months</option>
+                    </>
+                  );
+                })()}
+              </select>
+            </div>
                                 </div>
 
           <p className="appointments-header">All Patient Appointment Requests</p>
@@ -719,8 +814,8 @@ DDE Team`;
                     Loading dde appointments...
                   </td>
                 </tr>
-              ) : filteredAppointments.length > 0 ? (
-                filteredAppointments.map((appt) => (
+              ) : currentAppointments.length > 0 ? (
+                currentAppointments.map((appt) => (
                   <tr key={appt.id}>
                     <td>{appt.UserId}</td>
                     <td>{appt.patientCode}</td>
@@ -736,8 +831,9 @@ DDE Team`;
                     <td>
                       {appt.status === "Pending" && (
                         <>
+                         <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
                           <button
-                            className="action-btn accept"
+                            className="action-btnsss accept"
                             onClick={async () => {
                               if (appt.patientId) {
                                 const pRef = doc(db, "Patients", appt.patientId);
@@ -746,7 +842,7 @@ DDE Team`;
                                   const patientData = pSnap.data();
                                   console.log("Patient data for accept:", patientData);
                                   if (!patientData.email) {
-                                    alert("⚠️ No email address found for this patient.");
+                                     openCustomModal("⚠️ No email address found for this patient.");
                                     return;
                                   }
                                   setSelectedAppointment({
@@ -760,17 +856,19 @@ DDE Team`;
                                   setShowAcceptModal(true);
                                 } else {
                                   console.warn("No patient data for patientId:", appt.patientId);
-                                  alert("⚠️ No patient data found.");
+                                    openCustomModal("⚠️ No patient data found.");
                                 }
                               } else {
-                                alert("⚠️ No patientId found for this appointment.");
+                                 openCustomModal("⚠️ No patientId found for this appointment.");
                               }
                             }}
                           >
-                            Accept
+                           <FaCheckCircle size={20} />
                           </button>
+                          
+                           <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
                           <button
-                            className="action-btn reject"
+                            className="action-btnsss reject"
                             onClick={async () => {
                               if (appt.patientId) {
                                 const pRef = doc(db, "Patients", appt.patientId);
@@ -779,7 +877,7 @@ DDE Team`;
                                   const patientData = pSnap.data();
                                   console.log("Patient data for reject:", patientData);
                                   if (!patientData.email) {
-                                    alert("⚠️ No email address found for this patient.");
+                                      openCustomModal("⚠️ No email address found for this patient.");
                                     return;
                                   }
                                   setSelectedAppointment({
@@ -789,54 +887,74 @@ DDE Team`;
                                   setShowRejectModal(true);
                                 } else {
                                   console.warn("No patient data for patientId:", appt.patientId);
-                                  alert("⚠️ No patient data found.");
+                                    openCustomModal("⚠️ No patient data found.");
                                 }
                               } else {
-                                alert("⚠️ No patientId found for this appointment.");
+                                  openCustomModal("⚠️ No patientId found for this appointment.");
                               }
                             }}
                           >
-                            Reject
+                           <CircleX size={20} />
                           </button>
+                          </div>
+                          </div>
                         </>
                       )}
                     </td>
                     <td>
-                      <button
-                        className="view-more-btn"
-                        onClick={async () => {
-                          if (appt.patientId) {
-                            const pRef = doc(db, "Patients", appt.patientId);
-                            const tRef = doc(db, "Transactions", appt.id);
-                            const [pSnap, tSnap] = await Promise.all([
-                              getDoc(pRef),
-                              getDoc(tRef),
-                            ]);
-                            if (pSnap.exists() && tSnap.exists()) {
-                              const patientData = pSnap.data();
-                              const transactionData = tSnap.data();
-                              setSelectedPatient({
-                                ...appt,
-                                ...patientData,
-                                validIDData: transactionData.validIDData || null,
-                                courtOrderData: transactionData.courtOrderData || null,
-                                paoData: transactionData.paoData || null,
-                                empData: transactionData.empData || null,
-                                lawyersRequestData: transactionData.lawyersRequestData || null,
-                                receiptData: transactionData.receiptData || null,
-                              });
-                              setShowInfoModal(true);
-                            } else {
-                              console.warn("No patient or transaction data found for patientId:", appt.patientId);
-                              alert("⚠️ No patient or transaction data found.");
-                            }
-                          } else {
-                            alert("⚠️ No patientId found for this appointment.");
-                          }
-                        }}
-                      >
-                        View More
-                      </button>
+                    <button
+  className="action-btnsss view-more"
+  onClick={async () => {
+    if (!appt.patientId) {
+      openCustomModal("No patientId found for this appointment.");
+      return;
+    }
+
+    const pRef = doc(db, "Patients", appt.patientId);
+    const tRef = doc(db, "Transactions", appt.id);
+
+    try {
+      const [pSnap, tSnap] = await Promise.all([getDoc(pRef), getDoc(tRef)]);
+
+      if (!pSnap.exists() || !tSnap.exists()) {
+        openCustomModal("No patient or transaction data found.");
+        return;
+      }
+
+      const patientData = pSnap.data();
+      const transactionData = tSnap.data();
+
+      const type = patientData.appointmentType || patientData.admissionType || "Not Specified";
+
+      setSelectedPatient({
+        ...appt,
+        ...patientData,
+        appointmentType: type,
+        admissionTypeDisplay:
+          type === "voluntary"
+            ? "Voluntary Admission"
+            : type === "pleabargain"
+            ? "Plea Bargain (Court-Ordered)"
+            : "Not Specified",
+        validIDData: transactionData.validIDData || null,
+        courtOrderData: transactionData.courtOrderData || null,
+        paoData: transactionData.paoData || null,
+        empData: transactionData.empData || null,
+        lawyersRequestData: transactionData.lawyersRequestData || null,
+        receiptData: transactionData.receiptData || null,
+        voluntaryAdmissionFiles: transactionData.voluntaryAdmissionFiles || null,
+        validIDFiles: transactionData.validIDFiles || null,
+      });
+
+      setShowInfoModal(true);
+    } catch (err) {
+      console.error(err);
+      openCustomModal("Error loading patient information.");
+    }
+  }}
+>
+  <FaEye size={20} />
+</button>
                     </td>
                   </tr>
                 ))
@@ -850,6 +968,42 @@ DDE Team`;
             </tbody>
           </table>
 
+
+{/* PAGINATION */}
+<div className="pagination-wrapper">
+  <div className="pagination-info">
+    Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredAppointments.length)} of {filteredAppointments.length} appointments
+  </div>
+  
+  <div className="pagination-controls">
+    <button
+      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+      className="pagination-btn prev-btn"
+    >
+      Previous
+    </button>
+
+    {getPageNumbers().map((page, index) => (
+      <button
+        key={index}
+        onClick={() => typeof page === "number" && setCurrentPage(page)}
+        className={`pagination-btn page-num ${page === currentPage ? "active" : ""} ${page === "..." ? "ellipsis" : ""}`}
+        disabled={page === "..."}
+      >
+        {page}
+      </button>
+    ))}
+
+    <button
+      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages || totalPages === 0}
+      className="pagination-btn next-btn"
+    >
+      Next
+    </button>
+  </div>
+</div>
           {showInfoModal && selectedPatient && (
             <div className="modal-overlayss">
               <div className="modal-boxss">
@@ -879,6 +1033,46 @@ DDE Team`;
                       <tr><th>Contact</th><td>{selectedPatient.contact || "N/A"}</td></tr>
                       <tr><th>Department</th><td>{selectedPatient.purpose}</td></tr>
                       <tr><th>Services</th><td>{selectedPatient.services.join(", ") || "N/A"}</td></tr>
+                    <tr className="section-header">
+  <th colSpan={2}>Admission Information</th>
+</tr>
+<tr>
+  <th>Appointment Type</th>
+  <td>
+    <span
+      style={{
+        padding: "6px 12px",
+        borderRadius: "6px",
+        fontWeight: "bold",
+        backgroundColor:
+          selectedPatient?.appointmentType === "voluntary"
+            ? "#d4edda"
+            : "#f8d7da",
+        color:
+          selectedPatient?.appointmentType === "voluntary"
+            ? "#155724"
+            : "#721c24",
+        border: "1px solid",
+        borderColor:
+          selectedPatient?.appointmentType === "voluntary"
+            ? "#c3e6cb"
+            : "#f5c6cb",
+      }}
+    >
+      {selectedPatient?.admissionTypeDisplay || "Not Specified"}
+    </span>
+  </td>
+</tr>
+<tr>
+  <th>Admission Mode</th>
+  <td>
+    {selectedPatient?.appointmentType === "voluntary"
+      ? "Self-referred / Walk-in"
+      : selectedPatient?.appointmentType === "pleabargain"
+      ? "Court-Ordered via Plea Bargain Agreement"
+      : "Unknown"}
+  </td>
+</tr>
                       <tr><th>Request Date</th><td>{selectedPatient.requestDate}</td></tr>
                       {selectedPatient.status === "Approved" && selectedPatient.appointmentDate && (
                         <tr><th>Appointment Date</th><td>{selectedPatient.appointmentDate}</td></tr>
@@ -896,12 +1090,25 @@ DDE Team`;
                       <tr className="section-header">
                         <th colSpan={2}>Form Data</th>
                       </tr>
-                      {renderFormData(selectedPatient.validIDData, "Valid ID Data", "validIDFiles")}
-                      {renderFormData(selectedPatient.courtOrderData, "Court Order Data", "courtFiles")}
-                      {renderFormData(selectedPatient.paoData, "PAO Data", "paoFiles")}
-                      {renderFormData(selectedPatient.empData, "Employee Data", "empFiles")}
-                      {renderFormData(selectedPatient.lawyersRequestData, "Lawyer's Request Data", "lawyersRequestFiles")}
-                      {renderFormData(selectedPatient.receiptData, "Receipt Data", "officialReceiptFiles")}
+                     {/* VOLUNTARY ADMISSION */}
+{selectedPatient?.appointmentType === "voluntary" ? (
+  <>
+    {selectedPatient.voluntaryAdmissionFiles && 
+      renderFormData(selectedPatient.voluntaryAdmissionFiles, "Voluntary Admission Document")}
+    {selectedPatient.validIDFiles && 
+      renderFormData(selectedPatient.validIDFiles, "Valid ID")}
+  </>
+) : (
+  /* PLEA BARGAIN / COURT-ORDERED */
+  <>
+    {renderFormData(selectedPatient.validIDData, "Valid ID Data", "validIDFiles")}
+    {renderFormData(selectedPatient.courtOrderData, "Court Order Data", "courtFiles")}
+    {renderFormData(selectedPatient.paoData, "PAO Data", "paoFiles")}
+    {renderFormData(selectedPatient.empData, "Employee Data", "empFiles")}
+    {renderFormData(selectedPatient.lawyersRequestData, "Lawyer's Request Data", "lawyersRequestFiles")}
+    {renderFormData(selectedPatient.receiptData, "Receipt Data", "officialReceiptFiles")}
+  </>
+)}
                     </tbody>
                   </table>
                 </div>
@@ -967,9 +1174,9 @@ DDE Team`;
                           selectedAppointment,
                           rejectReason
                         );
-                        alert(`DDE appointment rejected.\nReason: ${rejectReason}`);
+                        openCustomModal(`DDE appointment rejected.\nReason: ${rejectReason}`);
                       } else {
-                        alert("⚠️ Cannot reject appointment: No valid email address.");
+                         openCustomModal("⚠️ Cannot reject appointment: No valid email address.");
                       }
                       setShowRejectModal(false);
                       setRejectReason("");
@@ -1063,7 +1270,7 @@ DDE Team`;
                     className="modal-confirm"
                     onClick={async () => {
                       if (!newDate) {
-                        alert("Please select a date.");
+                         openCustomModal("Please select a date.");
                         return;
                       }
                       const formattedSlotTime = formatSlotTime(newSlotTime, newMinutes, selectedAmPm);
@@ -1076,9 +1283,9 @@ DDE Team`;
                           newDate,
                           formattedSlotTime
                         );
-                        alert(`DDE appointment for ${selectedAppointment.lastName}, ${selectedAppointment.firstName} accepted.`);
+                         openCustomModal(`DDE appointment for ${selectedAppointment.lastName}, ${selectedAppointment.firstName} accepted.`);
                       } else {
-                        alert("⚠️ Cannot accept appointment: No valid email address.");
+                         openCustomModal("⚠️ Cannot accept appointment: No valid email address.");
                       }
                       setShowAcceptModal(false);
                       setSelectedAppointment(null);
@@ -1095,6 +1302,58 @@ DDE Team`;
             </div>
           )}
         </div>
+
+           {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+        {showCustomModal && (
+          <>
+            <audio autoPlay>
+              <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+            </audio>
+            <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+              <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="radiology-modal-header">
+                  <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                  <h3 className="radiology-modal-title">
+                    {customModalType === "success" && "SUCCESS"}
+                    {customModalType === "error" && "ERROR"}
+                    {customModalType === "confirm" && "CONFIRM ACTION"}
+                  </h3>
+                  <button className="radiology-modal-close" onClick={closeCustomModal}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="radiology-modal-body">
+                  <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                    {customModalMessage}
+                  </p>
+                </div>
+                <div className="radiology-modal-footer">
+                  {customModalType === "confirm" && (
+                    <>
+                      <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                        No, Cancel
+                      </button>
+                      <button
+                        className="radiology-modal-btn confirm"
+                        onClick={() => {
+                          closeCustomModal();
+                          onCustomModalConfirm();
+                        }}
+                      >
+                        Yes, Proceed
+                      </button>
+                    </>
+                  )}
+                  {(customModalType === "success" || customModalType === "error") && (
+                    <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                      {customModalType === "success" ? "Done" : "OK"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

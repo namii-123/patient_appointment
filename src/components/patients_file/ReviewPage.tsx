@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
-import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction,  deleteDoc, onSnapshot } from "firebase/firestore";
 import "../../assets/ReviewPage.css";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -451,101 +451,105 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
     onNavigate?.("calendar", navigateData);
   };
 
-  const finalizeBooking = async ({
-    department,
-    date,
-    slotId,
-    reservationId,
-    previousDate,
-    previousSlotId,
-  }: {
-    department: string;
-    date: string | null;
-    slotId: string | null;
-    reservationId: string | null;
-    previousDate?: string | null;
-    previousSlotId?: string | null;
-  }) => {
-    if (!date || !slotId || !reservationId) {
-      console.error(`📌 ReviewPage: Missing data for ${department} booking`, { date, slotId, reservationId });
-      throw new Error(`Missing required data for ${department} booking`);
-    }
+ const finalizeBooking = async ({
+  department,
+  date,
+  slotId,
+  reservationId,
+  previousDate,
+  previousSlotId,
+}: {
+  department: string;
+  date: string | null;
+  slotId: string | null;
+  reservationId: string | null;
+  previousDate?: string | null;
+  previousSlotId?: string | null;
+}) => {
+  if (!date || !slotId || !reservationId) {
+    throw new Error(`Missing required data for ${department} booking`);
+  }
 
-    try {
-      console.log(`📌 ReviewPage: Finalizing ${department} booking - Date: ${date}, SlotId: ${slotId}, ReservationId: ${reservationId}, PreviousDate: ${previousDate}, PreviousSlotId: ${previousSlotId}`);
-      await runTransaction(db, async (transaction) => {
-        // Perform all reads first
-        const slotRef = doc(db, "Departments", department, "Slots", date);
-        const slotSnap = await transaction.get(slotRef);
+  try {
+    await runTransaction(db, async (transaction) => {
+      const slotRef = doc(db, "Departments", department, "Slots", date);
+      const slotSnap = await transaction.get(slotRef);
+      const reservationRef = doc(db, "Departments", department, "Reservations", reservationId);
+      const reservationSnap = await transaction.get(reservationRef);
 
-        const reservationRef = doc(db, "Departments", department, "Reservations", reservationId);
-        const reservationSnap = await transaction.get(reservationRef);
-
-        const previousSlotRef = previousDate && previousSlotId ? doc(db, "Departments", department, "Slots", previousDate) : null;
-        const previousSlotSnap = previousSlotRef ? await transaction.get(previousSlotRef) : null;
-
-        // Validate reads
-        if (!slotSnap.exists()) {
-          console.error(`📌 ReviewPage: Slot document for ${department} on ${date} does not exist`);
-          throw new Error(`${department} slot date not found`);
+      // Restore previous slot if exists
+      if (previousDate && previousSlotId) {
+        const prevSlotRef = doc(db, "Departments", department, "Slots", previousDate);
+        const prevSnap = await transaction.get(prevSlotRef);
+        if (prevSnap.exists() && !prevSnap.data()?.closed && !prevSnap.data()?.unlimited) {
+          const prevSlots = prevSnap.data()?.slots || [];
+          const idx = prevSlots.findIndex((s: any) => s.slotID === previousSlotId);
+          if (idx !== -1) {
+            prevSlots[idx].remaining += 1;
+            const total = prevSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+            transaction.update(prevSlotRef, {
+              slots: prevSlots,
+              totalSlots: total,
+              updatedAt: new Date().toISOString(),
+            });
+          }
         }
+      }
 
-        if (!reservationSnap.exists()) {
-          console.error(`📌 ReviewPage: Reservation ${reservationId} for ${department} does not exist`);
-          throw new Error(`Reservation for ${department} not found`);
-        }
+      // Check if the target date is unlimited
+      if (!slotSnap.exists()) {
+        throw new Error("Slot document not found");
+      }
 
-        const data = slotSnap.data();
-        const currentSlots = data.slots || [];
+      const slotData = slotSnap.data()!;
+
+      // KUNG UNLIMITED → ayaw na decrement, ayaw na check remaining
+      if (slotData.unlimited) {
+        console.log(`Unlimited slot detected for ${department} on ${date}. Skipping decrement.`);
+      } 
+      // KUNG NAay SLOTS ARRAY (normal mode)
+      else if (slotData.slots && Array.isArray(slotData.slots)) {
+        const currentSlots = slotData.slots;
         const slotIndex = currentSlots.findIndex((s: any) => s.slotID === slotId);
 
-        if (slotIndex === -1 || currentSlots[slotIndex].remaining <= 0) {
-          console.error(`📌 ReviewPage: Slot ${slotId} in ${department} is unavailable or overbooked`);
-          throw new Error(`${department} slot unavailable`);
+        if (slotIndex === -1) {
+          throw new Error(`Slot ID ${slotId} not found in slots array`);
+        }
+        if (currentSlots[slotIndex].remaining <= 0) {
+          throw new Error(`Slot ${slotId} is fully booked`);
         }
 
-        // Update slot counts
         currentSlots[slotIndex].remaining -= 1;
         const newTotal = currentSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+
         transaction.update(slotRef, {
           slots: currentSlots,
           totalSlots: newTotal,
           updatedAt: new Date().toISOString(),
         });
+      }
+      // KUNG WALA slots array pero naay totalSlots (old format?) → skip or warn
+      else {
+        console.warn("No slots array found, but not unlimited. Possible data issue.");
+      }
 
-        // Restore previous slot if it exists and is not closed
-        if (previousSlotSnap && previousSlotSnap.exists() && !previousSlotSnap.data().closed && previousSlotId) {
-          const previousSlots = previousSlotSnap.data().slots || [];
-          const previousSlotIndex = previousSlots.findIndex((s: any) => s.slotID === previousSlotId);
-          if (previousSlotIndex !== -1) {
-            previousSlots[previousSlotIndex].remaining += 1;
-            const previousTotal = previousSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
-            transaction.update(previousSlotRef!, {
-              slots: previousSlots,
-              totalSlots: previousTotal,
-              updatedAt: new Date().toISOString(),
-            });
-            console.log(`📌 ReviewPage: Restored slot ${previousSlotId} on ${previousDate}`);
-          }
-        }
-
-        transaction.update(reservationRef, {
-          status: "confirmed",
-          updatedAt: new Date().toISOString(),
-        });
-
-        console.log(`📌 ReviewPage: Updated ${department} slot ${slotId} to ${currentSlots[slotIndex].remaining} remaining, confirmed reservation ${reservationId}`);
+      // Confirm reservation
+      transaction.update(reservationRef, {
+        status: "confirmed",
+        updatedAt: new Date().toISOString(),
       });
-      console.log(`📌 ReviewPage: ${department} booking finalized successfully!`);
-    } catch (err) {
-      console.error(`📌 ReviewPage: Error finalizing ${department} booking:`, err);
-      throw err;
-    }
-  };
+    });
 
+    console.log(`${department} booking finalized successfully! (Unlimited: ${slotId.startsWith("UNLIMITED")})`);
+  } catch (err: any) {
+    console.error(`Error finalizing ${department} booking:`, err);
+    throw err;
+  }
+};
 
+const [isPdfDownloaded, setIsPdfDownloaded] = useState(false);
 
- const handleDownloadPDF = async () => {
+const handleDownloadPDF = async () => {
   const element = document.querySelector(".all-services-container") as HTMLElement;
   if (!element) {
     openModal("Page content not found.", "error");
@@ -554,184 +558,103 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
 
   try {
     const clone = element.cloneNode(true) as HTMLElement;
-
-    // REMOVE ALL BUTTONS
     clone.querySelectorAll('button, .button-containers, .change-btns').forEach(el => el.remove());
 
-    // ADD CERTIFICATION PAGE
- const certDiv = document.createElement("div");
-certDiv.innerHTML = `
-  <div style="
-    page-break-before: always;
-    height: 330mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    font-family: Arial, sans-serif;
-    padding-top: 100mm;
-    text-align: center;
-  ">
-    <!-- Certification Text -->
-    <p style="
-      font-size: 16pt;
-      font-weight: bold;
-      margin: 0 0 60px 0;
-      max-width: 700px;
-      line-height: 1.5;
-    ">
-      I hereby certify that the above information is true and correct.
-    </p>
-
-    <!-- Signature over Printed Name - CORRECT ORDER -->
-    <!-- Signature over Printed Name - FINAL LAYOUT -->
-<div style="margin: 40px 0; text-align: center;">
-  <!-- PATIENT NAME (CAPSLOCK) -->
-  <p style="
-    margin: 0 0 8px 0;
-    font-size: 11pt;
-    font-weight: bold;
-  ">
-    ${(() => {
-      const fullName = `${safeFormData.lastName}, ${safeFormData.firstName}${safeFormData.middleInitial ? ' ' + safeFormData.middleInitial + '.' : ''}`;
-      return fullName.toUpperCase() || "________________________";
-    })()}
-  </p>
-
-  <!-- SIGNATURE LINE -->
-  <div style="
-    border-bottom: 2px solid #000;
-    width: 400px;
-    margin: 0 auto 8px auto;
-  "></div>
-
-  <!-- LABEL BELOW LINE -->
-  <p style="
-    margin: 0;
-    font-size: 10pt;
-    font-style: italic;
-    color: #333;
-  ">
-    Signature over Printed Name
-  </p>
-</div>
-
-    <!-- Date -->
-    <p style="
-      font-size: 14pt;
-      margin: 50px 0 0 0;
-    ">
-      Date: <strong>${new Date().toLocaleDateString('en-PH', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })}</strong>
-    </p>
-  </div>
-`;
-clone.appendChild(certDiv);
-
-    // INJECT PRINT STYLES — EXACT SAME SIZES, BUT ALLOW PAGE BREAKS
+    // INJECT SUPER CLEAN PRINT STYLES
     const printStyle = document.createElement("style");
     printStyle.innerHTML = `
-      * { box-sizing: border-box !important; }
-      body, html { margin: 0; padding: 0; }
-      
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif !important; }
       .all-services-container {
         width: 215.9mm !important;
-        min-height: 330.2mm !important;
-        padding: 10mm 12mm !important;
-        font-family: Arial, sans-serif !important;
-        font-size: 10pt !important;
-        background: white !important;
-        line-height: 1.3 !important;
+        padding: 8mm 9mm !important;
+        font-size: 9pt !important;
+        line-height: 1.2 !important;
       }
 
-      /* PATIENT INFO - TIGHTER LAYOUT */
-      .field-group, .house-street-group, .field-groups {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-        margin-bottom: 8px !important;
-      }
-      .field-group > div, .house-street-group > div, .field-groups > div {
-        flex: 1 1 calc(33.333% - 8px) !important;
-        min-width: 120px !important;
-      }
-
-      /* INPUT FIELDS - EXACT SAME */
-      input[type="text"], input[type="date"], input[type="time"], input[type="number"], input[type="email"], input[type="tel"] {
-        width: 100% !important;
-        padding: 6px 8px !important;
-        border: 1px solid #000 !important;
-        background: white !important;
-        font-size: 10pt !important;
-        min-height: 40px !important;
+      /* FORCE EACH SERVICE BOX TO START ON NEW PAGE */
+      .service-box {
+        page-break-before: always !important;   /* ← KINI ANG MAGIC */
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+        margin-top: 5mm !important;            /* ← Margin sa taas para limpyo */
+        border: 1px solid #003087 !important;
+        border-radius: 4px !important;
+        overflow: hidden;
       }
 
-      /* SERVICES - 2 COLUMNS, TIGHTER */
-      .services-container {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 12px !important;
-        margin-top: 12px !important;
+      .service-box:first-of-type {
+        page-break-before: avoid !important;    /* Ang una ra (Clinical Lab) dili mag-new page */
+        margin-top: 4mm !important;
       }
 
-      /* TABLE - COMPACT (EXACT SAME) */
+      .service-box h4 {
+        background: #003087 !important;
+        color: white !important;
+        padding: 8px !important;
+        margin: -8px -9px 10px -9px !important;
+        font-size: 8pt !important;
+        text-align: center;
+        font-weight: bold;
+      }
+
       table { 
         width: 100% !important; 
-        table-layout: fixed !important; 
-        border-collapse: collapse !important;
-        font-size: 9pt !important;
+        font-size: 8pt !important; 
+        border-collapse: collapse;
       }
-      td { 
-        padding: 4px 6px !important; 
-        vertical-align: top !important;
-        word-wrap: break-word !important;
-      }
+      td { padding: 3px 5px !important; vertical-align: top; }
       .category-row td {
+        background: #e6e6e6 !important;
         font-weight: bold !important;
+        font-size: 8pt !important;
+        padding: 5px !important;
+      }
+
+      /* Schedule footer */
+      .schedule-footer {
+        padding: 8px !important;
         background: #f0f0f0 !important;
+        border-top: 1px solid #ccc !important;
         font-size: 9.5pt !important;
+        font-weight: bold;
+        margin-top: auto;
       }
 
-      /* CHECKBOX & RADIO */
-      input[type="checkbox"], input[type="radio"] {
-        transform: scale(1) !important;
-      }
-
-      /* HEADER */
-      .form-header {
-        display: grid !important;
-        grid-template-columns: 70px 1fr 160px !important;
-        gap: 8px !important;
-        margin-bottom: 12px !important;
-      }
-      .header-center { font-size: 9pt !important; }
-      .header-right { font-size: 8pt !important; }
-
-      /* PAGE BREAK CONTROL — ALLOW NATURAL BREAKS */
-      .service-box, h3, h4 { 
-        page-break-inside: avoid !important; 
-      }
-      h3, h4 { 
-        margin: 10px 0 6px !important; 
-        font-size: 11pt !important; 
-      }
-
-      /* IMPORTANT: ALLOW PAGE BREAKS INSIDE CONTAINER */
-      .all-services-container > div {
-        page-break-inside: auto !important;
-      }
-
-      @page { 
-        margin: 0; 
-        size: 8.5in 13in; 
+      /* Certification page */
+      .cert-page {
+        page-break-before: always;
+        height: 150.2mm;
+        padding: 60mm 20mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
       }
     `;
     clone.appendChild(printStyle);
 
-    // TEMP CONTAINER
+    // Add certification
+    const certDiv = document.createElement("div");
+    certDiv.className = "cert-page";
+    certDiv.innerHTML = `
+      <p style="font-size: 10pt; font-weight: bold; margin-bottom: 30px; ">
+        I hereby certify that the above information is true and correct.
+      </p>
+      <div style="margin: 50px 0;">
+        <p style="font-size: 9pt; font-weight: bold;">
+          ${`${safeFormData.lastName}, ${safeFormData.firstName}${safeFormData.middleInitial ? ' ' + safeFormData.middleInitial + '.' : ''}`.toUpperCase()}
+        </p>
+        <div style="border-bottom: 2px solid #000; width: 480px; margin: 20px auto;"></div>
+        <p style="font-size: 9pt; font-style: italic; color: #333;">Signature over Printed Name</p>
+      </div>
+      <p style="font-size: 10pt; margin-top: 30px;">
+        Date: <strong>${new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+      </p>
+    `;
+    clone.appendChild(certDiv);
+
+    // Temporary container
     const container = document.createElement("div");
     container.style.position = "absolute";
     container.style.left = "-9999px";
@@ -741,62 +664,66 @@ clone.appendChild(certDiv);
     container.appendChild(clone);
     document.body.appendChild(container);
 
-    await new Promise(r => setTimeout(r, 1200)); // bit longer para sure ang rendering
+    await new Promise(r => setTimeout(r, 1500));
 
-    // CAPTURE WITH HIGH QUALITY
     const canvas = await html2canvas(container, {
       scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
-      width: container.scrollWidth,
-      height: container.scrollHeight,
-      windowWidth: container.scrollWidth,
-      windowHeight: container.scrollHeight,
+      width: 815,
+      windowWidth: 815,
       logging: false,
     });
 
     document.body.removeChild(container);
 
-    // MULTI-PAGE PDF SETUP
     const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", [215.9, 330.2]); // long bond
-    const pageWidth = 215.9;
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: [215.9, 330.2],
+    });
+
     const pageHeight = 330.2;
-    const imgHeightPerPage = (canvas.height * pageWidth) / canvas.width;
-    let heightLeft = imgHeightPerPage;
+    const imgHeight = (canvas.height * 215.9) / canvas.width;
+    let heightLeft = imgHeight;
     let position = 0;
 
-    // First page
-    pdf.addImage(imgData, "PNG", 0, position, pageWidth, imgHeightPerPage);
+    pdf.addImage(imgData, "PNG", 0, position, 215.9, imgHeight);
     heightLeft -= pageHeight;
 
-    // Add new pages if content is taller
     while (heightLeft > 0) {
-      position = heightLeft - imgHeightPerPage;
+      position = heightLeft - imgHeight;
       pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, pageWidth, imgHeightPerPage);
+      pdf.addImage(imgData, "PNG", 0, position, 215.9, imgHeight);
       heightLeft -= pageHeight;
     }
 
-    // Filename
     const patientName = `${safeFormData.lastName}_${safeFormData.firstName}`
       .replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const filename = `TRC_Outpatient_Request_${patientName}_${dateStr}.pdf`;
+    pdf.save(`TRC_Outpatient_Request_${patientName}_${dateStr}.pdf`);
 
-    pdf.save(filename);
-    openModal("PDF successfully downloaded!", "success");
 
+    setIsPdfDownloaded(true);
+    openModal("PDF downloaded successfully!", "success");
   } catch (err) {
     console.error("PDF Error:", err);
     openModal("Failed to generate PDF.", "error");
+    setIsPdfDownloaded(false);
   }
 };
 
 
-
    const handleSubmit = async () => {
+    if (!isPdfDownloaded) {
+    openModal(
+      "Please download the PDF form first before submitting.\n\nThis is required for your records and verification.",
+      "error"
+    );
+    return;
+  }
     try {
       if (appointments.length === 0) {
         openModal("No appointments found to submit.", "error");
@@ -1156,7 +1083,162 @@ useEffect(() => {
 }, []);
 
 
-  
+const renderDepartmentServices = (
+  dept: string,
+  servicesMap: Record<string, string[]>,
+  hasPregnancySection: boolean = false
+) => {
+  const appointment = appointments.find(a => a.department === dept);
+  const editedData = editedAppointments[dept] || {
+    services: [],
+    otherService: "",
+    lastMenstrualPeriod: "",
+    isPregnant: "No",
+    clearance: false,
+    shield: false,
+    pregnancyTestResult: "Negative"
+  };
+  const isScheduleDisabled = editedData.services.length === 0;
+
+  return (
+    // ← GIKUHA ANG <table> UG GIBUTANG TANAN SA <div> PARA MO-GROW SIYA
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        <table style={{ width: "100%", fontSize: "9.5pt", borderCollapse: "collapse", height: "100%" }}>
+          <tbody style={{ display: "block", height: "100%" }}>
+            {/* SERVICES */}
+            {Object.entries(servicesMap)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([category, services]) => (
+                <React.Fragment key={category}>
+                  <tr>
+                    <td colSpan={2} style={{
+                      background: "#e6e6e6",
+                      fontWeight: "bold",
+                      padding: "7px 6px",
+                      textAlign: "center",
+                      fontSize: "10pt"
+                    }}>
+                      {category}
+                    </td>
+                  </tr>
+                  {services.map(service => {
+                    const isOthers = service === "Others";
+                    const isChecked = editedData.services.includes(service);
+
+                    if (isOthers) {
+                      return (
+                        <tr key="Others">
+                          <td colSpan={2} style={{ padding: "8px 6px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <input
+                                type="text"
+                                value={editedData.otherService || ""}
+                                onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
+                                placeholder="Specify other service..."
+                                style={{ flex: 1, padding: "6px", border: "1px solid #333", borderRadius: "4px" }}
+                                disabled={!isChecked}
+                              />
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleService(dept, "Others")}
+                                style={{ transform: "scale(1.2)" }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <tr key={service}>
+                        <td style={{ padding: "4px 8px", width: "100%" }}>{service}</td>
+                        <td style={{ width: "50px", textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleService(dept, service)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+
+            {/* Pregnancy Section */}
+            {hasPregnancySection && (
+          <>
+            <tr>
+              <td colSpan={2} style={{ background: "#f0f0f0", padding: "10px 6px", fontWeight: "bold", fontSize: "10pt" }}>
+                Complaint / History (For Female Patients only, ages 10 to 55)
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "4px 8px" }}>Last Menstrual Period:</td>
+              <td>
+                <input
+                  type="date"
+                  value={editedData.lastMenstrualPeriod || ""}
+                  onChange={(e) => handleFieldChange(dept, "lastMenstrualPeriod", e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "4px 8px" }}>Are you Pregnant?</td>
+              <td style={{ fontSize: "9.5pt" }}>
+                <label><input type="radio" checked={editedData.isPregnant === "Yes"} onChange={() => handleFieldChange(dept, "isPregnant", "Yes")} /> Yes</label><br/>
+                <label><input type="radio" checked={editedData.isPregnant === "No"} onChange={() => handleFieldChange(dept, "isPregnant", "No")} /> No</label><br/>
+                <label><input type="radio" checked={editedData.isPregnant === "Not sure/Delayed"} onChange={() => handleFieldChange(dept, "isPregnant", "Not sure/Delayed")} /> Not sure/Delayed</label>
+                {editedData.isPregnant === "Yes" && (
+                  <div style={{ marginTop: "6px" }}>
+                    <label><input type="checkbox" checked={editedData.clearance} onChange={e => handleFieldChange(dept, "clearance", e.target.checked)} /> With clearance</label><br/>
+                    <label><input type="checkbox" checked={editedData.shield} onChange={e => handleFieldChange(dept, "shield", e.target.checked)} /> With abdominal lead shield</label>
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "4px 8px" }}>Pregnancy Test Result:</td>
+              <td>
+                <label><input type="radio" checked={editedData.pregnancyTestResult === "Positive"} onChange={() => handleFieldChange(dept, "pregnancyTestResult", "Positive")} /> Positive</label>&nbsp;&nbsp;
+                <label><input type="radio" checked={editedData.pregnancyTestResult === "Negative"} onChange={() => handleFieldChange(dept, "pregnancyTestResult", "Negative")} /> Negative</label>
+              </td>
+            </tr>
+          </>
+        )}
+              
+                
+           
+          </tbody>
+        </table>
+      </div>
+
+      {/* SCHEDULE ROW — SEPARATE PARA STICK SA UBOS */}
+      <div style={{
+        padding: "12px 8px",
+        background: "#f9f9f9",
+        borderTop: "1px solid #ddd",
+        fontWeight: "bold",
+        marginTop: "auto"   // ← KINI ANG MAGIC: pushes this to bottom
+      }}>
+        Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
+        Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong>
+        <button
+          type="button"
+          className="change-btns"
+          style={{ float: "right", fontSize: "11pt" }}
+          onClick={() => handleChangeDateTime(dept, appointment)}
+          disabled={isScheduleDisabled}
+        >
+          {appointment ? "Change Schedule" : "Schedule Now"}
+        </button>
+      </div>
+    </div>
+  );
+};
 
   return (
     <div className="main-holder">
@@ -1172,9 +1254,9 @@ useEffect(() => {
             <h5>OUTPATIENT REQUEST FORM</h5>
           </div>
           <div className="header-right">
-            <p>Document No.: TRC-AOD-FM07</p>
-            <p>Effective Date: 14 October 2024</p>
-            <p>Revision No.: 1</p>
+            <p>Document No.: TRC-AOD-FM-07</p>
+            <p>Effective Date: 22 August 2025</p>
+            <p>Revision No.: 3</p>
             <p>Page No.: Page 1 of 1</p>
           </div>
         </div>
@@ -1182,528 +1264,325 @@ useEffect(() => {
         {error && <div className="error-message text-red-500 mb-4">{error}</div>}
 
         <form className="all-services-form">
-          <h3 className="text-lg font-bold mb-4">Patient Information</h3>
-          <div className="field-group">
-            <div>
-              <label>Date of Request</label>
-              <input type="date" value={safeFormData.requestDate} readOnly />
-            </div>
-            <div>
-              <label>Time of Request</label>
-              {/* Fix: Changed from requestDate to requestTime */}
-              <input type="time" value={safeFormData.requestTime} readOnly />
-            </div>
-            <div>
-              <label>Control No.</label>
-              <input type="text" value={safeFormData.controlNo} readOnly />
-            </div>
-          </div>
+        
 
-          <div className="field-group">
-            <div>
-              <label>Last Name</label>
-              <input type="text" value={safeFormData.lastName} readOnly />
-            </div>
-            <div>
-              <label>First Name</label>
-              <input type="text" value={safeFormData.firstName} readOnly />
-            </div>
-            <div>
-              <label>Middle Initial</label>
-              <input type="text" value={safeFormData.middleInitial} readOnly />
-            </div>
-          </div>
 
-          <div className="field-group">
-            <div>
-              <label>Birthdate</label>
-              <input type="date" value={safeFormData.birthdate} readOnly />
-            </div>
-            <div>
-              <label>Age</label>
-              <input type="number" value={safeFormData.age} readOnly />
-            </div>
-            <div>
-              <label>Gender</label>
-              <input type="text" value={safeFormData.gender} readOnly />
-            </div>
-          </div>
+{/* PATIENT INFORMATION – EXACT SAME SA PICTURE, HUGOT, NO EXTRA SPACE */}
+<div style={{ marginBottom: "16px", fontSize: "10pt" }}>
+  <h3 style={{
+    fontSize: "13pt",
+    fontWeight: "bold",
+    color: "#003087",
+    borderBottom: "3px solid #003087",
+    paddingBottom: "6px",
+    margin: "0 0 10px 0"
+  }}>
+    Patient Information
+  </h3>
 
-          {safeFormData.gender === "LGBTQ+" && (
-            <div className="conditional-field">
-              <label>LGBTQ+ Specification</label>
-              <input type="text" value={safeFormData.genderSpecify} readOnly />
-            </div>
-          )}
+{/* EXACT NA GYUD: Date, Time, Control No — usa ra ka linya + underline sa ubos */}
+<div style={{ marginBottom: "14px", fontSize: "10.5pt" }}>
+  <div style={{ 
+    display: "flex", 
+    justifyContent: "space-between", 
+    alignItems: "baseline",
+    flexWrap: "nowrap",
+    gap: "20px"
+  }}>
+    {/* Date of Request - Left */}
+    <div style={{ flex: "1", minWidth: "180px" }}>
+      <strong>Date of Request:</strong>{' '}
+      <span style={{ fontWeight: "bold" }}>
+        {safeFormData.requestDate 
+          ? new Date(safeFormData.requestDate).toLocaleDateString('en-PH') 
+          : "____/____/____"
+        }
+      </span>
+    </div>
 
-         
+    {/* Time of Request - Center */}
+    <div style={{ flex: "1", textAlign: "center", minWidth: "140px" }}>
+      <strong>Time of Request:</strong>{' '}
+      <span style={{ fontWeight: "bold" }}>
+        {safeFormData.requestTime ? safeFormData.requestTime : "__:__ __"}
+      </span>
+    </div>
 
-          <div className="house-street-group">
-             <div>
-            <label>Citizenship</label>
-            <input type="text" value={safeFormData.citizenship} readOnly />
-          </div>
-            <div>
-              <label>House No.</label>
-              <input type="text" value={safeFormData.houseNo} readOnly />
-            </div>
-            <div>
-              <label>Street</label>
-              <input type="text" value={safeFormData.street} readOnly />
-            </div>
-          </div>
+    {/* Control No - Right (red & bold) */}
+    <div style={{ flex: "1", textAlign: "right", minWidth: "180px" }}>
+      <strong>Control No:</strong>{' '}
+      <span style={{ 
+        color: "#c62828", 
+        fontWeight: "bold", 
+        fontSize: "11.5pt",
+        letterSpacing: "0.8px"
+      }}>
+        {safeFormData.controlNo || "__________"}
+      </span>
+    </div>
+  </div>
 
-          <div className="field-group">
-            <div>
-              <label>Province</label>
-              <input type="text" value={safeFormData.province} readOnly />
-            </div>
-            <div>
-              <label>Municipality/City</label>
-              <input type="text" value={safeFormData.municipality} readOnly />
-            </div>
-            <div>
-              <label>Barangay</label>
-              <input type="text" value={safeFormData.barangay} readOnly />
-            </div>
-          </div>
+  {/* Full underline sa ilawom */}
+  <div style={{ 
+    borderBottom: "1px solid #000", 
+    marginTop: "4px"
+  }}></div>
+</div>
 
-           <div className="field-groups">
-          <div>
-            <label>Email Address</label>
-            <input type="email" value={safeFormData.email} readOnly />
-          </div>
+  {/* ROW 2: Name, Age, Birthdate */}
+  <div style={{ display: "flex", alignItems: "end", gap: "12px", fontSize: "10pt", lineHeight: "1.2" }}>
+  {/* NAME - Gipamubo ug gi-compact */}
+  <div style={{ flex: 1, minWidth: "0" }}>
+    <strong style={{ fontSize: "9pt" }}>Name:</strong>
+    <div style={{ display: "flex", gap: "8px", marginTop: "3px" }}>
+      <div style={{ flex: "1.2" }}>
+        <div style={{ fontWeight: "bold", fontSize: "11pt" }}>
+          {safeFormData.lastName?.toUpperCase() || "__________________"}
+        </div>
+        <div style={{ borderBottom: "1px solid #000", marginTop: "1px" }}></div>
+        <small style={{ fontSize: "7pt", color: "#666" }}>Last Name</small>
+      </div>
+      <div style={{ flex: "1" }}>
+        <div style={{ fontWeight: "bold", fontSize: "11pt" }}>
+          {safeFormData.firstName?.toUpperCase() || "________________"}
+        </div>
+        <div style={{ borderBottom: "1px solid #000", marginTop: "1px" }}></div>
+        <small style={{ fontSize: "7pt", color: "#666" }}>First Name</small>
+      </div>
+      <div style={{ width: "28px" }}>
+        <div style={{ fontWeight: "bold", fontSize: "11pt" }}>
+          {safeFormData.middleInitial?.toUpperCase() || "__"}
+        </div>
+        <div style={{ borderBottom: "1px solid #000", marginTop: "1px" }}></div>
+        <small style={{ fontSize: "7pt", color: "#666" }}>M.I.</small>
+      </div>
+    </div>
+  </div>
 
-          <div>
-            <label>Mobile/Contact Number</label>
-            <input type="tel" value={safeFormData.contact} readOnly />
-          </div>
-         </div>
+  {/* AGE - Nipis ra kay gamay ra siya */}
+  <div style={{ textAlign: "center", minWidth: "45px" }}>
+    <strong style={{ fontSize: "9pt" }}>Age:</strong>
+    <div style={{ 
+      borderBottom: "1px solid #000", 
+      width: "36px", 
+      margin: "2px auto 0" 
+    }}>
+      <strong style={{ fontSize: "11pt" }}>{safeFormData.age || "__"}</strong>
+    </div>
+  </div>
 
-          <div className="services-wrapper">
-            <div className="services-container">
-              {["Radiographic", "Clinical Laboratory", "Dental", "Medical"].map((dept) => {
-                const appointment = appointments.find((a) => a.department === dept);
-                const editedData = editedAppointments[dept] || {
-                  services: [],
-                  otherService: "",
-                  complaint: "",
-                  lastMenstrualPeriod: "",
-                  isPregnant: "No",
-                  clearance: false,
-                  shield: false,
-                  pregnancyTestResult: "Negative",
-                };
-                const isScheduleDisabled = editedData.services.length === 0;
+  {/* BIRTHDATE - Gipamubo ang underline */}
+  <div style={{ textAlign: "center", minWidth: "100px" }}>
+    <strong style={{ fontSize: "9pt" }}>Birthdate:</strong>
+    <div style={{ 
+      borderBottom: "1px solid #000", 
+      width: "92px", 
+      margin: "2px auto 0" 
+    }}>
+      <span style={{ fontSize: "10pt", letterSpacing: "1px" }}>
+        {safeFormData.birthdate 
+          ? new Date(safeFormData.birthdate).toLocaleDateString('en-PH')
+          : "__ / __ / ____"}
+      </span>
+    </div>
+  </div>
+</div>
 
-                return (
-                  <div key={dept} className="service-box">
-                    <h4>{dept} Services</h4>
 
-                    {dept === "Radiographic" && (
-  <table>
-    <tbody>
-      {Object.entries(radiologyServicesMerged)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([category, services]) => (
-          <React.Fragment key={category}>
-            <tr className="category-row">
-              <td colSpan={2}>{category}</td>
-            </tr>
-            {services.map((service) => {
-              const isOthers = service === "Others";
-              const isChecked = editedData.services.includes(service);
-              const displayName = isOthers ? "Others (please specify)" : service;
 
-              if (isOthers) {
-                return (
-                  <tr key="Others">
-                    <td colSpan={2}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <input
-                          type="text"
-                          value={editedData.otherService || ""}
-                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                          placeholder="Specify other service here..."
-                          style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #000" }}
-                          disabled={!isChecked}
-                        />
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleService(dept, "Others")}
-                          style={{ transform: "scale(1.2)" }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              }
+  {/* ROW 3: Gender – NINDOT NA TAN-AWON, AUTOMATIC CHECKED */}
+<div style={{ marginBottom: "12px" }}>
+  <strong>Gender:</strong>
+  <div style={{ 
+    display: "flex", 
+    gap: "28px", 
+    marginTop: "8px", 
+    fontSize: "10pt",
+    flexWrap: "wrap",
+    alignItems: "center"
+  }}>
+    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "Feminine" ? "bold" : "normal", color: safeFormData.gender === "Feminine" ? "#003087" : "#000" }}>
+      <span style={{
+        width: "14px",
+        height: "14px",
+        border: "2px solid #000",
+        display: "inline-block",
+        background: safeFormData.gender === "Female" ? "#003087" : "white",
+        position: "relative"
+      }}>
+        {safeFormData.gender === "Female" && (
+          <span style={{
+            position: "absolute",
+            top: "1px",
+            left: "3px",
+            width: "6px",
+            height: "6px",
+            background: "white",
+            borderRadius: "1px",
+            transform: "rotate(45deg)"
+          }}></span>
+        )}
+      </span>
+      Feminine
+    </label>
 
-              return (
-                <tr key={service}>
-                  <td>{displayName}</td>
-                  <td style={{ textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleService(dept, service)}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </React.Fragment>
-        ))}
-                          <tr>
-                            <td colSpan={2}>
-                              <span style={{ fontWeight: "bold" }}>
-                                Complaint / History (For Female Patients only, ages 10 to 55)
-                              </span>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>Date of Last Menstrual Period:</td>
-                            <td>
-                              <input
-                                type="date"
-                                value={editedData.lastMenstrualPeriod}
-                                onChange={(e) => handleFieldChange(dept, "lastMenstrualPeriod", e.target.value)}
-                                className="border p-2 rounded w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>Are you Pregnant?</td>
-                            <td>
-                              <div className="flex flex-col space-y-2">
-                                <label>
-                                  <input
-                                    type="radio"
-                                    value="Yes"
-                                    checked={editedData.isPregnant === "Yes"}
-                                    onChange={() => handleFieldChange(dept, "isPregnant", "Yes")}
-                                    className="mr-2"
-                                  />
-                                  Yes
-                                </label>
-                                {editedData.isPregnant === "Yes" && (
-                                  <div className="ml-4 text-sm">
-                                    <label>
-                                      <input
-                                        type="checkbox"
-                                        checked={editedData.clearance}
-                                        onChange={(e) => handleFieldChange(dept, "clearance", e.target.checked)}
-                                        className="mr-2"
-                                      />
-                                      With clearance of the attending doctor
-                                    </label>
-                                    <br />
-                                    <label>
-                                      <input
-                                        type="checkbox"
-                                        checked={editedData.shield}
-                                        onChange={(e) => handleFieldChange(dept, "shield", e.target.checked)}
-                                        className="mr-2"
-                                      />
-                                      With abdominal lead shield
-                                    </label>
-                                  </div>
-                                )}
-                                <label>
-                                  <input
-                                    type="radio"
-                                    value="No"
-                                    checked={editedData.isPregnant === "No"}
-                                    onChange={() => handleFieldChange(dept, "isPregnant", "No")}
-                                    className="mr-2"
-                                  />
-                                  No
-                                </label>
-                                <label>
-                                  <input
-                                    type="radio"
-                                    value="Not sure/Delayed"
-                                    checked={editedData.isPregnant === "Not sure/Delayed"}
-                                    onChange={() => handleFieldChange(dept, "isPregnant", "Not sure/Delayed")}
-                                    className="mr-2"
-                                  />
-                                  Not sure/Delayed
-                                </label>
-                              </div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>Pregnancy Test Result:</td>
-                            <td>
-                              <label>
-                                <input
-                                  type="radio"
-                                  value="Positive"
-                                  checked={editedData.pregnancyTestResult === "Positive"}
-                                  onChange={() => handleFieldChange(dept, "pregnancyTestResult", "Positive")}
-                                  className="mr-2"
-                                />
-                                Positive
-                              </label>
-                              <br />
-                              <label>
-                                <input
-                                  type="radio"
-                                  value="Negative"
-                                  checked={editedData.pregnancyTestResult === "Negative"}
-                                  onChange={() => handleFieldChange(dept, "pregnancyTestResult", "Negative")}
-                                  className="mr-2"
-                                />
-                                Negative
-                              </label>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td colSpan={2}>
-                              Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
-                              <button
-                                type="button"
-                                className="change-btns"
-                                onClick={() => handleChangeDateTime(dept, appointment)}
-                                disabled={isScheduleDisabled}
-                              >
-                                {appointment ? "Change" : "Schedule"}
-                              </button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    )}
+    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "Masculine" ? "bold" : "normal", color: safeFormData.gender === "Masculine" ? "#003087" : "#000" }}>
+      <span style={{
+        width: "14px",
+        height: "14px",
+        border: "2px solid #000",
+        display: "inline-block",
+        background: safeFormData.gender === "Male" ? "#003087" : "white",
+        position: "relative"
+      }}>
+        {safeFormData.gender === "Male" && (
+          <span style={{
+            position: "absolute",
+            top: "1px",
+            left: "3px",
+            width: "6px",
+            height: "6px",
+            background: "white",
+            borderRadius: "1px",
+            transform: "rotate(45deg)"
+          }}></span>
+        )}
+      </span>
+      Masculine
+    </label>
 
-                    {dept === "Clinical Laboratory" && (
-  <table>
-    <tbody>
-      {Object.entries(clinicalServicesMerged)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([category, services]) => (
-          <React.Fragment key={category}>
-            <tr className="category-row">
-              <td colSpan={2}>{category}</td>
-            </tr>
-            {services.map((service) => {
-              const isOthers = service === "Others";
-              const isChecked = editedData.services.includes(service);
-              const displayName = isOthers ? "Others (please specify)" : service;
+    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "LGBTQ+" ? "bold" : "normal", color: safeFormData.gender === "LGBTQ+" ? "#003087" : "#000" }}>
+      <span style={{
+        width: "14px",
+        height: "14px",
+        border: "2px solid #000",
+        display: "inline-block",
+        background: safeFormData.gender === "LGBTQ+" ? "#003087" : "white",
+        position: "relative"
+      }}>
+        {safeFormData.gender === "LGBTQ+" && (
+          <span style={{
+            position: "absolute",
+            top: "1px",
+            left: "3px",
+            width: "6px",
+            height: "6px",
+            background: "white",
+            borderRadius: "1px",
+            transform: "rotate(45deg)"
+          }}></span>
+        )}
+      </span>
+      LGBTQ+
+      {safeFormData.gender === "LGBTQ+" && safeFormData.genderSpecify && (
+        <span style={{ marginLeft: "6px", color: "#c62828", fontWeight: "bold", fontSize: "9.5pt" }}>
+          ({safeFormData.genderSpecify})
+        </span>
+      )}
+    </label>
 
-              if (isOthers) {
-                return (
-                  <tr key="Others">
-                    <td colSpan={2}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <input
-                          type="text"
-                          value={editedData.otherService || ""}
-                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                          placeholder="Specify other service here..."
-                          style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #000" }}
-                          disabled={!isChecked}
-                        />
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleService(dept, "Others")}
-                          style={{ transform: "scale(1.2)" }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              }
+    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "Prefer not to answer" ? "bold" : "normal", color: safeFormData.gender === "Prefer not to answer" ? "#003087" : "#000" }}>
+      <span style={{
+        width: "14px",
+        height: "14px",
+        border: "2px solid #000",
+        display: "inline-block",
+        background: safeFormData.gender === "Prefer not to answer" ? "#003087" : "white",
+        position: "relative"
+      }}>
+        {safeFormData.gender === "Prefer not to answer" && (
+          <span style={{
+            position: "absolute",
+            top: "1px",
+            left: "3px",
+            width: "6px",
+            height: "6px",
+            background: "white",
+            borderRadius: "1px",
+            transform: "rotate(45deg)"
+          }}></span>
+        )}
+      </span>
+      Prefer not to answer
+    </label>
+  </div>
+</div>
 
-              return (
-                <tr key={service}>
-                  <td>{displayName}</td>
-                  <td style={{ textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleService(dept, service)}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </React.Fragment>
-        ))}
-      <tr>
-        <td colSpan={2}>
-          Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
-          Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
-          <button
-            type="button"
-            className="change-btns"
-            onClick={() => handleChangeDateTime(dept, appointment)}
-            disabled={isScheduleDisabled}
-          >
-            {appointment ? "Change" : "Schedule"}
-          </button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-)}
+  {/* ROW 4: Address */}
+  <div style={{ marginBottom: "8px" }}>
+    <strong>Address:</strong>
+    <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+      <div style={{ flex: 1 }}>
+        <span style={{ fontWeight: "bold" }}>{safeFormData.houseNo || ""} {safeFormData.street || "______________________________"}</span>
+        <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
+        <small style={{ color: "#666", fontSize: "8pt" }}>House No. & Street</small>
+      </div>
+      <div style={{ flex: 1 }}>
+        <span style={{ fontWeight: "bold" }}>{safeFormData.barangay || "______________________________"}</span>
+        <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
+        <small style={{ color: "#666", fontSize: "8pt" }}>Barangay</small>
+      </div>
+    </div>
+    <div style={{ display: "flex", gap: "12px", marginTop: "6px" }}>
+      <div style={{ flex: 1 }}>
+        <span style={{ fontWeight: "bold" }}>{safeFormData.municipality || "______________________________"}</span>
+        <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
+        <small style={{ color: "#666", fontSize: "8pt" }}>Municipality/City</small>
+      </div>
+      <div style={{ flex: 1 }}>
+        <span style={{ fontWeight: "bold" }}>{safeFormData.province || "______________________________"}</span>
+        <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
+        <small style={{ color: "#666", fontSize: "8pt" }}>Province</small>
+      </div>
+    </div>
+  </div>
 
-                   {dept === "Dental" && (
-  <table>
-    <tbody>
-      {Object.entries(dentalServicesMerged)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([category, services]) => (
-          <React.Fragment key={category}>
-            <tr className="category-row">
-              <td colSpan={2}>{category}</td>
-            </tr>
-            {services.map((service) => {
-              const isOthers = service === "Others";
-              const isChecked = editedData.services.includes(service);
-              const displayName = isOthers ? "Others (please specify)" : service;
+  {/* ROW 5: Contact Number */}
+  <div style={{ display: "flex", gap: "20px", alignItems: "end" }}>
+    <div>
+      <strong>Contact Number:</strong>
+      <div style={{ borderBottom: "1px solid #000", marginTop: "4px", width: "200px", display: "inline-block" }}>
+        {" "}<strong style={{ color: "#1565c0" }}>{safeFormData.contact || "__________________"}</strong>
+      </div>
+    </div>
+    <div style={{ marginLeft: "auto" }}>
+      <strong>Email:</strong> <span style={{ color: "#c62828" }}>{safeFormData.email || "______________________________"}</span>
+    </div>
+  </div>
+</div>
 
-              if (isOthers) {
-                return (
-                  <tr key="Others">
-                    <td colSpan={2}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <input
-                          type="text"
-                          value={editedData.otherService || ""}
-                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                          placeholder="Specify other dental service..."
-                          style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #000" }}
-                          disabled={!isChecked}
-                        />
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleService(dept, "Others")}
-                          style={{ transform: "scale(1.2)" }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              }
 
-              return (
-                <tr key={service}>
-                  <td>{displayName}</td>
-                  <td style={{ textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleService(dept, service)}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </React.Fragment>
-        ))}
-      <tr>
-        <td colSpan={2}>
-          Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
-          Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
-          <button
-            type="button"
-            className="change-btns"
-            onClick={() => handleChangeDateTime(dept, appointment)}
-            disabled={isScheduleDisabled}
-          >
-            {appointment ? "Change" : "Schedule"}
-          </button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-)}
-                    {dept === "Medical" && (
-  <table>
-    <tbody>
-      {Object.entries(medicalServicesMerged) // We'll create this state below
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([category, services]) => (
-          <React.Fragment key={category}>
-            <tr className="category-row">
-              <td colSpan={2}>{category}</td>
-            </tr>
-            {services.map((service) => {
-              const isOthers = service === "Others";
-              const isChecked = editedData.services.includes(service);
-              const displayName = isOthers ? "Others (please specify)" : service;
+<div className="services-wrapper">
+  {/* Responsive Grid: 2 columns → 1 column on mobile */}
+  <div className="services-grid">
+    {/* LEFT COLUMN */}
+    <div className="services-column">
+      <div className="service-box">
+        <h4 className="service-header">Clinical Laboratory Services</h4>
+        {renderDepartmentServices("Clinical Laboratory", clinicalServicesMerged)}
+      </div>
 
-              if (isOthers) {
-                return (
-                  <tr key="Others">
-                    <td colSpan={2}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <input
-                          type="text"
-                          value={editedData.otherService || ""}
-                          onChange={(e) => handleOtherServiceChange(dept, e.target.value)}
-                          placeholder="Specify other medical service..."
-                          style={{
-                            flex: 1,
-                            padding: "8px",
-                            borderRadius: "4px",
-                            border: "1px solid #000",
-                          }}
-                          disabled={!isChecked}
-                        />
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleService(dept, "Others")}
-                          style={{ transform: "scale(1.2)" }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              }
+      <div className="service-box">
+        <h4 className="service-header">Dental Services</h4>
+        {renderDepartmentServices("Dental", dentalServicesMerged)}
+      </div>
+    </div>
 
-              return (
-                <tr key={service}>
-                  <td>{displayName}</td>
-                  <td style={{ textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleService(dept, service)}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </React.Fragment>
-        ))}
-      <tr>
-        <td colSpan={2}>
-          Date: <strong>{appointment?.date || "Not scheduled"}</strong> &nbsp;&nbsp;
-          Time: <strong>{appointment?.slotTime || "Not scheduled"}</strong> &nbsp;&nbsp;
-          <button
-            type="button"
-            className="change-btns"
-            onClick={() => handleChangeDateTime(dept, appointment)}
-            disabled={isScheduleDisabled}
-          >
-            {appointment ? "Change" : "Schedule"}
-          </button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-)}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+    {/* RIGHT COLUMN */}
+    <div className="services-column">
+      <div className="service-box">
+        <h4 className="service-header">Radiographic Services</h4>
+        {renderDepartmentServices("Radiographic", radiologyServicesMerged, true)}
+      </div>
+
+      <div className="service-box">
+        <h4 className="service-header">Medical Services</h4>
+        {renderDepartmentServices("Medical", medicalServicesMerged)}
+      </div>
+    </div>
+  </div>
+</div>
+
 
           <div className="button-containers">
   {/* DOWNLOAD PDF BUTTON */}
@@ -1721,17 +1600,24 @@ useEffect(() => {
   </button>
 
   {/* SUBMIT BUTTON */}
-  <button
-    type="button"
-    className="formal-btn submit-btn"
-    onClick={handleSubmit}
-  >
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-    <span>Submit Request</span>
-  </button>
+ <button
+  type="button"
+  className={`formal-btn submit-btn ${!isPdfDownloaded ? 'disabled' : ''}`}
+  onClick={handleSubmit}
+  disabled={!isPdfDownloaded}
+  style={{
+    opacity: isPdfDownloaded ? 1 : 0.5,
+    cursor: isPdfDownloaded ? 'pointer' : 'not-allowed'
+  }}
+>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+  <span>
+    {isPdfDownloaded ? "Submit Request" : "Download PDF First"}
+  </span>
+</button>
 </div>
         </form>
       </div>

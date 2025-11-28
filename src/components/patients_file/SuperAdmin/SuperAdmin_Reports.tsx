@@ -12,6 +12,7 @@ import "../../../assets/SuperAdmin_Reports.css";
 import logo from "/logo.png";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
+import { X } from "lucide-react";
 
 interface ChartData {
   date: string;
@@ -52,7 +53,7 @@ const SuperAdmin_Reports: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [yearFilter, setYearFilter] = useState<string>("All");
   const [monthFilter, setMonthFilter] = useState<string>("All");
-  const [dayFilter, setDayFilter] = useState<string>("All");
+ 
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     { text: "3 new registration requests", unread: true },
@@ -110,6 +111,13 @@ const SuperAdmin_Reports: React.FC = () => {
     return "";
   };
 
+  useEffect(() => {
+  const now = new Date();
+  setYearFilter(now.getFullYear().toString());
+  setMonthFilter(now.toLocaleString("default", { month: "long" }));
+}, []); // runs only once
+
+
   // Fetch real-time data from Firebase
   useEffect(() => {
     setLoading(true);
@@ -124,6 +132,10 @@ const SuperAdmin_Reports: React.FC = () => {
     if (statusFilter !== "All") {
       constraints.push(where("status", "==", statusFilter));
     }
+
+
+    // Ensure current year & month are selected when the component mounts
+
 
     const transQuery = query(collection(db, "Transactions"), ...constraints);
 
@@ -176,31 +188,46 @@ const SuperAdmin_Reports: React.FC = () => {
         const dept = department === "all" ? tData.purpose : departmentMapping[department];
 
         // Apply date filtering client-side
-        const [year, month, day] = appointmentDate.split("-");
-        if (yearFilter !== "All" && year !== yearFilter) continue;
-        if (monthFilter !== "All" && month !== monthFilter) continue;
-        if (dayFilter !== "All" && day !== dayFilter) continue;
+        // Correct way: Convert date string to actual Date object
+const dateObj = new Date(appointmentDate);
+const yearStr = dateObj.getFullYear().toString();
+const monthName = dateObj.toLocaleString("default", { month: "long" }); // → "November"
+
+// Filter by year and month name
+if (yearFilter !== "All" && yearStr !== yearFilter) continue;
+if (monthFilter !== "All" && monthName !== monthFilter) continue;
 
         // Aggregate data for chart
-        if (!dataByDate[appointmentDate]) {
-          dataByDate[appointmentDate] = {
-            date: appointmentDate,
-            department: department === "all" ? "All" : dept,
-            totalAppointments: 0,
-            pending: 0,
-            approved: 0,
-            rejected: 0,
-            completed: 0,
-            cancelled: 0,
-          };
-        }
+       if (!dataByDate[appointmentDate]) {
+  dataByDate[appointmentDate] = {
+    date: appointmentDate,
+    department: department === "all" ? "All" : dept,
+    totalAppointments: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    completed: 0,
+    cancelled: 0,
+  };
+}
 
-        dataByDate[appointmentDate].totalAppointments += 1;
-        if (normalizedStatus === "Pending") dataByDate[appointmentDate].pending += 1;
-        else if (normalizedStatus === "Approved") dataByDate[appointmentDate].approved += 1;
-        else if (normalizedStatus === "Rejected") dataByDate[appointmentDate].rejected += 1;
-        else if (normalizedStatus === "Completed") dataByDate[appointmentDate].completed += 1;
-        else if (normalizedStatus === "Cancelled") dataByDate[appointmentDate].cancelled += 1;
+// CORRECT LOGIC: Apil sa total TANAN gawas ang Rejected sa NON-DDE departments
+if (!(normalizedStatus === "Rejected" && tData.purpose !== "DDE")) {
+  dataByDate[appointmentDate].totalAppointments += 1;
+}
+
+// Status breakdown (separate ra ni, para makita gihapon ang rejected bisag dili i-count sa total)
+if (normalizedStatus === "Pending") {
+  dataByDate[appointmentDate].pending += 1;
+} else if (normalizedStatus === "Approved") {
+  dataByDate[appointmentDate].approved += 1;
+} else if (normalizedStatus === "Rejected") {
+  dataByDate[appointmentDate].rejected += 1; // pakita gihapon sa column
+} else if (normalizedStatus === "Completed") {
+  dataByDate[appointmentDate].completed += 1;
+} else if (normalizedStatus === "Cancelled") {
+  dataByDate[appointmentDate].cancelled += 1;
+}
         else {
           console.warn(`Unexpected status "${tData.status}" in transaction: ${t.id}`);
           invalidRecords.push(`Unexpected status "${tData.status}" in transaction: ${t.id}`);
@@ -245,7 +272,7 @@ const SuperAdmin_Reports: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [department, statusFilter, yearFilter, monthFilter, dayFilter]);
+  }, [department, statusFilter, yearFilter, monthFilter]);
 
   const unreadCount: number = notifications.filter((n) => n.unread).length;
 
@@ -264,7 +291,7 @@ const SuperAdmin_Reports: React.FC = () => {
       acc.cancelled += curr.cancelled;
       return acc;
     },
-    { totalAppointments: 0, pending: 0, approved: 0, rejected: 0, completed: 0, cancelled: 0 }
+    { totalAppointments: 0, pending: 0, approved: 0, rejected: 0,  completed: 0, cancelled: 0 }
   );
 
   const handlePrint = () => {
@@ -296,7 +323,7 @@ const SuperAdmin_Reports: React.FC = () => {
             <p style="margin: 0; font-size: 14px; font-weight: bold;">DEPARTMENT OF HEALTH</p>
             <p style="margin: 0; font-size: 14px; font-weight: bold;">TREATMENT AND REHABILITATION CENTER ARGAO</p>
             <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">SUPER ADMIN REPORT</p>
-            <p style="margin: 0; font-size: 12px;">DATE: ${yearFilter || "ALL"}-${monthFilter || "ALL"}-${dayFilter || "ALL"} | DEPARTMENT: ${department === "all" ? "ALL" : departmentMapping[department]} | STATUS: ${statusFilter}</p>
+            <p style="margin: 0; font-size: 12px;">DATE: ${yearFilter || "ALL"}-${monthFilter || "ALL"}| DEPARTMENT: ${department === "all" ? "ALL" : departmentMapping[department]} | STATUS: ${statusFilter}</p>
           </div>
           <div style="flex: 1; text-align: right;">
             <img src="/pilipinas.png" alt="Pilipinas Logo" style="height: 60px;" onerror="this.style.display='none'">
@@ -376,10 +403,7 @@ const SuperAdmin_Reports: React.FC = () => {
           <div>Approved</div>
           <div style="font-weight: bold; font-size: 16px;">${totals.approved}</div>
         </div>
-        <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-          <div>Rejected</div>
-          <div style="font-weight: bold; font-size: 16px;">${totals.rejected}</div>
-        </div>
+        
         <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
           <div>Completed</div>
           <div style="font-weight: bold; font-size: 16px;">${totals.completed}</div>
@@ -413,6 +437,45 @@ const SuperAdmin_Reports: React.FC = () => {
     }
   };
 
+
+  
+    const [availableYears, setAvailableYears] = useState(() => {
+      const currentYear = new Date().getFullYear();
+      return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
+    });
+  
+    const handleYearClick = () => {
+      const maxYear = Math.max(...availableYears);
+      const currentYear = new Date().getFullYear();
+      if (maxYear < currentYear + 50) {
+        const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
+        setAvailableYears((prev) => [...prev, ...newYears]);
+      }
+    };
+  
+
+   const [showCustomModal, setShowCustomModal] = useState(false);
+      const [customModalMessage, setCustomModalMessage] = useState("");
+      const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+      const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+      
+      const openCustomModal = (
+        message: string,
+        type: "success" | "error" | "confirm" = "success",
+        onConfirm?: () => void
+      ) => {
+        setCustomModalMessage(message);
+        setCustomModalType(type);
+        if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+        setShowCustomModal(true);
+      };
+      
+      const closeCustomModal = () => {
+        setShowCustomModal(false);
+        setOnCustomModalConfirm(() => {});
+      };
+      
+  
   return (
     <div className="dashboard">
       {/* Sidebar */}
@@ -464,27 +527,30 @@ const SuperAdmin_Reports: React.FC = () => {
             <span className="user-label">Super Admin</span>
           </div>
           <div className="signout-box">
-                                 <FaSignOutAlt className="signout-icon" />
-                                 <span
-                                   onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
-                                   className="signout-label"
-                                   style={{ cursor: "pointer" }}
-                                 >
-                                   Sign Out
-                                 </span>
-                               </div>
-                               </div>
+                                                            <FaSignOutAlt className="signout-icon" />
+                                                            <span
+                                                              onClick={async () => {
+                             openCustomModal(
+                               "Are you sure you want to sign out?",
+                               "confirm",
+                               async () => {
+                                 try {
+                                   await signOut(auth);
+                                   navigate("/loginadmin", { replace: true });
+                                 } catch (error) {
+                                   console.error("Error signing out:", error);
+                                   openCustomModal("Failed to sign out. Please try again.", "error");
+                                 }
+                               }
+                             );
+                           }}
+                                                              className="signout-label"
+                                                              style={{ cursor: "pointer" }}
+                                                            >
+                                                              Sign Out
+                                                            </span>
+                                                          </div>
+                                        </div>
       </aside>
 
       {/* Main content */}
@@ -533,79 +599,88 @@ const SuperAdmin_Reports: React.FC = () => {
 
         {/* Filters */}
         <div className="content-wrapper-reports" ref={contentRef}>
-          <div className="filters-container-reports">
-            <div className="filter-reports">
-              <label>Department:</label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              >
-                <option value="all">All Departments</option>
-                <option value="dental">Dental</option>
-                <option value="clinical">Clinical</option>
-                <option value="radiology">Radiology</option>
-                <option value="dde">DDE</option>
-                <option value="medical_dre">Medical DRE</option>
-              </select>
-            </div>
+        <div className="filters-container-reports">
+  <div className="filter-reports">
+    <label>Department:</label>
+    <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+      <option value="all">All Departments</option>
+      <option value="dental">Dental</option>
+      <option value="clinical">Clinical</option>
+      <option value="radiology">Radiology</option>
+      <option value="dde">DDE</option>
+      <option value="medical_dre">Medical DRE</option>
+    </select>
+  </div>
 
-            <div className="filter-reports">
-              <label>Status:</label>
+  <div className="filter-reports">
+    <label>Status:</label>
+    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+      <option value="All">All</option>
+      <option value="Pending">Pending</option>
+      <option value="Approved">Approved</option>
+      <option value="Rejected">Rejected</option>
+      <option value="Completed">Completed</option>
+      <option value="Cancelled">Cancelled</option>
+    </select>
+  </div>
+
+  {/* YEAR FILTER – starts with current year selected */}
+  <div className="filter-reports">
+    <label>Year:</label>
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                className="status-dropdowns"
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                onClick={handleYearClick}
               >
                 <option value="All">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
               </select>
-            </div>
+  </div>
 
-            <div className="filter-reports">
-              <label>Date:</label>
-              <div className="date-select-group">
-                <select
-                  value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
-                >
-                  <option value="All">Year</option>
-                  {Array.from({ length: 10 }, (_, i) => {
-                    const year = 2025 + i;
-                    return (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    );
-                  })}
-                </select>
-                <select
-                  value={monthFilter}
-                  onChange={(e) => setMonthFilter(e.target.value)}
-                >
-                  <option value="All">Month</option>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <option key={i + 1} value={String(i + 1).padStart(2, "0")}>
-                      {new Date(0, i).toLocaleString("default", { month: "long" })}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={dayFilter}
-                  onChange={(e) => setDayFilter(e.target.value)}
-                >
-                  <option value="All">Day</option>
-                  {Array.from({ length: 31 }, (_, i) => (
-                    <option key={i + 1} value={String(i + 1).padStart(2, "0")}>
-                      {i + 1}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
+  {/* MONTH FILTER – shows month names, current month selected */}
+  <div className="filter-reports">
+    <label>Month:</label>
+    <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
+      <option value="All">All </option>
+      {[
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ].map((month) => (
+        <option key={month} value={month}>
+          {month}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  {/* Day filter – you already had this, kept as-is (optional) */}
+  {/* <div className="filter-reports">
+    <label>Day:</label>
+    <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)}>
+      <option value="All">All Days</option>
+      {Array.from({ length: 31 }, (_, i) => (
+        <option key={i + 1} value={String(i + 1).padStart(2, "0")}>
+          {i + 1}
+        </option>
+      ))}
+    </select>
+  </div> */}
+</div>
 
           {/* Department Trends Graph */}
           <h5 className="section-title center">Department Trends</h5>
@@ -644,7 +719,7 @@ const SuperAdmin_Reports: React.FC = () => {
                 <Line
                   type="monotone"
                   dataKey="rejected"
-                  stroke="#264653"
+                  stroke="#8f0505ff"
                   strokeWidth={2}
                   name="Rejected"
                 />
@@ -678,7 +753,7 @@ const SuperAdmin_Reports: React.FC = () => {
                 <p>TREATMENT AND REHABILITATION CENTER ARGAO</p>
                 <p><strong>Super Admin Report</strong></p>
                 <p>
-                  Date: {yearFilter || "All"}-{monthFilter || "All"}-{dayFilter || "All"} | 
+                  Date: {yearFilter || "All"}-{monthFilter || "All"} | 
                   Department: {department === "all" ? "All" : departmentMapping[department]} | 
                   Status: {statusFilter}
                 </p>
@@ -697,7 +772,7 @@ const SuperAdmin_Reports: React.FC = () => {
                   <th>Total</th>
                   <th>Pending</th>
                   <th>Approved</th>
-                  <th>Rejected</th>
+                 <th>Rejected</th>
                   <th>Completed</th>
                   <th>Cancelled</th>
                 </tr>
@@ -710,7 +785,7 @@ const SuperAdmin_Reports: React.FC = () => {
                     <td>{row.totalAppointments}</td>
                     <td>{row.pending}</td>
                     <td>{row.approved}</td>
-                    <td>{row.rejected}</td>
+                   <td>{row.rejected}</td>
                     <td>{row.completed}</td>
                     <td>{row.cancelled}</td>
                   </tr>
@@ -735,10 +810,14 @@ const SuperAdmin_Reports: React.FC = () => {
                 <span>Approved</span>
                 <strong>{totals.approved}</strong>
               </div>
-              <div className="summary-cards">
-                <span>Rejected</span>
-                <strong>{totals.rejected}</strong>
-              </div>
+            <th>Rejected</th>
+<td>{totals.rejected}</td>
+
+{/* Sa summary */}
+<div className="summary-card">
+  <span>Rejected</span>
+  <strong>{totals.rejected}</strong>
+</div>
               <div className="summary-cards">
                 <span>Completed</span>
                 <strong>{totals.completed}</strong>
@@ -760,7 +839,7 @@ const SuperAdmin_Reports: React.FC = () => {
                 <th>Total Appointments</th>
                 <th>Pending</th>
                 <th>Approved</th>
-                <th>Rejected</th>
+              <th>Rejected</th>
                 <th>Completed</th>
                 <th>Cancelled</th>
               </tr>
@@ -803,7 +882,7 @@ const SuperAdmin_Reports: React.FC = () => {
               <span>Approved</span>
               <strong>{totals.approved}</strong>
             </div>
-            <div className="summary-card">
+           <div className="summary-card">
               <span>Rejected</span>
               <strong>{totals.rejected}</strong>
             </div>
@@ -822,7 +901,65 @@ const SuperAdmin_Reports: React.FC = () => {
             <button onClick={handleDownloadPDF} className="button-pdf">⬇️ Download PDF</button>
           </div>
         </div>
+
+
+
+ {showCustomModal && (
+          <>
+            <audio autoPlay>
+              <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+            </audio>
+            <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+              <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="radiology-modal-header">
+                  <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                  <h3 className="radiology-modal-title">
+                    {customModalType === "success" && "SUCCESS"}
+                    {customModalType === "error" && "ERROR"}
+                    {customModalType === "confirm" && "CONFIRM ACTION"}
+                  </h3>
+                  <button className="radiology-modal-close" onClick={closeCustomModal}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="radiology-modal-body">
+                  <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                    {customModalMessage}
+                  </p>
+                </div>
+                <div className="radiology-modal-footer">
+                  {customModalType === "confirm" && (
+                    <>
+                      <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                        No, Cancel
+                      </button>
+                      <button
+                        className="radiology-modal-btn confirm"
+                        onClick={() => {
+                          closeCustomModal();
+                          onCustomModalConfirm();
+                        }}
+                      >
+                        Yes, Proceed
+                      </button>
+                    </>
+                  )}
+                  {(customModalType === "success" || customModalType === "error") && (
+                    <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                      {customModalType === "success" ? "Done" : "OK"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+   
+        
       </main>
+
+      
     </div>
   );
 };

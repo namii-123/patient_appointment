@@ -461,17 +461,33 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   };
 
   useEffect(() => {
+  const updateDateTimeAndControl = () => {
     const now = new Date();
-    const formattedDate = now.toISOString().split("T")[0];
-    const formattedTime = now.toTimeString().split(":").slice(0, 2).join(":");
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+
+    const formattedDate = `${year}-${month}-${day}`;
+    const formattedTime = `${hours}:${minutes}`;
 
     setFormData((prev) => ({
       ...prev,
       requestDate: formattedDate,
       requestTime: formattedTime,
-      controlNo: generateControlNumber(),
+      
+      controlNo: prev.controlNo || generateControlNumber(),
     }));
-  }, []);
+  };
+
+
+  updateDateTimeAndControl();
+
+  const interval = setInterval(updateDateTimeAndControl, 30_000);
+
+  return () => clearInterval(interval);
+}, []);
 
   return (
     <div className="main-holder">
@@ -487,9 +503,9 @@ const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
             <h5>OUTPATIENT REQUEST FORM</h5>
           </div>
           <div className="header-right">
-            <p>Document No.: TRC-AOD-FM07</p>
-            <p>Effective Date: 14 October 2024</p>
-            <p>Revision No.: 1</p>
+            <p>Document No.: TRC-AOD-FM-07</p>
+            <p>Effective Date: 22 August 2025</p>
+            <p>Revision No.: 3</p>
             <p>Page No.: Page 1 of 1</p>
           </div>
         </div>

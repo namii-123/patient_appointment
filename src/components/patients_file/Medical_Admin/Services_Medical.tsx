@@ -35,6 +35,7 @@ import { db, auth } from "../firebase";
 import "../../../assets/Dashboard_Clinical.css"; // You can reuse or rename to Dashboard_Medical.css
 import logo from "/logo.png";
 import { DEFAULT_MEDICAL_SERVICES } from "../../../config/defaultMedicalServices"; // Create this file
+import { X } from "lucide-react";
 
 interface Service {
   id: string;
@@ -70,38 +71,58 @@ const Services_Medical: React.FC = () => {
 
   // ONE-TIME DUPLICATE CLEANUP
   const cleanupDuplicates = async () => {
-    if (!window.confirm("This will permanently delete duplicate medical services (keeps the first one). Continue?")) return;
-
-    const q = query(collection(db, "MedicalServices"), where("department", "==", "Medical"));
-    const snapshot = await getDocs(q);
-
-    const seen = new Map<string, string>();
-    const toDelete: string[] = [];
-
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const key = `${data.category}|${data.name.trim().toLowerCase()}`;
-
-      if (seen.has(key)) {
-        toDelete.push(doc.id);
-      } else {
-        seen.set(key, doc.id);
+    openCustomModal(
+      `Permanently delete duplicate services?\n\nThis will keep only the first occurrence of each service (based on name + category) and permanently remove the rest.\n\nThis action CANNOT be undone!`,
+      "confirm",
+      async () => {
+        try {
+          const q = query(collection(db, "RadiologyServices"), where("department", "==", "Radiographic"));
+          const snapshot = await getDocs(q);
+  
+          const seen = new Map<string, string>(); // key: "category|lowercase-name" → docId (first one)
+          const toDelete: string[] = [];
+  
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (!data.category || !data.name) return; // skip invalid docs
+  
+            const key = `${data.category}|${data.name.trim().toLowerCase()}`;
+  
+            if (seen.has(key)) {
+              toDelete.push(doc.id);
+            } else {
+              seen.set(key, doc.id); // keep the first one
+            }
+          });
+  
+          if (toDelete.length === 0) {
+            openCustomModal("No duplicates found! All services are clean!", "success");
+            setShowCleanupBtn(false);
+            return;
+          }
+  
+          // Proceed with deletion
+          const batch = writeBatch(db);
+          toDelete.forEach((id) => {
+            batch.delete(doc(db, "RadiologyServices", id));
+          });
+          await batch.commit();
+  
+          const deletedCount = toDelete.length;
+          openCustomModal(
+            `Cleanup complete!\n\nPermanently deleted ${deletedCount} duplicate service${deletedCount > 1 ? "s" : ""}.`,
+            "success"
+          );
+          setShowCleanupBtn(false); // hide button after successful cleanup
+        } catch (error) {
+          console.error("Cleanup failed:", error);
+          openCustomModal("Cleanup failed. Please try again or check your connection.", "error");
+        }
       }
-    });
-
-    if (toDelete.length === 0) {
-      alert("No duplicates found! All clean!");
-      setShowCleanupBtn(false);
-      return;
-    }
-
-    const batch = writeBatch(db);
-    toDelete.forEach((id) => batch.delete(doc(db, "MedicalServices", id)));
-    await batch.commit();
-
-    alert(`Cleaned up ${toDelete.length} duplicate(s)!`);
-    setShowCleanupBtn(false);
+    );
   };
+  
+     
 
   // BULLETPROOF SEEDING — Runs once on mount
   useEffect(() => {
@@ -180,8 +201,8 @@ const Services_Medical: React.FC = () => {
       ? otherCategory.trim()
       : newServiceCategory.trim();
 
-    if (!name) return alert("Service name is required");
-    if (!cat) return alert("Category is required");
+    if (!name) return openCustomModal("Service name is required");
+    if (!cat) return openCustomModal("Category is required");
 
     const normalizedKey = `${cat}|${name.toLowerCase()}`;
     const alreadyExists = services.some(
@@ -190,7 +211,7 @@ const Services_Medical: React.FC = () => {
     );
 
     if (!editingId && alreadyExists) {
-      return alert("This service already exists in this category!");
+      return openCustomModal("This service already exists in this category!");
     }
 
     try {
@@ -209,7 +230,7 @@ const Services_Medical: React.FC = () => {
       closeModal();
     } catch (e) {
       console.error(e);
-      alert("Failed to save service");
+      openCustomModal("Failed to save service");
     }
   };
 
@@ -217,20 +238,53 @@ const Services_Medical: React.FC = () => {
     await updateDoc(doc(db, "MedicalServices", id), { enabled: !cur });
   };
 
-  const softDeleteService = async (id: string) => {
-    if (!window.confirm("Move to trash?")) return;
-    await updateDoc(doc(db, "MedicalServices", id), { isDeleted: true, enabled: false });
-  };
-
-  const restoreService = async (id: string) => {
-    if (!window.confirm("Restore this service?")) return;
-    await updateDoc(doc(db, "MedicalServices", id), { isDeleted: false });
-  };
-
-  const permanentlyDeleteService = async (id: string) => {
-    if (!window.confirm("PERMANENTLY DELETE? Cannot undo!")) return;
-    await deleteDoc(doc(db, "MedicalServices", id));
-  };
+ const softDeleteService = async (id: string) => {
+   openCustomModal(
+     "Are you sure you want to move this service to trash?",
+     "confirm",
+     async () => {
+       try {
+         await updateDoc(doc(db, "RadiologyServices", id), { isDeleted: true, enabled: false });
+         openCustomModal("Service moved to trash successfully!", "success");
+       } catch (e) {
+         console.error(e);
+         openCustomModal("Failed to move service to trash", "error");
+       }
+     }
+   );
+ };
+ 
+ const restoreService = async (id: string) => {
+   openCustomModal(
+     "Are you sure you want to restore this service?",
+     "confirm",
+     async () => {
+       try {
+         await updateDoc(doc(db, "RadiologyServices", id), { isDeleted: false });
+         openCustomModal("Service restored successfully!", "success");
+       } catch (e) {
+         console.error(e);
+         openCustomModal("Failed to restore service", "error");
+       }
+     }
+   );
+ };
+ 
+ const permanentlyDeleteService = async (id: string) => {
+   openCustomModal(
+     "Are you sure you want to PERMANENTLY DELETE this service? This action cannot be undone!",
+     "confirm",
+     async () => {
+       try {
+         await deleteDoc(doc(db, "RadiologyServices", id));
+         openCustomModal("Service permanently deleted!", "success");
+       } catch (e) {
+         console.error(e);
+         openCustomModal("Failed to delete service", "error");
+       }
+     }
+   );
+ };
 
   const openAddModal = () => {
     setEditingId(null);
@@ -269,6 +323,30 @@ const Services_Medical: React.FC = () => {
   const activeServices = services.filter((s) => !s.isDeleted);
   const trashedServices = services.filter((s) => s.isDeleted);
 
+
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customModalMessage, setCustomModalMessage] = useState("");
+  const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+  const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+  
+  const openCustomModal = (
+    message: string,
+    type: "success" | "error" | "confirm" = "success",
+    onConfirm?: () => void
+  ) => {
+    setCustomModalMessage(message);
+    setCustomModalType(type);
+    if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+    setShowCustomModal(true);
+  };
+  
+  const closeCustomModal = () => {
+    setShowCustomModal(false);
+    setOnCustomModalConfirm(() => {});
+  };
+
+
+  
   return (
     <div className="dashboards">
       {/* SIDEBAR */}
@@ -306,20 +384,29 @@ const Services_Medical: React.FC = () => {
             <span className="user-label">Admin</span>
           </div>
           <div className="signout-box">
-            <FaSignOutAlt className="signout-icon" />
-            <span
-              onClick={async () => {
-                if (window.confirm("Sign out?")) {
-                  await signOut(auth);
-                  navigate("/loginadmin", { replace: true });
-                }
-              }}
-              className="signout-label"
-              style={{ cursor: "pointer" }}
-            >
-              Sign Out
-            </span>
-          </div>
+                                 <FaSignOutAlt className="signout-icon" />
+                                 <span
+                                   onClick={async () => {
+  openCustomModal(
+    "Are you sure you want to sign out?",
+    "confirm",
+    async () => {
+      try {
+        await signOut(auth);
+        navigate("/loginadmin", { replace: true });
+      } catch (error) {
+        console.error("Error signing out:", error);
+        openCustomModal("Failed to sign out. Please try again.", "error");
+      }
+    }
+  );
+}}
+                                   className="signout-label"
+                                   style={{ cursor: "pointer" }}
+                                 >
+                                   Sign Out
+                                 </span>
+                               </div>
         </div>
       </aside>
 
@@ -448,6 +535,60 @@ const Services_Medical: React.FC = () => {
           )}
         </div>
       </main>
+
+
+
+   {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+{showCustomModal && (
+  <>
+    <audio autoPlay>
+      <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+    </audio>
+    <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+      <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="radiology-modal-header">
+          <img src={logo} alt="Logo" className="radiology-modal-logo" />
+          <h3 className="radiology-modal-title">
+            {customModalType === "success" && "SUCCESS"}
+            {customModalType === "error" && "ERROR"}
+            {customModalType === "confirm" && "CONFIRM ACTION"}
+          </h3>
+          <button className="radiology-modal-close" onClick={closeCustomModal}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="radiology-modal-body">
+          <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+            {customModalMessage}
+          </p>
+        </div>
+        <div className="radiology-modal-footer">
+          {customModalType === "confirm" && (
+            <>
+              <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                No, Cancel
+              </button>
+              <button
+                className="radiology-modal-btn confirm"
+                onClick={() => {
+                  closeCustomModal();
+                  onCustomModalConfirm();
+                }}
+              >
+                Yes, Proceed
+              </button>
+            </>
+          )}
+          {(customModalType === "success" || customModalType === "error") && (
+            <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+              {customModalType === "success" ? "Done" : "OK"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+)}    
 
       {/* ADD / EDIT MODAL */}
       {showAddModal && (

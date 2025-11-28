@@ -29,6 +29,8 @@ import LawyersRequestForm from './components/patients_file/LawyersRequestForm';
 import OfficialReceiptForm from './components/patients_file/OfficialReceiptForm';
 import ValidIDForm from './components/patients_file/ValidIDForm';
 import ConsentForm from './components/patients_file/ConsentForm';
+import VoluntaryAdmissionForm from './components/patients_file/VoluntaryAdmissionForm';
+import VoluntaryValidIDForm from './components/patients_file/VoluntaryValidIDForm';
 import About from './components/patients_file/About';
 import Notifications from './components/patients_file/Notifications';
 
@@ -228,6 +230,8 @@ const App: React.FC = () => {
             <Route path="/officialreceipt" element={<OfficialReceiptForm/>} />
             <Route path="/validid" element={<ValidIDForm/>} />
             <Route path="/consentform" element={<ConsentForm/>} />
+            <Route path="/voluntaryform" element={<VoluntaryAdmissionForm/>} />
+            <Route path="/voluntaryid" element={<VoluntaryValidIDForm/>} />
             <Route path="/notifications" element={<Notifications/>} />
           
           </Route>

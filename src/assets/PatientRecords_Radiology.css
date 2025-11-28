@@ -362,6 +362,7 @@
   margin: 60px 0 40px;
   position: relative;
   letter-spacing: -0.5px;
+  margin-top: -1%;
 }
 
 .appointments-heading::after {
@@ -450,7 +451,7 @@
 }
 
 /* Modern Action Buttons */
-.action-btns {
+.action-btnssss {
   padding: 8px 14px;
   margin: 0 4px;
   border: none;
@@ -459,25 +460,25 @@
   font-weight: 600;
   cursor: pointer;
   color: white;
-  min-width: 80px;
+  min-width: 50px;
   transition: all 0.3s ease;
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
-.action-btns:hover {
+.action-btnssss:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0,0,0,0.2);
 }
 
-.action-btns.completed {
+.action-btnssss.completed {
   background: linear-gradient(135deg, #10b981, #059669);
 }
 
-.action-btns.view {
+.action-btnssss.view {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
-.action-btns:active {
+.action-btnssss:active {
   transform: translateY(0);
 }
 
@@ -803,4 +804,12 @@
 
 .prev-btn, .next-btn {
   font-weight: 700;
+}
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+  .action-btnssss {
+    padding: 10px !important;
+  }
 }

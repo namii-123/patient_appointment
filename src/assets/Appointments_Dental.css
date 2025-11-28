@@ -320,9 +320,9 @@
 
 .search-containerrr .search-bar:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
-  transform: translateY(-2px);
+   border-color: #00509e;
+  box-shadow: 0 0 0 3px rgba(0, 80, 158, 0.1);
+
 }
 
 .search-bar-wrapper {
@@ -342,9 +342,7 @@
   transition: color 0.3s ease;
 }
 
-.search-containerrr .search-bar:focus ~ .search-icon {
-  color: #4a90e2;
-}
+
 
 /* Filter Bar */
 .filter-barr {
@@ -557,41 +555,7 @@
   box-shadow: 0 4px 12px rgba(74, 144, 226, 0.15);
 }
 
-/* Action Buttons */
-.action-btn {
-  margin-right: 8px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  color: #ffffff;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
 
-.action-btn.accept {
-  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-}
-
-.action-btn.accept:hover {
-  background: linear-gradient(135deg, #229954 0%, #1e8449 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
-}
-
-.action-btn.reject {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-}
-
-.action-btn.reject:hover {
-  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
-}
 
 /* No Records */
 .no-records {
@@ -1539,6 +1503,90 @@
 .prev-btn, .next-btn {
   font-weight: 700;
 }
+
+/* Base styles for all action buttons */
+.action-btnsss {
+  border: none;
+  padding: 4px; /* Reduce padding para dili mo-dako ang width */
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  width: 40px;   /* ↓↓↓ make WIDTH smaller */
+  height: 40px;  /* same HEIGHT */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  position: relative;
+  color: white;
+}
+
+/* Accept Button - Green */
+.action-btnsss.accept {
+  background-color: #27ae60;
+}
+
+.action-btnsss.accept:hover {
+  background-color: #219653;
+  transform: scale(1.08);
+}
+
+/* Reschedule - Orange */
+.action-btnsss.reschedule {
+  background-color: #f39c12;
+}
+
+.action-btnsss.reschedule:hover {
+  background-color: #e67e22;
+  transform: scale(1.08);
+}
+
+/* Reschedule - Orange */
+.action-btnsss.reject {
+  background-color: #a50600;
+}
+
+.action-btnsss.reject:hover {
+  background-color: #a50600;
+  transform: scale(1.08);
+}
+
+/* View More - Blue */
+.action-btnsss.view-more {
+  background-color: #3498db;
+}
+
+.action-btnsss.view-more:hover {
+  background-color: #2980b9;
+  transform: scale(1.08);
+}
+
+/* Tooltip */
+.action-btnsss.accept::after,
+.action-btnsss.reschedule::after,
+.action-btnsss.view-more::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -28px;
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 10;
+}
+
+.action-btnsss.accept:hover::after,
+.action-btnsss.reschedule:hover::after,
+.action-btnsss.view-more:hover::after {
+  opacity: 1;
+}
+
+
 /* ========================================
    DESKTOP (min-width: 1200px)
 ======================================== */

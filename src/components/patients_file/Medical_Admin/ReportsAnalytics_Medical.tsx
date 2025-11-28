@@ -28,7 +28,8 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
-
+import { X } from "lucide-react";
+import logo from "/logo.png";
 
 
 type StatusType = "completed" | "pending" | "approved" | "rejected" | "cancelled" | "all";
@@ -52,7 +53,6 @@ const ReportsAnalytics_Medical: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [year, setYear] = useState<string>("");
   const [month, setMonth] = useState<string>("");
-  const [day, setDay] = useState<string>("");
   const [appointments, setAppointments] = useState<any[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -62,30 +62,31 @@ const ReportsAnalytics_Medical: React.FC = () => {
     total: 0,
     pending: 0,
     approved: 0,
-    rejected: 0,
+  
     cancelled: 0,
     completed: 0,
   });
 
   useEffect(() => {
-    const q = query(collection(db, "Transactions"), where("purpose", "==", "Medical"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: any[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setAppointments(data);
-  
-      const counts = {
-        total: data.length,
-        pending: data.filter((a) => a.status === "Pending").length,
-        approved: data.filter((a) => a.status === "Approved").length,
-        rejected: data.filter((a) => a.status === "Rejected").length,
-        cancelled: data.filter((a) => a.status === "Cancelled").length,
-        completed: data.filter((a) => a.status === "Completed").length,
-      };
-      setStatusCounts(counts);
-    });
-  
-    return () => unsubscribe();
-  }, []);
+  const q = query(collection(db, "Transactions"), where("purpose", "==", "Medical"));
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const data: any[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setAppointments(data);
+
+    
+    const counts = {
+      total: data.filter((appt) => appt.status !== "Rejected").length,
+      pending: data.filter((a) => a.status === "Pending").length,
+      approved: data.filter((a) => a.status === "Approved").length,
+      cancelled: data.filter((a) => a.status === "Cancelled").length,
+      completed: data.filter((a) => a.status === "Completed").length,
+    };
+
+    setStatusCounts(counts);
+  });
+
+  return () => unsubscribe();
+}, []);
 
 
 
@@ -108,7 +109,7 @@ const ReportsAnalytics_Medical: React.FC = () => {
     appointments.forEach((appt) => {
       const date = appt.date;
       if (!grouped[date]) {
-        grouped[date] = { date, pending: 0, approved: 0, rejected: 0, cancelled: 0, completed: 0 };
+        grouped[date] = { date, pending: 0, approved: 0,  cancelled: 0, completed: 0 };
       }
       grouped[date][appt.status.toLowerCase()]++;
     });
@@ -142,11 +143,7 @@ const filteredData = useMemo(() => {
   }
 
   
-  if (day) {
-    filtered = filtered.filter((item) =>
-      item.date.includes(day.toString().padStart(2, "0")) 
-    );
-  }
+  
 
   // Apply Status filter
   if (status !== "all") {
@@ -156,7 +153,7 @@ const filteredData = useMemo(() => {
         completed: 0,
         pending: 0,
         approved: 0,
-        rejected: 0,
+    
         cancelled: 0,
       };
       empty[status] = item[status];
@@ -165,7 +162,7 @@ const filteredData = useMemo(() => {
   }
 
   return filtered;
-}, [status, year, month, day, chartData]);
+}, [status, year, month, chartData]);
 
 
 
@@ -200,7 +197,7 @@ const handlePrint = () => {
             <p style="margin: 0; font-size: 14px; font-weight: bold;">DEPARTMENT OF HEALTH</p>
             <p style="margin: 0; font-size: 14px; font-weight: bold;">TREATMENT AND REHABILITATION CENTER ARGAO</p>
             <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">MEDICAL SECTION REPORT</p>
-            <p style="margin: 0; font-size: 12px;">DATE: ${year || "ALL"}-${month || "ALL"}-${day || "ALL"} | STATUS: ${status.toUpperCase()}</p>
+            <p style="margin: 0; font-size: 12px;">DATE: ${year || "ALL"}-${month || "ALL"} | STATUS: ${status.toUpperCase()}</p>
           </div>
           <div style="flex: 1; text-align: right;">
             <img src="/pilipinas.png" alt="Pilipinas Logo" style="height: 60px;" onerror="this.style.display='none'">
@@ -225,7 +222,7 @@ const handlePrint = () => {
             <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Completed</th>
             <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Pending</th>
             <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Approved</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Rejected</th>
+          
             <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Cancelled</th>
           </tr>
         </thead>
@@ -234,7 +231,7 @@ const handlePrint = () => {
       
       
       filteredData.forEach((row, idx) => {
-        const total = row.completed + row.pending + row.approved + row.rejected + row.cancelled;
+        const total = row.completed + row.pending + row.approved +  row.cancelled;
         tableHTML += `
           <tr>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.date}</td>
@@ -242,7 +239,7 @@ const handlePrint = () => {
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.completed}</td>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.pending}</td>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.approved}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.rejected}</td>
+           
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.cancelled}</td>
           </tr>
         `;
@@ -289,10 +286,7 @@ summaryGrid.innerHTML = `
     <div>Approved</div>
     <div style="font-weight: bold; font-size: 16px;">${statusCounts.approved}</div>
   </div>
-  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-    <div>Rejected</div>
-    <div style="font-weight: bold; font-size: 16px;">${statusCounts.rejected}</div>
-  </div>
+  
   <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
     <div>Cancelled</div>
     <div style="font-weight: bold; font-size: 16px;">${statusCounts.cancelled}</div>
@@ -328,7 +322,27 @@ pdfContainer.appendChild(summary);
       alert("Failed to generate PDF. Please check the console for details.");
     }
   };
-
+const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customModalMessage, setCustomModalMessage] = useState("");
+  const [customModalType, setCustomModalType] = useState<"success" | "error" | "confirm">("success");
+  const [onCustomModalConfirm, setOnCustomModalConfirm] = useState<() => void>(() => {});
+  
+  const openCustomModal = (
+    message: string,
+    type: "success" | "error" | "confirm" = "success",
+    onConfirm?: () => void
+  ) => {
+    setCustomModalMessage(message);
+    setCustomModalType(type);
+    if (onConfirm) setOnCustomModalConfirm(() => onConfirm);
+    setShowCustomModal(true);
+  };
+  
+  const closeCustomModal = () => {
+    setShowCustomModal(false);
+    setOnCustomModalConfirm(() => {});
+  };
+  
 
 
 
@@ -389,27 +403,30 @@ pdfContainer.appendChild(summary);
             <span className="user-label">Admin</span>
           </div>
           
-            <div className="signout-box">
-                                 <FaSignOutAlt className="signout-icon" />
-                                 <span
-                                   onClick={async () => {
-                                     const isConfirmed = window.confirm("Are you sure you want to sign out?");
-                                     if (isConfirmed) {
-                                       try {
-                                         await signOut(auth);
-                                         navigate("/loginadmin", { replace: true });
-                                       } catch (error) {
-                                         console.error("Error signing out:", error);
-                                         alert("Failed to sign out. Please try again.");
-                                       }
-                                     }
-                                   }}
-                                   className="signout-label"
-                                   style={{ cursor: "pointer" }}
-                                 >
-                                   Sign Out
-                                 </span>
-                               </div>
+         <div className="signout-box">
+                                                              <FaSignOutAlt className="signout-icon" />
+                                                              <span
+                                                                onClick={async () => {
+                               openCustomModal(
+                                 "Are you sure you want to sign out?",
+                                 "confirm",
+                                 async () => {
+                                   try {
+                                     await signOut(auth);
+                                     navigate("/loginadmin", { replace: true });
+                                   } catch (error) {
+                                     console.error("Error signing out:", error);
+                                     openCustomModal("Failed to sign out. Please try again.", "error");
+                                   }
+                                 }
+                               );
+                             }}
+                                                                className="signout-label"
+                                                                style={{ cursor: "pointer" }}
+                                                              >
+                                                                Sign Out
+                                                              </span>
+                                                            </div>
                                </div>
       </aside>
 
@@ -468,53 +485,84 @@ pdfContainer.appendChild(summary);
         {/* Filters */}
         <div className="content-wrapper"  ref={contentRef}>
           <div className="filters-containerss">
-            {/* Year Filter */}
-            <div className="filterss">
-              <label>Year:</label>
-              <select onChange={(e) => setYear(e.target.value)}>
-                <option value="">Select Year</option>
-                {Array.from({ length: 2050 - 2020 + 1 }, (_, i) => 2020 + i).map(
-                  (year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
+             {/* Year Filter - Dynamic & Future-Proof (Newest First) */}
+<div className="filterss">
+  <label>Year:</label>
+  <select
+    value={year}
+    onChange={(e) => setYear(e.target.value)}
+    className="status-dropdown"
+  >
+    <option value="">All</option>
+    {(() => {
+      const currentYear = new Date().getFullYear();
+      const startYear = 2020; // or 2025 if gusto nimo sugdan later
+      const futureBuffer = 30; // 30 years into the future
 
-            {/* Month Filter */}
-            <div className="filterss">
-              <label>Month:</label>
-              <select onChange={(e) => setMonth(e.target.value)}>
-                <option value="">Select Month</option>
-                <option value="01">January</option>
-                <option value="02">February</option>
-                <option value="03">March</option>
-                <option value="04">April</option>
-                <option value="05">May</option>
-                <option value="06">June</option>
-                <option value="07">July</option>
-                <option value="08">August</option>
-                <option value="09">September</option>
-                <option value="10">October</option>
-                <option value="11">November</option>
-                <option value="12">December</option>
-              </select>
-            </div>
+      const years = [];
+      for (let y = currentYear + futureBuffer; y >= startYear; y--) {
+        years.push(y);
+      }
+      return years.map((y) => (
+        <option key={y} value={y}>
+          {y}
+        </option>
+      ));
+    })()}
+  </select>
+</div>
 
-            {/* Day Filter */}
-            <div className="filterss">
-              <label>Day:</label>
-              <select onChange={(e) => setDay(e.target.value)}>
-                <option value="">Select Day</option>
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Month Filter - Current + Last 2 Months First */}
+<div className="filterss">
+  <label>Month:</label>
+  <select
+    value={month}
+    onChange={(e) => setMonth(e.target.value)}
+    className="status-dropdown"
+  >
+    <option value="">All</option>
+    {(() => {
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const currentMonthIdx = new Date().getMonth(); // 0 = Jan, 11 = Dec
+
+      const recent: { name: string; value: string }[] = [];
+
+      // Add current month + last 2 months (3 total)
+      for (let i = 0; i < 3; i++) {
+        const idx = (currentMonthIdx - i + 12) % 12;
+        const monthNum = String(idx + 1).padStart(2, "0");
+        recent.push({ name: monthNames[idx], value: monthNum });
+      }
+
+      return (
+        <>
+          {/* Recent 3 months sa taas */}
+          {recent.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.name}
+            </option>
+          ))}
+          {/* Remaining months */}
+          {monthNames.map((name, i) => {
+            const val = String(i + 1).padStart(2, "0");
+            if (recent.some((r) => r.value === val)) return null;
+            return (
+              <option key={val} value={val}>
+                {name}
+              </option>
+            );
+          })}
+        </>
+      );
+    })()}
+  </select>
+</div>
+
+
+         
 
             {/* Status Filter */}
             <div className="filterss">
@@ -523,7 +571,7 @@ pdfContainer.appendChild(summary);
                 <option value="all">All Appointments</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+               
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
@@ -566,14 +614,7 @@ pdfContainer.appendChild(summary);
                   strokeWidth={2}
                 />
               )}
-              {(status === "all" || status === "rejected") && (
-                <Line
-                  type="monotone"
-                  dataKey="rejected"
-                  stroke="#ff9800"
-                  strokeWidth={2}
-                />
-              )}
+             
               {(status === "all" || status === "cancelled") && (
                 <Line
                   type="monotone"
@@ -599,7 +640,7 @@ pdfContainer.appendChild(summary);
         <p>TREATMENT AND REHABILITATION CENTER ARGAO</p>
         <p><strong>Medical Section Report</strong></p>
         <p>
-          Date: {year || "All"}-{month || "All"}-{day || "All"} | Status: {status}
+          Date: {year || "All"}-{month || "All"} | Status: {status}
         </p>
       </div>
       <div className="header-right">
@@ -616,13 +657,13 @@ pdfContainer.appendChild(summary);
           <th>Completed</th>
           <th>Pending</th>
           <th>Approved</th>
-          <th>Rejected</th>
+          
           <th>Cancelled</th>
         </tr>
       </thead>
       <tbody>
         {filteredData.map((row, idx) => {
-          const total = row.completed + row.pending + row.approved + row.rejected + row.cancelled;
+          const total = row.completed + row.pending + row.approved +  row.cancelled;
           return (
             <tr key={idx}>
               <td>{row.date}</td>
@@ -630,7 +671,7 @@ pdfContainer.appendChild(summary);
               <td>{row.completed}</td>
               <td>{row.pending}</td>
               <td>{row.approved}</td>
-              <td>{row.rejected}</td>
+              
               <td>{row.cancelled}</td>
             </tr>
           );
@@ -659,10 +700,7 @@ pdfContainer.appendChild(summary);
         <span>Approved</span>
         <strong>{statusCounts.approved}</strong>
       </div>
-      <div className="summary-cards">
-        <span>Rejected</span>
-        <strong>{statusCounts.rejected}</strong>
-      </div>
+     
       <div className="summary-cards">
         <span>Cancelled</span>
         <strong>{statusCounts.cancelled}</strong>
@@ -684,7 +722,7 @@ pdfContainer.appendChild(summary);
                 <th>Completed</th>
                 <th>Pending</th>
                 <th>Approved</th>
-                <th>Rejected</th>
+              
                 <th>Cancelled</th>
               </tr>
             </thead>
@@ -694,7 +732,7 @@ pdfContainer.appendChild(summary);
                   row.completed +
                   row.pending +
                   row.approved +
-                  row.rejected +
+                
                   row.cancelled;
                 return (
                   <tr key={idx}>
@@ -703,7 +741,7 @@ pdfContainer.appendChild(summary);
                     <td>{row.completed}</td>
                     <td>{row.pending}</td>
                     <td>{row.approved}</td>
-                    <td>{row.rejected}</td>
+                   
                     <td>{row.cancelled}</td>
                   </tr>
                 );
@@ -729,10 +767,7 @@ pdfContainer.appendChild(summary);
               <span>Approved</span>
               <strong>{statusCounts.approved}</strong>
             </div>
-            <div className="summary-card">
-              <span>Rejected</span>
-              <strong>{statusCounts.rejected}</strong>
-            </div>
+           
             <div className="summary-card">
               <span>Cancelled</span>
               <strong>{statusCounts.cancelled}</strong>
@@ -749,6 +784,58 @@ pdfContainer.appendChild(summary);
           
         </div>
       </main>
+
+          {/* CUSTOM UNIFIED MODAL - SAME STYLE SA TRANSACTION PAGE */}
+            {showCustomModal && (
+              <>
+                <audio autoPlay>
+                  <source src="https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3" type="audio/mpeg" />
+                </audio>
+                <div className="radiology-modal-overlay" onClick={closeCustomModal}>
+                  <div className="radiology-modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="radiology-modal-header">
+                      <img src={logo} alt="Logo" className="radiology-modal-logo" />
+                      <h3 className="radiology-modal-title">
+                        {customModalType === "success" && "SUCCESS"}
+                        {customModalType === "error" && "ERROR"}
+                        {customModalType === "confirm" && "CONFIRM ACTION"}
+                      </h3>
+                      <button className="radiology-modal-close" onClick={closeCustomModal}>
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="radiology-modal-body">
+                      <p style={{ whiteSpace: "pre-line", textAlign: "center" }}>
+                        {customModalMessage}
+                      </p>
+                    </div>
+                    <div className="radiology-modal-footer">
+                      {customModalType === "confirm" && (
+                        <>
+                          <button className="radiology-modal-btn cancel" onClick={closeCustomModal}>
+                            No, Cancel
+                          </button>
+                          <button
+                            className="radiology-modal-btn confirm"
+                            onClick={() => {
+                              closeCustomModal();
+                              onCustomModalConfirm();
+                            }}
+                          >
+                            Yes, Proceed
+                          </button>
+                        </>
+                      )}
+                      {(customModalType === "success" || customModalType === "error") && (
+                        <button className="radiology-modal-btn ok" onClick={closeCustomModal}>
+                          {customModalType === "success" ? "Done" : "OK"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
     </div>
   );
 };
