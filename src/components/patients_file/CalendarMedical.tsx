@@ -133,30 +133,38 @@ const CalendarMedical: React.FC<CalendarMedicalProps> = ({ formData, onNavigate 
   }, [year, month]);
 
   // Select Date
-  const handleSelectDate = async (day: number) => {
+  
+    // Select Date
+    const handleSelectDate = async (day: number) => {
     const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const dateObj = new Date(year, month - 1, day);
     const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
     const isPast = dateObj < today;
-
+  
     if (isWeekend) return openModal("Weekends are closed.", "error");
     if (isPast) return openModal("Cannot select past dates.", "error");
-
+  
     const status = dayStatus[day];
-    if (!status) return;
-    if (status.closed) return openModal("This date is closed by admin.", "error");
-
+  
+  // Kung wala pa na-load ang data, ayaw i-block — i-treat as available (default = unlimited)
+  if (status === undefined) {
+    // Still allow — we'll check again inside after getDoc
+  } else if (status.closed) {
+    return openModal("This date is closed by admin.", "error");
+  }
+  
     const ref = doc(db, "Departments", department, "Slots", dateKey);
     const snap = await getDoc(ref);
-
+  
     let slots: Slot[] = [];
-
+  
     if (snap.exists()) {
       const data = snap.data()!;
-
+  
       if (data.unlimited) {
+        // ← Gihimo nga unique gihapon ang slotID!
         slots = predefinedTimes.map((time) => ({
-          slotID: `SLOT-${uid.randomUUID()}`,
+          slotID: `SLOT-${uid.randomUUID()}`, // ← UNIQUE per time slot!
           time,
           remaining: 999,
         }));
@@ -166,24 +174,26 @@ const CalendarMedical: React.FC<CalendarMedicalProps> = ({ formData, onNavigate 
       } else {
         slots = (data.slots || []).map((s: any) => ({
           ...s,
-          slotID: s.slotID?.startsWith("SLOT-") ? s.slotID : `SLOT-${uid.randomUUID()}`,
+          slotID: s.slotID && s.slotID.startsWith("SLOT-") ? s.slotID : `SLOT-${uid.randomUUID()}`,
         }));
       }
     } else {
-      // First time → create default limited slots (Medical = 3 per slot)
+      // First time access → create normal slots
       slots = predefinedTimes.map((time) => ({
         slotID: `SLOT-${uid.randomUUID()}`,
         time,
-        remaining: 3,
+        remaining: 10,
       }));
     }
-
+  
     setSelectedDate(dateKey);
     setTimeSlots(slots);
     setSelectedSlot(null);
     setShowModal(true);
     setError(null);
   };
+  
+  
 
   // Select Time Slot
   const handleSelectSlot = async (slotTime: string) => {
@@ -192,12 +202,11 @@ const CalendarMedical: React.FC<CalendarMedicalProps> = ({ formData, onNavigate 
     const slotRef = doc(db, "Departments", department, "Slots", selectedDate);
     const slotSnap = await getDoc(slotRef);
 
-    if (!slotSnap.exists() || slotSnap.data()?.closed) {
-      openModal("This date is no longer available.", "error");
-      setShowModal(false);
-      return;
-    }
-
+     if (slotSnap.data()?.closed === true) {
+  openModal("This date is closed by admin.", "error");
+  setShowModal(false);
+  return;
+}
     const isUnlimited = slotSnap.data()?.unlimited === true;
     const targetSlot = timeSlots.find((s) => s.time === slotTime);
 

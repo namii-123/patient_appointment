@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
-import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction,  deleteDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction,  deleteDoc, onSnapshot, serverTimestamp, } from "firebase/firestore";
 import "../../assets/ReviewPage.css";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -445,7 +445,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
       previousSlotId: appointment?.slotID,
       previousSlotTime: appointment?.slotTime,
       previousReservationId: appointment?.reservationId,
-      services, // Pass services to calendar view if needed
+      services, 
     };
     console.log(`📌 ReviewPage: Navigating to calendar for ${department} with data:`, navigateData);
     onNavigate?.("calendar", navigateData);
@@ -814,6 +814,26 @@ const handleDownloadPDF = async () => {
                 transactionId: transactionRef.id,
                 reservationId: appointment.reservationId,
               });
+
+
+
+              if (appointment.department === "Radiographic") {
+  try {
+    const adminNotifRef = doc(collection(db, "admin_notifications"));
+    await setDoc(adminNotifRef, {
+      type: "new_appointment",
+      message: "New Radiographic appointment request",
+      patientName: `${safeFormData.lastName}, ${safeFormData.firstName}`,
+      date: appointment.date,
+      slotTime: appointment.slotTime,
+      purpose: "Radiographic",
+      timestamp: serverTimestamp(),
+      read: false,
+    });
+  } catch (err) {
+    console.error("Failed to send admin notification (Radiology)", err);
+  }
+}
             }
 
             openModal("Appointments submitted successfully!\n\nYou can check your transactions.", "success");
