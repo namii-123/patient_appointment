@@ -471,74 +471,65 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
   }
 
   try {
-    await runTransaction(db, async (transaction) => {
-      const slotRef = doc(db, "Departments", department, "Slots", date);
-      const slotSnap = await transaction.get(slotRef);
-      const reservationRef = doc(db, "Departments", department, "Reservations", reservationId);
-      const reservationSnap = await transaction.get(reservationRef);
+   await runTransaction(db, async (transaction) => {
+  const slotRef = doc(db, "Departments", department, "Slots", date);
+  const slotSnap = await transaction.get(slotRef);
+  const reservationRef = doc(db, "Departments", department, "Reservations", reservationId);
+  const reservationSnap = await transaction.get(reservationRef);
 
-      // Restore previous slot if exists
-      if (previousDate && previousSlotId) {
-        const prevSlotRef = doc(db, "Departments", department, "Slots", previousDate);
-        const prevSnap = await transaction.get(prevSlotRef);
-        if (prevSnap.exists() && !prevSnap.data()?.closed && !prevSnap.data()?.unlimited) {
-          const prevSlots = prevSnap.data()?.slots || [];
-          const idx = prevSlots.findIndex((s: any) => s.slotID === previousSlotId);
-          if (idx !== -1) {
-            prevSlots[idx].remaining += 1;
-            const total = prevSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
-            transaction.update(prevSlotRef, {
-              slots: prevSlots,
-              totalSlots: total,
-              updatedAt: new Date().toISOString(),
-            });
-          }
-        }
-      }
-
-      // Check if the target date is unlimited
-      if (!slotSnap.exists()) {
-        throw new Error("Slot document not found");
-      }
-
-      const slotData = slotSnap.data()!;
-
-      // KUNG UNLIMITED → ayaw na decrement, ayaw na check remaining
-      if (slotData.unlimited) {
-        console.log(`Unlimited slot detected for ${department} on ${date}. Skipping decrement.`);
-      } 
-      // KUNG NAay SLOTS ARRAY (normal mode)
-      else if (slotData.slots && Array.isArray(slotData.slots)) {
-        const currentSlots = slotData.slots;
-        const slotIndex = currentSlots.findIndex((s: any) => s.slotID === slotId);
-
-        if (slotIndex === -1) {
-          throw new Error(`Slot ID ${slotId} not found in slots array`);
-        }
-        if (currentSlots[slotIndex].remaining <= 0) {
-          throw new Error(`Slot ${slotId} is fully booked`);
-        }
-
-        currentSlots[slotIndex].remaining -= 1;
-        const newTotal = currentSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
-
-        transaction.update(slotRef, {
-          slots: currentSlots,
-          totalSlots: newTotal,
+  // Restore previous slot if needed
+  if (previousDate && previousSlotId) {
+    const prevSlotRef = doc(db, "Departments", department, "Slots", previousDate);
+    const prevSnap = await transaction.get(prevSlotRef);
+    if (prevSnap.exists() && !prevSnap.data()?.closed && !prevSnap.data()?.unlimited) {
+      const prevSlots = prevSnap.data()?.slots || [];
+      const idx = prevSlots.findIndex((s: any) => s.slotID === previousSlotId);
+      if (idx !== -1) {
+        prevSlots[idx].remaining += 1;
+        const total = prevSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+        transaction.update(prevSlotRef, {
+          slots: prevSlots,
+          totalSlots: total,
           updatedAt: new Date().toISOString(),
         });
       }
-      // KUNG WALA slots array pero naay totalSlots (old format?) → skip or warn
-      else {
-        console.warn("No slots array found, but not unlimited. Possible data issue.");
+    }
+  }
+
+  // FIXED: Allow booking even if no slot document exists (default = unlimited)
+  if (slotSnap.exists()) {
+    const slotData = slotSnap.data()!;
+
+    if (!slotData.unlimited && !slotData.closed && slotData.slots && Array.isArray(slotData.slots)) {
+      const currentSlots = slotData.slots;
+      const slotIndex = currentSlots.findIndex((s: any) => s.slotID === slotId);
+
+      if (slotIndex === -1) {
+        throw new Error(`Slot ID ${slotId} not found in slots array`);
+      }
+      if (currentSlots[slotIndex].remaining <= 0) {
+        throw new Error(`Slot ${slotId} is fully booked`);
       }
 
-      // Confirm reservation
-      transaction.update(reservationRef, {
-        status: "confirmed",
+      currentSlots[slotIndex].remaining -= 1;
+      const newTotal = currentSlots.reduce((sum: number, s: any) => sum + s.remaining, 0);
+
+      transaction.update(slotRef, {
+        slots: currentSlots,
+        totalSlots: newTotal,
         updatedAt: new Date().toISOString(),
       });
-    });
+    }
+    // else: unlimited or closed → do nothing (no decrement needed)
+  }
+  // else: no document = unlimited → perfectly fine, proceed
+
+  // Confirm reservation
+  transaction.update(reservationRef, {
+    status: "confirmed",
+    updatedAt: new Date().toISOString(),
+  });
+});
 
     console.log(`${department} booking finalized successfully! (Unlimited: ${slotId.startsWith("UNLIMITED")})`);
   } catch (err: any) {

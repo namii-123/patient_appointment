@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "./firebase";
-import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, runTransaction } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import "../../assets/Transaction.css";
 import { X } from "lucide-react";
@@ -224,13 +224,28 @@ const handleCancel = async (transactionId: string) => {
             slotID,
             reservationId,
             status,
-            lastName,
-            firstName,
+            patientId,        // ← Important: naa ni
             slotTime,
           } = data;
 
           if (status === "Cancelled") {
             throw new Error("Appointment is already cancelled.");
+          }
+
+          // === FETCH PATIENT NAME FROM Patients COLLECTION ===
+          let patientName = "Unknown Patient";
+          let firstName = "Unknown";
+          let lastName = "Unknown";
+
+          if (patientId) {
+            const patientRef = doc(db, "Patients", patientId);
+            const patientSnap = await transaction.get(patientRef);
+            if (patientSnap.exists()) {
+              const pData = patientSnap.data();
+              firstName = pData.firstName || "Unknown";
+              lastName = pData.lastName || "Unknown";
+              patientName = `${firstName} ${lastName}`;
+            }
           }
 
           // === STEP 1: ALL READS FIRST ===
@@ -247,18 +262,18 @@ const handleCancel = async (transactionId: string) => {
             reservationSnap = await transaction.get(reservationRef);
           }
 
-          // === STEP 2: ALL WRITES AFTER ===
-          // 1. Admin Notification
-          const adminNotifRef = collection(db, "admin_notifications");
-          transaction.set(doc(adminNotifRef), {
+          // === STEP 2: ALL WRITES ===
+          // 1. Admin Notification – GAMIT ANG CORRECT NAME
+          const adminNotifRef = doc(collection(db, "admin_notifications"));
+          transaction.set(adminNotifRef, {
             type: "appointment_cancelled",
-            message: `Appointment cancelled by patient: ${lastName}, ${firstName} on ${date} at ${slotTime}`,
-            patientName: `${firstName} ${lastName}`,
+            message: `Appointment cancelled: ${firstName} ${lastName} on ${date} at ${slotTime}`,
+            patientName: patientName,
             date,
             slotTime,
-            purpose,
+            purpose, // ← Para ma-filter sa Radiology admin
             transactionId,
-            timestamp: new Date().toISOString(),
+            timestamp: serverTimestamp(),
             read: false,
           });
 
@@ -307,6 +322,9 @@ const handleCancel = async (transactionId: string) => {
     }
   );
 };
+
+
+
 
   const parseDateTime = (dateStr: string, timeStr: string): number => {
     if (!dateStr || !timeStr) return 0;

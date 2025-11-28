@@ -88,50 +88,65 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
     setOnConfirmAction(() => {});
   };
 
-  // Load calendar days + real-time status
-  useEffect(() => {
-    const totalDays = new Date(year, month, 0).getDate();
-    const days = Array.from({ length: totalDays }, (_, i) => {
-      const date = new Date(year, month - 1, i + 1);
-      return { day: i + 1, weekday: date.toLocaleDateString("en-US", { weekday: "short" }) };
-    });
-    setDaysInfo(days);
+  // Reset dayStatus when month/year changes
+useEffect(() => {
+  setDayStatus({});
+}, [year, month]);
 
-    const unsubs: (() => void)[] = [];
+// Main calendar loader - FIXED & TYPE-SAFE
+useEffect(() => {
+  const totalDays = new Date(year, month, 0).getDate();
 
-    for (let d = 1; d <= totalDays; d++) {
-      const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const ref = doc(db, "Departments", department, "Slots", dateKey);
+  // Generate days info (with weekday)
+  const days = Array.from({ length: totalDays }, (_, i) => {
+    const dayNum = i + 1;
+    const date = new Date(year, month - 1, dayNum);
+    return {
+      day: dayNum,
+      weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
+    };
+  });
+  setDaysInfo(days);
 
-      const unsub = onSnapshot(ref, (snap) => {
-        let status: any = {
-          unlimited: true,
-          closed: false,
-          totalSlots: 999,
-          slots: [],
-        };
+  const unsubs: (() => void)[] = [];
 
-        if (snap.exists()) {
-          const data = snap.data()!;
-          if (data.closed) {
-            status = { unlimited: false, closed: true, totalSlots: 0 };
-          } else if (data.unlimited) {
-            status = { unlimited: true, closed: false, totalSlots: 999 };
-          } else {
-            const slots = (data.slots || []) as Slot[];
-            const total = slots.reduce((sum, s) => sum + s.remaining, 0);
-            status = { unlimited: false, closed: false, totalSlots: total, slots };
-          }
+  days.forEach(({ day }) => {
+    const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const ref = doc(db, "Departments", department, "Slots", dateKey);
+
+    const unsub = onSnapshot(ref, (snap) => {
+      let status: {
+        unlimited: boolean;
+        closed: boolean;
+        totalSlots: number;
+        slots?: Slot[];
+      };
+
+      if (!snap.exists()) {
+        // Default: Unlimited (first time ever)
+        status = { unlimited: true, closed: false, totalSlots: 999, slots: [] };
+      } else {
+        const data = snap.data()!;
+
+        if (data.closed) {
+          status = { unlimited: false, closed: true, totalSlots: 0, slots: [] };
+        } else if (data.unlimited) {
+          status = { unlimited: true, closed: false, totalSlots: 999, slots: [] };
+        } else {
+          const slots = (data.slots || []) as Slot[];
+          const total = slots.reduce((sum, s) => sum + s.remaining, 0);
+          status = { unlimited: false, closed: false, totalSlots: total, slots };
         }
+      }
 
-        setDayStatus((prev) => ({ ...prev, [d]: status }));
-      });
+      setDayStatus(prev => ({ ...prev, [day]: status }));
+    });
 
-      unsubs.push(unsub);
-    }
+    unsubs.push(unsub);
+  });
 
-    return () => unsubs.forEach((u) => u());
-  }, [year, month, department]);
+  return () => unsubs.forEach(u => u());
+}, [year, month, department]);
 
   
   // Select Date
@@ -145,8 +160,13 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   if (isPast) return openModal("Cannot select past dates.", "error");
 
   const status = dayStatus[day];
-  if (!status) return;
-  if (status.closed) return openModal("This date is closed by admin.", "error");
+
+// Kung wala pa na-load ang data, ayaw i-block — i-treat as available (default = unlimited)
+if (status === undefined) {
+  // Still allow — we'll check again inside after getDoc
+} else if (status.closed) {
+  return openModal("This date is closed by admin.", "error");
+}
 
   const ref = doc(db, "Departments", department, "Slots", dateKey);
   const snap = await getDoc(ref);
@@ -195,11 +215,11 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   const slotRef = doc(db, "Departments", department, "Slots", selectedDate);
   const slotSnap = await getDoc(slotRef);
 
-  if (!slotSnap.exists() || slotSnap.data()?.closed) {
-    openModal("This date is no longer available.", "error");
-    setShowModal(false);
-    return;
-  }
+  if (slotSnap.data()?.closed === true) {
+  openModal("This date is closed by admin.", "error");
+  setShowModal(false);
+  return;
+}
 
   const isUnlimited = slotSnap.data()?.unlimited === true;
   const targetSlot = timeSlots.find(s => s.time === slotTime);

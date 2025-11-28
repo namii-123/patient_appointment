@@ -8,6 +8,7 @@ import { db } from "../firebase";
 import { sendEmail } from "../emailService";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
+import toast, { Toaster } from 'react-hot-toast';
 
 import {
   collection,
@@ -21,6 +22,7 @@ import {
   serverTimestamp,
   getDocs,
   writeBatch,
+  deleteDoc,
 } from "firebase/firestore";
 import { X } from "lucide-react";
 
@@ -57,8 +59,22 @@ interface Appointment {
 }
 
 interface Notification {
+  id?: string;
   text: string;
   unread: boolean;
+  timestamp: Date | null; // instead of just boolean
+}
+
+
+interface AdminNotification {
+  id: string;
+  type: "new_appointment" | "appointment_cancelled";
+  message: string;
+  patientName: string;
+  date: string;
+  slotTime: string;
+  timestamp: any;
+  read: boolean;
 }
 
 const Appointments_Radiology: React.FC = () => {
@@ -98,18 +114,121 @@ const closeCustomModal = () => {
 };
 
 
-  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
+const [unreadCount, setUnreadCount] = useState(0);
+const [showNotifications, setShowNotifications] = useState(false);
+
+
+
+const playNotificationSound = () => {
+  const audio = new Audio("https://assets.mixkit.co/sfx/preview/mixkit-alert-buzzer-1355.mp3");
+  audio.volume = 0.5;
+  audio.play().catch(() => {});
+};
+
+
+
+
+// Real-time listener for admin notifications (Radiology only)
+useEffect(() => {
+  const notifQuery = query(
+    collection(db, "admin_notifications"),
+    where("purpose", "==", "Radiographic") // Only Radiology
+  );
+
+  const unsubscribe = onSnapshot(notifQuery, (snapshot) => {
+    const loaded: AdminNotification[] = [];
+
+    snapshot.docChanges().forEach((change) => {
+      const data = change.doc.data();
+      const notif: AdminNotification = {
+        id: change.doc.id,
+        type: data.type,
+        message: data.message || "",
+        patientName: data.patientName || "Unknown",
+        date: data.date || "",
+        slotTime: data.slotTime || "",
+        timestamp: data.timestamp,
+        read: data.read || false,
+      };
+
+      if (change.type === "added" && !data.read) {
+        playNotificationSound(); // Play sound on new notification
+        toast.success(`New: ${data.message}`, { duration: 6000 });
+      }
+
+      loaded.push(notif);
+    });
+
+    // Merge with existing (avoid duplicates)
+    setAdminNotifications(prev => {
+      const map = new Map<string, AdminNotification>();
+      prev.forEach(n => map.set(n.id, n));
+      loaded.forEach(n => map.set(n.id, n));
+      return Array.from(map.values()).sort((a, b) => 
+        (b.timestamp?.toDate?.() || b.timestamp || 0) - (a.timestamp?.toDate?.() || a.timestamp || 0)
+      );
+    });
+
+    // Update unread count
+    setUnreadCount(loaded.filter(n => !n.read).length);
+  }, (error) => {
+    console.error("Notification listener error:", error);
+  });
+
+  return () => unsubscribe();
+}, []);
+
+
+
   const [notifications, setNotifications] = useState<Notification[]>([
-    { text: "3 new appointment requests", unread: true },
-    { text: "Reminder: Meeting at 2PM", unread: true },
-    { text: "System update completed", unread: false },
-  ]);
+  { text: "3 new appointment requests", unread: true, timestamp: new Date() },
+  { text: "Reminder: Meeting at 2PM", unread: true, timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) }, 
+  { text: "System update completed", unread: false, timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) }, 
+]);
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
+
+  const formatTimeAgo = (date: Date | null): string => {
+  if (!date) return "Just now";
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return "Just now";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} mins ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  return `${Math.floor(diffInSeconds / 604800)} weeks ago`;
+};
+
+
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setNotifications(prev => [...prev]); 
+  }, 60000);
+  return () => clearInterval(interval);
+}, []);
+
+ const markAllAsRead = () => {
+  setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+};
+
+const deleteNotification = (index: number) => {
+  setNotifications(prev => prev.filter((_, i) => i !== index));
+};
+
+const clearAllNotifications = () => {
+  openCustomModal("Clear all notifications?", "confirm", () => {
+    setNotifications([]);
+    closeCustomModal();
+  });
+};
+
+
+
+
 
     useEffect(() => {
       setLoading(true);
@@ -520,42 +639,145 @@ const fetchAvailableSlots = async (date: string) => {
       </aside>
 
       <main className="main-content">
+        <Toaster
+    position="top-right"
+    reverseOrder={false}
+    gutter={8}
+    containerStyle={{ margin: "10px" }}
+    toastOptions={{
+      duration: 3000,
+      style: {
+        background: '#333',
+        color: '#fff',
+        fontSize: '16px',
+        padding: '16px',
+        borderRadius: '12px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+      },
+      success: { icon: 'Success' },
+      error: { icon: 'Failed' },
+    }}
+  />
         <div className="top-navbar-radiology">
           <h5 className="navbar-title">Appointments</h5>
-          <div className="notification-wrapper">
-            <FaBell
-              className="notification-bell"
-              onClick={() => setShowNotifications(!showNotifications)}
-            />
-            {unreadCount > 0 && (
-              <span className="notification-count">{unreadCount}</span>
-            )}
-            {showNotifications && (
-              <div className="notification-dropdown">
-                <div className="notification-header">
-                  <span>Notifications</span>
-                  {unreadCount > 0 && (
-                    <button className="mark-read-btn" onClick={markAllAsRead}>
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
-                {notifications.length > 0 ? (
-                  notifications.map((notif, index) => (
-                    <div
-                      key={index}
-                      className={`notification-item ${notif.unread ? "unread" : ""}`}
-                    >
-                      <span>{notif.text}</span>
-                      {notif.unread && <span className="notification-badge">New</span>}
-                    </div>
-                  ))
-                ) : (
-                  <div className="notification-empty">No new notifications</div>
-                )}
-              </div>
-            )}
+        <div className="notification-wrapper">
+  <FaBell
+    className="notification-bell"
+    onClick={() => setShowNotifications(!showNotifications)}
+    style={{ position: "relative" }}
+  />
+  {unreadCount > 0 && (
+    <span className="notification-count">{unreadCount > 99 ? "99+" : unreadCount}</span>
+  )}
+
+  {showNotifications && (
+    <div className="notification-dropdown">
+      <div className="notification-header">
+        <span className="notification-title">Admin Notifications</span>
+        <div className="notification-actions">
+          {unreadCount > 0 && (
+            <button 
+              className="mark-read-btn" 
+              onClick={async () => {
+                const batch = writeBatch(db);
+                adminNotifications
+                  .filter(n => !n.read)
+                  .forEach(n => {
+                    const ref = doc(db, "admin_notifications", n.id);
+                    batch.update(ref, { read: true });
+                  });
+                await batch.commit();
+              }}
+            >
+              Mark all as read
+            </button>
+          )}
+          <button 
+            className="clear-all-btn"
+            onClick={() => openCustomModal("Clear all notifications?", "confirm", async () => {
+              const batch = writeBatch(db);
+              adminNotifications.forEach(n => {
+                batch.delete(doc(db, "admin_notifications", n.id));
+              });
+              await batch.commit();
+              closeCustomModal();
+            })}
+          >
+            Clear all
+          </button>
+        </div>
+      </div>
+
+    <div className="notification-list">
+  {adminNotifications.length > 0 ? (
+    adminNotifications.map((notif) => (
+      <div
+        key={notif.id}
+        className={`notification-item ${!notif.read ? "unread" : ""}`}
+        style={{ cursor: "pointer" }}
+        onClick={async (e) => {
+          // Prevent mark as read if clicking delete button
+          if ((e.target as HTMLElement).closest(".notification-delete-btn")) return;
+
+          if (!notif.read) {
+            try {
+              await updateDoc(doc(db, "admin_notifications", notif.id), { read: true });
+              setAdminNotifications(prev =>
+                prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
+              );
+              setUnreadCount(prev => Math.max(0, prev - 1));
+            } catch (err) {
+              console.error("Failed to mark as read:", err);
+            }
+          }
+        }}
+      >
+        <div className="notification-main">
+          <div className="notification-message">
+            <p className="notification-text">
+              <strong>{notif.patientName}</strong>: {notif.message}
+            </p>
+            <span className="notification-time">
+              {notif.date} at {notif.slotTime}
+            </span>
           </div>
+
+          {/* X BUTTON - DELETE ONE NOTIFICATION ONLY */}
+          <button
+            onClick={async (e) => {
+              e.stopPropagation(); // CRITICAL
+              try {
+                await deleteDoc(doc(db, "admin_notifications", notif.id));
+                setAdminNotifications(prev => prev.filter(n => n.id !== notif.id));
+                if (!notif.read) {
+                  setUnreadCount(prev => Math.max(0, prev - 1));
+                }
+                toast.success("Notification deleted");
+              } catch (err) {
+                console.error("Delete failed:", err);
+                toast.error("Failed to delete");
+              }
+            }}
+            className="notification-delete-btn"
+            title="Delete this notification"
+          >
+            <X size={15} />
+          </button>
+
+          {!notif.read && <span className="notification-badge">NEW</span>}
+        </div>
+      </div>
+    ))
+  ) : (
+    <div className="notification-empty">
+      <p>No notifications</p>
+    </div>
+  )}
+</div>
+    </div>
+  )}
+</div>
+          
         </div>
 
         <div className="content-wrapper">

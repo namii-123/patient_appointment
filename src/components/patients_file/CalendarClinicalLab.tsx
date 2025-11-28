@@ -148,7 +148,7 @@ const CalendarClinicalLab: React.FC<CalendarClinicalLabProps> = ({
     if (status.unlimited) {
       // Unlimited → generate virtual unlimited slots
       slots = predefinedTimes.map((time) => ({
-        slotID: `UNLIMITED-${dateKey}-${time.replace(/[^a-zA-Z0-9]/g, "")}`,
+        slotID: `SLOT-${uid.randomUUID()}`,
         time,
         remaining: 999,
       }));
