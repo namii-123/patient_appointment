@@ -362,20 +362,7 @@ DDE Team`;
     }
   };
 
-    const [availableYears, setAvailableYears] = useState(() => {
-          const currentYear = new Date().getFullYear();
-          return Array.from({ length: currentYear - 2025 + 1 }, (_, i) => 2025 + i);
-        });
-      
-        const handleYearClick = () => {
-          const maxYear = Math.max(...availableYears);
-          const currentYear = new Date().getFullYear();
-          if (maxYear < currentYear + 50) {
-           
-            const newYears = Array.from({ length: 10 }, (_, i) => maxYear + i + 1);
-            setAvailableYears((prev) => [...prev, ...newYears]);
-          }
-        };
+       
   
    
    
@@ -384,16 +371,13 @@ DDE Team`;
   const [filterMonth, setFilterMonth] = useState<string>("All");
 
 
-  // Set default to current month/year on mount
   useEffect(() => {
     const today = new Date();
     setFilterYear(today.getFullYear().toString());
-    setFilterMonth(String(today.getMonth() + 1).padStart(2, "0")); // e.g., "06"
+    setFilterMonth(String(today.getMonth() + 1).padStart(2, "0")); 
   }, []);
 
-  // ... (your existing modals, notifications, etc.)
-
-  // ==================== FILTERED APPOINTMENTS ====================
+ 
   const filteredAppointments = appointments.filter((appt) => {
     const matchesSearch =
       appt.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -405,9 +389,9 @@ DDE Team`;
 
     const matchesStatus = statusFilter === "All" || appt.status === statusFilter;
 
-    // Handle appointmentDate (which is the requested date, format: "YYYY-MM-DD")
+    
     if (!appt.appointmentDate) return false;
-   const [year, month, day] = (appt.appointmentDate || "").split("-");
+   const [year, month] = (appt.appointmentDate || "").split("-");
 
     const matchesYear = filterYear === "All" || year === filterYear;
     const matchesMonth = filterMonth === "All" || month === filterMonth;
@@ -506,13 +490,6 @@ DDE Team`;
   
 
 
-  const convertTo24Hour = (time: string, amPm: "AM" | "PM"): string => {
-    const [hours, minutes] = time.split(":");
-    let hoursNum = parseInt(hours, 10);
-    if (amPm === "PM" && hoursNum !== 12) hoursNum += 12;
-    if (amPm === "AM" && hoursNum === 12) hoursNum = 0;
-    return `${String(hoursNum).padStart(2, "0")}:${minutes}`;
-  };
 
   const formatSlotTime = (hours: string, minutes: string, amPm: "AM" | "PM"): string => {
     return `${hours}:${minutes} ${amPm}`;
@@ -539,19 +516,20 @@ DDE Team`;
     setShowCustomModal(false);
     setOnCustomModalConfirm(() => {});
   };
-  
-// PAGINATION STATES (ibutang after sa imong existing useState)
-const [currentPage, setCurrentPage] = useState<number>(1);
-const recordsPerPage = 5; // same sa radiology
 
-// PAGINATION LOGIC - ibutang dire human sa filteredAppointments
+
+
+const [currentPage, setCurrentPage] = useState<number>(1);
+const recordsPerPage = 5; 
+
+
 const indexOfLastRecord = currentPage * recordsPerPage;
 const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
 const currentAppointments = filteredAppointments.slice(indexOfFirstRecord, indexOfLastRecord);
 
 const totalPages = Math.ceil(filteredAppointments.length / recordsPerPage);
 
-// Same function sa radiology
+
 const getPageNumbers = () => {
   const pages: (number | string)[] = [];
   if (totalPages <= 5) {
@@ -744,7 +722,7 @@ const getPageNumbers = () => {
               </select>
             </div>
 
-            {/* Month Filter - Current + last 2 months on top */}
+         
             <div className="filter">
               <label>Month:</label>
               <select
@@ -760,7 +738,7 @@ const getPageNumbers = () => {
                   const currentMonthIdx = new Date().getMonth();
                   const recent: { name: string; value: string }[] = [];
 
-                  // Current month + previous 2 months
+                 
                   for (let i = 0; i < 3; i++) {
                     const idx = (currentMonthIdx - i + 12) % 12;
                     const monthNum = String(idx + 1).padStart(2, "0");
@@ -792,7 +770,39 @@ const getPageNumbers = () => {
                                 </div>
 
           <p className="appointments-header">All Patient Appointment Requests</p>
-
+                <div style={{ position: "relative", minHeight: "400px" }}>
+          {loading && (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      background: "rgba(255, 255, 255, 0.9)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 10,
+      borderRadius: "12px",
+      backdropFilter: "blur(4px)"
+    }}>
+      <div style={{
+        width: "60px",
+        height: "60px",
+        border: "6px solid #e0e0e0",
+        borderTop: "6px solid #2563eb",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+        marginBottom: "20px"
+      }}></div>
+      <p style={{
+        fontSize: "18px",
+        fontWeight: "600",
+        color: "#1e40af",
+        margin: 0
+      }}>
+        Loading appointments...
+      </p>
+    </div>
+  )}
           <table className="appointments-tabless">
             <thead>
               <tr>
@@ -967,7 +977,7 @@ const getPageNumbers = () => {
               )}
             </tbody>
           </table>
-
+</div>
 
 {/* PAGINATION */}
 <div className="pagination-wrapper">

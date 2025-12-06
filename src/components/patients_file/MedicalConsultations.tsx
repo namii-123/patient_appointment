@@ -162,7 +162,7 @@ const MedicalConsultations: React.FC<MedicalConsultationsProps> = ({
         : selectedServices;
 
       openModal(
-        `Selected Medical Services:\n\n${finalServices.join("\n")}\n\nProceed to select appointment date & time?`,
+        `Selected Medical Services:\n${finalServices.join("\n")}\nProceed to select appointment date & time?`,
         "confirm",
         async () => {
           // Generate Display ID
@@ -183,7 +183,7 @@ const MedicalConsultations: React.FC<MedicalConsultationsProps> = ({
 
           const displayId = `${prefix}-${dateStr}-${String(count).padStart(3, "0")}`;
 
-          // Save Appointment
+        
           const auth = getAuth();
           const uid = auth.currentUser?.uid || "";
 
@@ -201,7 +201,7 @@ const MedicalConsultations: React.FC<MedicalConsultationsProps> = ({
           const docRef = await addDoc(collection(db, "Appointments"), appointmentData);
           await updateDoc(docRef, { appointmentId: docRef.id });
 
-          openModal(`Medical appointment created successfully!\n\nAppointment ID: ${displayId}`, "success");
+          openModal(`Medical appointment created successfully!\nAppointment ID: ${displayId}`, "success");
 
           setTimeout(() => {
             onNavigate?.("calendarmedical", {

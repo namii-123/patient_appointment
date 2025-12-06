@@ -161,7 +161,7 @@ const closeModal = () => {
   setOnModalConfirm(() => {});
 };
  
-  // === ADD THIS FUNCTION BEFORE html2canvas ===
+
 const replaceInputsWithText = (container: HTMLElement) => {
   const inputs = container.querySelectorAll('input, textarea, select');
   inputs.forEach((input) => {

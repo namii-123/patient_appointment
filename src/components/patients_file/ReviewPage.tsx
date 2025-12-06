@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { db } from "./firebase";
-import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction,  deleteDoc, onSnapshot, serverTimestamp, } from "firebase/firestore";
+import { doc, getDocs, collection, updateDoc, setDoc, getDoc, runTransaction,  deleteDoc, onSnapshot, serverTimestamp, addDoc, } from "firebase/firestore";
 import "../../assets/ReviewPage.css";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { getAuth } from "firebase/auth";
 import { query, where } from "firebase/firestore";
-import ShortUniqueId from "short-unique-id";
+
 import { X } from "lucide-react";
 import { DEFAULT_SERVICES } from "../../config/defaultServices";
 import { DEFAULT_CLINICAL_SERVICES } from "../../config/defaultClinicalServices";
@@ -134,14 +134,14 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
       pregnancyTestResult?: string;
     };
   }>({});
-  const uidGenerator = new ShortUniqueId({ length: 8 });
+
     const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [modalType, setModalType] = useState<"success" | "error" | "confirm">("confirm");
   const [onModalConfirm, setOnModalConfirm] = useState<() => void>(() => {});
 
   
-  const [radiologyServices, setRadiologyServices] = useState<Record<string, string[]>>({});
+  const [, setRadiologyServices] = useState<Record<string, string[]>>({});
 
 
  useEffect(() => {
@@ -475,7 +475,7 @@ const ReviewPage: React.FC<ReviewPageProps> = ({ formData, onNavigate }) => {
   const slotRef = doc(db, "Departments", department, "Slots", date);
   const slotSnap = await transaction.get(slotRef);
   const reservationRef = doc(db, "Departments", department, "Reservations", reservationId);
-  const reservationSnap = await transaction.get(reservationRef);
+ 
 
   // Restore previous slot if needed
   if (previousDate && previousSlotId) {
@@ -707,151 +707,138 @@ const handleDownloadPDF = async () => {
 };
 
 
-   const handleSubmit = async () => {
-    if (!isPdfDownloaded) {
+  const handleSubmit = async () => {
+  if (!isPdfDownloaded) {
     openModal(
       "Please download the PDF form first before submitting.\n\nThis is required for your records and verification.",
       "error"
     );
     return;
   }
-    try {
-      if (appointments.length === 0) {
-        openModal("No appointments found to submit.", "error");
-        return;
-      }
 
-      const validAppointments = appointments.filter((appointment) => {
-        const editedData = editedAppointments[appointment.department] || {};
-        return editedData.services && editedData.services.length > 0;
-      });
-
-      if (validAppointments.length === 0) {
-        openModal("No departments have services selected. Please select at least one service.", "error");
-        return;
-      }
-
-      openModal(
-        "Are you sure you want to submit your appointment request?",
-        "confirm",
-        async () => {
-          try {
-            const auth = getAuth();
-            const currentUser = auth.currentUser;
-            let userId = "";
-
-            if (currentUser) {
-              const userRef = doc(db, "Users", currentUser.uid);
-              const userSnap = await getDoc(userRef);
-              if (userSnap.exists()) {
-                userId = userSnap.data().UserId || "";
-              } else {
-                openModal("User data not found.", "error");
-                return;
-              }
-            } else {
-              openModal("No logged-in user found.", "error");
-              return;
-            }
-
-            for (const appointment of validAppointments) {
-              if (!appointment.reservationId || !appointment.slotID || !appointment.date || !appointment.slotTime) {
-                openModal(`Missing data for ${appointment.department}. Please schedule first.`, "error");
-                return;
-              }
-
-              const editedData = editedAppointments[appointment.department] || {};
-              if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
-                openModal(`Please specify the 'Others' service for ${appointment.department}.`, "error");
-                return;
-              }
-
-              const services = editedData.services.includes("Others") && editedData.otherService?.trim()
-                ? [...editedData.services.filter((s) => s !== "Others"), `Others: ${editedData.otherService}`]
-                : editedData.services;
-
-              const appointmentRef = doc(db, "Appointments", appointment.id);
-              await updateDoc(appointmentRef, {
-                services,
-                complaint: editedData.complaint || "",
-                ...(appointment.department === "Radiographic" && {
-                  lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
-                  isPregnant: editedData.isPregnant || "No",
-                  clearance: editedData.clearance || false,
-                  shield: editedData.shield || false,
-                  pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
-                }),
-                updatedAt: new Date().toISOString(),
-              });
-
-              await finalizeBooking({
-                department: appointment.department,
-                date: appointment.date,
-                slotId: appointment.slotID,
-                reservationId: appointment.reservationId,
-              });
-
-              await updateDoc(appointmentRef, {
-                status: "submitted",
-                updatedAt: new Date().toISOString(),
-              });
-
-              const transactionRef = doc(collection(db, "Transactions"));
-              await setDoc(transactionRef, {
-                uid: currentUser?.uid,
-                UserId: userId,
-                patientId: appointment.patientId || safeFormData.patientId,
-                transactionCode: `TRANS-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-                controlNo: safeFormData.controlNo,
-                purpose: appointment.department,
-                services: services || [],
-                doctor: "TBA",
-                date: appointment.date || "",
-                slotTime: appointment.slotTime || "",
-                slotID: appointment.slotID || "",
-                status: "Pending",
-                createdAt: new Date().toISOString(),
-                transactionId: transactionRef.id,
-                reservationId: appointment.reservationId,
-              });
-
-
-
-              if (appointment.department === "Radiographic") {
   try {
-    const adminNotifRef = doc(collection(db, "admin_notifications"));
-    await setDoc(adminNotifRef, {
-      type: "new_appointment",
-      message: "New Radiographic appointment request",
-      patientName: `${safeFormData.lastName}, ${safeFormData.firstName}`,
-      date: appointment.date,
-      slotTime: appointment.slotTime,
-      purpose: "Radiographic",
-      timestamp: serverTimestamp(),
-      read: false,
+    if (appointments.length === 0) {
+      openModal("No appointments found to submit.", "error");
+      return;
+    }
+
+    const validAppointments = appointments.filter((appointment) => {
+      const editedData = editedAppointments[appointment.department] || {};
+      return editedData.services && editedData.services.length > 0;
+    });
+
+    if (validAppointments.length === 0) {
+      openModal("No departments have services selected.", "error");
+      return;
+    }
+
+    openModal("Are you sure you want to submit your appointment request?", "confirm", async () => {
+      try {
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        let userId = "";
+
+        if (currentUser) {
+          const userRef = doc(db, "Users", currentUser.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) userId = userSnap.data().UserId || "";
+        } else {
+          openModal("No logged-in user found.", "error");
+          return;
+        }
+
+        // LOOP THROUGH ALL VALID APPOINTMENTS
+        for (const appointment of validAppointments) {
+          if (!appointment.reservationId || !appointment.slotID || !appointment.date || !appointment.slotTime) {
+            openModal(`Missing schedule for ${appointment.department}.`, "error");
+            return;
+          }
+
+          const editedData = editedAppointments[appointment.department] || {};
+          if (editedData.services.includes("Others") && !editedData.otherService?.trim()) {
+            openModal(`Please specify the 'Others' service for ${appointment.department}.`, "error");
+            return;
+          }
+
+          const services = editedData.services.includes("Others") && editedData.otherService?.trim()
+            ? [...editedData.services.filter(s => s !== "Others"), `Others: ${editedData.otherService}`]
+            : editedData.services;
+
+          // Update appointment
+          const appointmentRef = doc(db, "Appointments", appointment.id);
+          await updateDoc(appointmentRef, {
+            services,
+            complaint: editedData.complaint || "",
+            ...(appointment.department === "Radiographic" && {
+              lastMenstrualPeriod: editedData.lastMenstrualPeriod || "",
+              isPregnant: editedData.isPregnant || "No",
+              clearance: editedData.clearance || false,
+              shield: editedData.shield || false,
+              pregnancyTestResult: editedData.pregnancyTestResult || "Negative",
+            }),
+            updatedAt: new Date().toISOString(),
+          });
+
+          await finalizeBooking({
+            department: appointment.department,
+            date: appointment.date,
+            slotId: appointment.slotID,
+            reservationId: appointment.reservationId,
+          });
+
+          await updateDoc(appointmentRef, { status: "submitted" });
+
+          // Create Transaction
+          const transactionRef = doc(collection(db, "Transactions"));
+          await setDoc(transactionRef, {
+            uid: currentUser?.uid,
+            UserId: userId,
+            patientId: appointment.patientId || safeFormData.patientId,
+            transactionCode: `TRANS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+            controlNo: safeFormData.controlNo,
+            purpose: appointment.department,
+            services,
+            doctor: "TBA",
+            date: appointment.date,
+            slotTime: appointment.slotTime,
+            slotID: appointment.slotID,
+            status: "Pending",
+            createdAt: new Date().toISOString(),
+            transactionId: transactionRef.id,
+            reservationId: appointment.reservationId,
+          });
+
+          // THIS IS THE KEY: SEND NOTIFICATION TO CORRECT ADMIN (including Clinical!)
+          const fullName = `${safeFormData.lastName}, ${safeFormData.firstName}${safeFormData.middleInitial ? " " + safeFormData.middleInitial + "." : ""}`.trim();
+
+          await addDoc(collection(db, "admin_notifications"), {
+            type: "new_appointment",
+            message: `New ${appointment.department} appointment request`,
+            patientName: fullName || "Patient",
+            patientId: safeFormData.patientId,
+            date: appointment.date,
+            slotTime: appointment.slotTime,
+            purpose: appointment.department, // ← KINI ANG GA-DECIDE KINSAHANG ADMIN MAKAKITA
+            timestamp: serverTimestamp(),
+            read: false,
+          });
+
+          console.log(`Notification sent for ${appointment.department}: ${fullName}`);
+        }
+
+        openModal("All appointments submitted successfully!\n\nCheck your transactions.", "success");
+        setTimeout(() => onNavigate?.("transaction", {}), 2500);
+
+      } catch (err: any) {
+        console.error("Submit error:", err);
+        openModal(`Failed to submit: ${err.message || "Unknown error"}`, "error");
+      }
     });
   } catch (err) {
-    console.error("Failed to send admin notification (Radiology)", err);
+    console.error("Submit error:", err);
+    openModal("An error occurred. Please try again.", "error");
   }
-}
-            }
-
-            openModal("Appointments submitted successfully!\n\nYou can check your transactions.", "success");
-            setTimeout(() => {
-              onNavigate?.("transaction", {});
-            }, 2000);
-          } catch (err: unknown) {
-            console.error("Submit error:", err);
-            const msg = err instanceof Error ? err.message : "Unknown error";
-            openModal(`Failed to submit: ${msg}`, "error");
-          }
-        }
-      );
-    } catch (err: unknown) {
-      console.error("Submit error:", err);
-      openModal("An error occurred. Please try again.", "error");
-    }
-  };
+};
 
 
   const [radiologyServicesMerged, setRadiologyServicesMerged] = useState<Record<string, string[]>>({});

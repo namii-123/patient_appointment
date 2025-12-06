@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBell,
@@ -22,14 +22,30 @@ import {
   Legend,
 } from "recharts";
 import "../../../assets/ReportsAnalytics_Dental.css";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+
 import { db } from "../firebase"; 
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, writeBatch, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
 import logo from "/logo.png";
 import { X } from "lucide-react";
+
+import PrintJS from "print-js";
+import { PDFDocument, rgb } from "pdf-lib";
+import { saveAs } from "file-saver";
+import toast, { Toaster } from 'react-hot-toast';
+
+interface AdminNotification {
+  id: string;
+  type: "new_appointment" | "appointment_cancelled";
+  message: string;
+  patientName: string;
+  date: string;
+  slotTime: string;
+  timestamp: any;
+  read: boolean;
+}
+
 
 
 type StatusType = "completed" | "pending" | "approved" | "rejected" | "cancelled" | "all";
@@ -50,46 +66,209 @@ interface Notification {
 const ReportsAnalytics_Dental: React.FC = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<StatusType>("all");
-  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+
   const [year, setYear] = useState<string>("");
   const [month, setMonth] = useState<string>("");
   const contentRef = useRef<HTMLDivElement>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [statusCounts, setStatusCounts] = useState({
-    total: 0,
-    pending: 0,
-    approved: 0,
-   
-    cancelled: 0,
-    completed: 0,
-  });
+ 
 
+
+
+
+  const [loading, setLoading] = useState(false);
+    
+     const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
+      const [unreadCount, setUnreadCount] = useState(0);
+      const [showNotifications, setShowNotifications] = useState(false);
+    
+      
+    
+      const NOTIFICATION_SOUND_URL = "https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2584.mp3"; 
+      
+  
+      const [audioContextUnlocked, setAudioContextUnlocked] = useState(false);
+      
+     
+      const unlockAudioContext = () => {
+        if (audioContextUnlocked) return;
+      
+       
+        const audio = new Audio();
+        audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="; 
+        audio.volume = 0;
+        audio.play().then(() => {
+          console.log("Audio context unlocked!");
+          setAudioContextUnlocked(true);
+        }).catch(() => {});
+      };
+      
+      const playNotificationSound = useCallback(() => {
+        if (!audioContextUnlocked) {
+          console.warn("Audio not yet unlocked. Click the bell first!");
+          return;
+        }
+      
+        const audio = new Audio(NOTIFICATION_SOUND_URL);
+        audio.volume = 0.7;
+        audio.play().catch(err => {
+          console.warn("Failed to play sound:", err);
+        });
+      }, [audioContextUnlocked]);
+      
+      
+      
+      
+       
+      
+         
+         useEffect(() => {
+           const notifQuery = query(
+             collection(db, "admin_notifications"),
+             where("purpose", "==", "Dental") 
+           );
+         
+           const unsubscribe = onSnapshot(notifQuery, (snapshot) => {
+             const notificationsToProcess: AdminNotification[] = [];
+         
+            
+             snapshot.docChanges().forEach((change) => {
+               const data = change.doc.data();
+         
+             
+               if (change.type === "added" || change.type === "modified") {
+                 const notif: AdminNotification = {
+                   id: change.doc.id,
+                   type: data.type || "new_appointment",
+                   message: data.message || "",
+                   patientName: data.patientName || "Unknown Patient",
+                   date: data.date || "",
+                   slotTime: data.slotTime || "",
+                   timestamp: data.timestamp,
+                   read: data.read === true,
+                 };
+                 notificationsToProcess.push(notif);
+         
+                 
+                 if (change.type === "added" && !data.read) {
+                   playNotificationSound();
+                 }
+               }
+         
+              
+               if (change.type === "removed") {
+                 setAdminNotifications(prev => prev.filter(n => n.id !== change.doc.id));
+               }
+             });
+         
+             if (notificationsToProcess.length > 0) {
+               setAdminNotifications(prev => {
+                 const map = new Map<string, AdminNotification>();
+                 prev.forEach(n => map.set(n.id, n));
+                 notificationsToProcess.forEach(n => map.set(n.id, n));
+                 return Array.from(map.values()).sort((a, b) =>
+                   (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0)
+                 );
+               });
+         
+              
+               setUnreadCount(snapshot.docs.filter(doc => !doc.data().read).length);
+             }
+           }, (error) => {
+             console.error("Notification listener error:", error);
+           });
+         
+           return () => unsubscribe();
+         }, [playNotificationSound]); 
+      
+      
+      
+       const [, setNotifications] = useState<Notification[]>([
+        { text: "3 new appointment requests", unread: true },
+        { text: "Reminder: Meeting at 2PM", unread: true }, 
+        { text: "System update completed", unread: false }, 
+      ]);
+      
+       
+        
+      
+      
+       const formatTimeAgo = (timestamp: any): string => {
+        if (!timestamp) return "Just now";
+      
+        let date: Date;
+        if (timestamp.toDate) {
+          date = timestamp.toDate(); 
+        } else if (timestamp.seconds) {
+          date = new Date(timestamp.seconds * 1000);
+        } else {
+          date = new Date(timestamp);
+        }
+      
+        const now = new Date();
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+      
+        if (diffInSeconds < 60) return "Just now";
+        if (diffInSeconds < 120) return "1 minute ago";
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+        if (diffInSeconds < 7200) return "1 hour ago";
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+        if (diffInSeconds < 172800) return "Yesterday";
+        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+        
+        
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        });
+      };
+      
+      
+      
+      useEffect(() => {
+        const unlockOnAnyClick = () => {
+          unlockAudioContext();
+          document.removeEventListener("click", unlockOnAnyClick);
+          document.removeEventListener("touchstart", unlockOnAnyClick);
+        };
+      
+        document.addEventListener("click", unlockOnAnyClick);
+        document.addEventListener("touchstart", unlockOnAnyClick);
+      
+        return () => {
+          document.removeEventListener("click", unlockOnAnyClick);
+          document.removeEventListener("touchstart", unlockOnAnyClick);
+        };
+      }, []);
+      
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setNotifications(prev => [...prev]); 
+        }, 60000);
+        return () => clearInterval(interval);
+      }, []);
+
+
+
+      
   useEffect(() => {
+     setLoading(true);
   const q = query(collection(db, "Transactions"), where("purpose", "==", "Dental"));
   const unsubscribe = onSnapshot(q, (snapshot) => {
     const data: any[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     setAppointments(data);
 
-    // CORRECT LOGIC: EXCLUDE REJECTED SA TOTAL APPOINTMENTS
-    const counts = {
-      total: data.filter((appt) => appt.status !== "Rejected").length,
-      pending: data.filter((a) => a.status === "Pending").length,
-      approved: data.filter((a) => a.status === "Approved").length,
-      cancelled: data.filter((a) => a.status === "Cancelled").length,
-      completed: data.filter((a) => a.status === "Completed").length,
-    };
+  
+    
 
-    setStatusCounts(counts);
+   setTimeout(() => setLoading(false), 300);
   });
 
   return () => unsubscribe();
 }, []);
 
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { text: "3 new appointment requests", unread: true },
-    { text: "Reminder: Meeting at 2PM", unread: true },
-    { text: "System update completed", unread: false },
-  ]);
+ 
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -109,210 +288,415 @@ const ReportsAnalytics_Dental: React.FC = () => {
     return Object.values(grouped);
   }, [appointments]);
 
-  const unreadCount: number = notifications.filter((n) => n.unread).length;
-
-  const markAllAsRead = (): void => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
+  
 
 
   
-  const filteredData = useMemo(() => {
-    let filtered = [...chartData];
+ const filteredData = useMemo(() => {
+  let filtered = [...chartData];
 
-    if (year) {
-      filtered = filtered.filter((item) =>
-        item.date.includes(year) 
-      );
-    }
+  if (year) {
+    filtered = filtered.filter((item) =>
+      item.date.includes(year) 
+    );
+  }
 
-    if (month) {
-      filtered = filtered.filter((item) =>
-        item.date.includes(month) 
-      );
-    }
+  if (month) {
+    filtered = filtered.filter((item) =>
+      item.date.includes(month) 
+    );
+  }
 
-   
+  
+  if (status !== "all") {
+    return filtered.map((item) => {
+      const empty: ChartData = {
+        ...item,
+        completed: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        cancelled: 0,
+      };
+      empty[status] = item[status];
+      return empty;
+    });
+  }
 
-    // Apply Status filter
+  return filtered;
+}, [status, year, month, chartData]);
+
+
+
+const filteredSummary = useMemo(() => {
+  let total = 0;
+  let pending = 0;
+  let approved = 0;
+  let completed = 0;
+  let cancelled = 0;
+
+  filteredData.forEach((day) => {
     if (status !== "all") {
-      return filtered.map((item) => {
-        const empty: ChartData = {
-          ...item,
-          completed: 0,
-          pending: 0,
-          approved: 0,
-        
-          cancelled: 0,
-        };
-        empty[status] = item[status];
-        return empty;
-      });
+   
+      const value = (day as any)[status] || 0;
+      total += value;
+
+    
+      if (status === "pending") pending += value;
+      if (status === "approved") approved += value;
+      if (status === "completed") completed += value;
+      if (status === "cancelled") cancelled += value;
+    } else {
+    
+      const dayTotal = day.pending + day.approved + day.completed + day.cancelled;
+      total += dayTotal;
+      pending += day.pending;
+      approved += day.approved;
+      completed += day.completed;
+      cancelled += day.cancelled;
     }
+  });
 
-    return filtered;
-  }, [status, year, month, chartData]);
+  return { total, pending, approved, completed, cancelled };
+}, [filteredData, status]);
 
+ 
+
+  
+
+
+
+const injectDataIntoTemplate = async (file: File, isPrint: boolean = false) => {
+    toast.loading(isPrint ? "Preparing print template..." : "Generating PDF report...", { id: "pdf" });
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pages = pdfDoc.getPages();
+      if (pages.length === 0) throw new Error("Empty template");
+
+      const helvetica = await pdfDoc.embedFont("Helvetica");
+      const helveticaBold = await pdfDoc.embedFont("Helvetica-Bold");
+
+      const blueHeader = rgb(0.05, 0.3, 0.65);
+      const darkBlue = rgb(0.05, 0.2, 0.5);
+      const redTotal = rgb(0.8, 0, 0);
+      const black = rgb(0, 0, 0);
+
+      const periodText = year && month
+        ? new Date(parseInt(year), parseInt(month) - 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+        : year ? `Year ${year}` : "All Time";
+      const statusText = status === "all" ? "All Appointments" : status.charAt(0).toUpperCase() + status.slice(1);
+      const generatedAt = new Date().toLocaleString("en-PH");
+
+      let currentPage = pages[0];
+      let y = 670;
+
+     
+const copiedPages = await pdfDoc.copyPages(pdfDoc, [0]);
+const templatePage = copiedPages[0]; 
+
+
+      const drawCentered = (text: string, yPos: number, size = 12, bold = false) => {
+        const font = bold ? helveticaBold : helvetica;
+        const width = font.widthOfTextAtSize(text, size);
+        currentPage.drawText(text, { x: (595.28 - width) / 2, y: yPos, size, font, color: bold ? darkBlue : black });
+      };
+
+      drawCentered("DENTAL REPORTS", y, 18, true);
+      y -= 30;
+      drawCentered(`Period: ${periodText}`, y, 14);
+      y -= 25;
+      drawCentered(`Status: ${statusText}`, y, 14);
+      y -= 25;
+      drawCentered(`Generated: ${generatedAt}`, y, 11);
+      y -= 50;
+
+      const colX = [60, 160, 240, 320, 400, 480];
+      const headers = ["Date", "Total", "Completed", "Pending", "Approved", "Cancelled"];
+
+      const drawHeader = () => {
+        currentPage.drawRectangle({ x: 50, y: y - 5, width: 495, height: 25, color: blueHeader });
+        headers.forEach((h, i) => {
+          currentPage.drawText(h, { x: colX[i], y: y + 6, size: 12, font: helveticaBold, color: rgb(1,1,1) });
+        });
+        y -= 30;
+      };
+      drawHeader();
+
+      filteredData.forEach(row => {
+        if (y < 120) {
+          currentPage = pdfDoc.addPage(templatePage);
+          y = 650;
+          drawHeader();
+        }
+
+        const total = row.completed + row.pending + row.approved + row.cancelled;
+        const cells = [
+          row.date,
+          total.toString(),
+          row.completed.toString(),
+          row.pending.toString(),
+          row.approved.toString(),
+          row.cancelled.toString(),
+        ];
+
+        cells.forEach((cell, i) => {
+          currentPage.drawText(cell, { x: colX[i], y: y + 5, size: 11, font: helvetica, color: i === 1 ? redTotal : black });
+        });
+
+        currentPage.drawLine({ start: { x: 50, y: y - 5 }, end: { x: 545, y: y - 5 }, thickness: 0.5, color: rgb(0.8,0.8,0.8) });
+        y -= 25;
+      });
+
+    
+      if (y < 250) {
+        currentPage = pdfDoc.addPage(templatePage);
+        y = 650;
+      }
+      y -= 30;
+
+      const sx = 100, sy = y - 20, width = 400, height = 160;
+      currentPage.drawRectangle({ x: sx, y: sy - height, width, height, borderColor: blueHeader, borderWidth: 2 });
+
+      let syPos = sy - 25;
+      const labelX = sx + 30;
+      const valueX = sx + width - 50;
+
+      const summaryItems = [
+        ["Total Appointments", filteredSummary.total],
+        ["Completed", filteredSummary.completed],
+        ["Pending", filteredSummary.pending],
+        ["Approved", filteredSummary.approved],
+        ["Cancelled", filteredSummary.cancelled],
+      ];
+
+      summaryItems.forEach(([label, value]) => {
+        currentPage.drawText(`${label}:`, { x: labelX, y: syPos, size: 14, font: helveticaBold });
+        currentPage.drawText(value.toString(), { x: valueX, y: syPos, size: 18, font: helveticaBold, color: redTotal });
+        syPos -= 28;
+      });
+
+      const pdfBytes = await pdfDoc.save();
+     
+const uint8 = new Uint8Array(pdfBytes);
+const safeBuffer = uint8.buffer.slice(0); 
+
+
+     if (isPrint) {
+  const blob = new Blob([safeBuffer], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  PrintJS({ printable: url, type: "pdf", showModal: true });
+  toast.success("Print ready! Sending to printer...", { id: "pdf" });
+} else {
+  const filename = `Dental_Report_${year || "All"}_${month || "All"}_${status}_${new Date().toISOString().slice(0,10)}.pdf`;
+  saveAs(new Blob([safeBuffer], { type: "application/pdf" }), filename);
+  toast.success("Report downloaded successfully!", { id: "pdf" });
+}
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to process template. Try another file.", { id: "pdf" });
+    }
+  };
 
 
 const handlePrint = () => {
-  window.print();
-};
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pdf";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) injectDataIntoTemplate(file, true); 
+    };
+    toast("Select your DOH template for printing", { icon: "Printer", duration: 8000 });
+    input.click();
+  };
 
 
 
-  const handleDownloadPDF = async () => {
-    const input = contentRef.current;
-    if (!input) return;
+const handleDownloadPDFReport = async () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".pdf";
+
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    toast.loading("Injecting data into your beautiful template...", {
+      id: "pdf-gen",
+      duration: 15000,
+    });
 
     try {
-      
-      const pdfContainer = document.createElement("div");
-      pdfContainer.style.width = "210mm";
-      pdfContainer.style.minHeight = "297mm";
-      pdfContainer.style.padding = "15mm";
-      pdfContainer.style.background = "#fff";
-      pdfContainer.style.position = "absolute";
-      pdfContainer.style.left = "-9999px";
-      pdfContainer.style.fontFamily = "Arial, sans-serif";
-      document.body.appendChild(pdfContainer);
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pages = pdfDoc.getPages();
 
-      
-      const header = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 15px;">
-          <div style="flex: 1;">
-            <img src="/logo.png" alt="Logo" style="height: 60px;" onerror="this.style.display='none'">
-          </div>
-          <div style="flex: 2; text-align: center;">
-            <p style="margin: 0; font-size: 14px; font-weight: bold;">REPUBLIC OF THE PHILIPPINES</p>
-            <p style="margin: 0; font-size: 14px; font-weight: bold;">DEPARTMENT OF HEALTH</p>
-            <p style="margin: 0; font-size: 14px; font-weight: bold;">TREATMENT AND REHABILITATION CENTER ARGAO</p>
-            <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">DENTAL SECTION REPORT</p>
-            <p style="margin: 0; font-size: 12px;">DATE: ${year || "ALL"}-${month ||  "ALL"} | STATUS: ${status.toUpperCase()}</p>
-          </div>
-          <div style="flex: 1; text-align: right;">
-            <img src="/pilipinas.png" alt="Pilipinas Logo" style="height: 60px;" onerror="this.style.display='none'">
-          </div>
-        </div>
-      `;
-      pdfContainer.innerHTML = header;
+      if (pages.length === 0) throw new Error("Empty PDF");
 
-      
-      const table = document.createElement("table");
-      table.style.width = "100%";
-      table.style.borderCollapse = "collapse";
-      table.style.marginTop = "20px";
-      table.style.fontSize = "12px";
-      
+    
+      const helvetica = await pdfDoc.embedFont("Helvetica");
+      const helveticaBold = await pdfDoc.embedFont("Helvetica-Bold");
+
      
-      let tableHTML = `
-        <thead>
-          <tr style="background-color: #f2f2f2;">
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Date</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Total</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Completed</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Pending</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Approved</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Rejected</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Cancelled</th>
-          </tr>
-        </thead>
-        <tbody>
-      `;
-      
-      
-      filteredData.forEach((row, idx) => {
-        const total = row.completed + row.pending + row.approved + row.cancelled;
-        tableHTML += `
-          <tr>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.date}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${total}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.completed}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.pending}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.approved}</td>
-          
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.cancelled}</td>
-          </tr>
-        `;
-      });
-      
-      tableHTML += `</tbody>`;
-      table.innerHTML = tableHTML;
-      pdfContainer.appendChild(table);
+      const blueHeader = rgb(0.05, 0.3, 0.65);
+      const darkBlue = rgb(0.05, 0.2, 0.5);
+      const redTotal = rgb(0.8, 0, 0);
+      const blackColor = rgb(0, 0, 0);
 
-      
-     const summary = document.createElement("div");
-summary.style.marginTop = "20px";
-summary.style.fontSize = "12px";
-
-
-const summaryTitle = document.createElement("h3");
-summaryTitle.innerText = "Summary";
-summaryTitle.style.textAlign = "left";
-summaryTitle.style.marginBottom = "10px";
-summaryTitle.style.fontSize = "16px"; 
-summaryTitle.style.fontWeight = "bold";
-summary.appendChild(summaryTitle);
-
-
-const summaryGrid = document.createElement("div");
-summaryGrid.style.display = "grid";
-summaryGrid.style.gridTemplateColumns = "repeat(3, 1fr)";
-summaryGrid.style.gap = "10px";
-
-summaryGrid.innerHTML = `
-  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-    <div>Total Appointments</div>
-    <div style="font-weight: bold; font-size: 16px;">${statusCounts.total}</div>
-  </div>
-  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-    <div>Completed</div>
-    <div style="font-weight: bold; font-size: 16px;">${statusCounts.completed}</div>
-  </div>
-  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-    <div>Pending</div>
-    <div style="font-weight: bold; font-size: 16px;">${statusCounts.pending}</div>
-  </div>
-  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-    <div>Approved</div>
-    <div style="font-weight: bold; font-size: 16px;">${statusCounts.approved}</div>
-  </div>
   
-  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-    <div>Cancelled</div>
-    <div style="font-weight: bold; font-size: 16px;">${statusCounts.cancelled}</div>
-  </div>
-`;
+      const periodText = year && month
+        ? new Date(parseInt(year), parseInt(month) - 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+        : year ? `Year ${year}` : "All Time";
 
+      const statusText = status === "all" ? "All Appointments" : status.charAt(0).toUpperCase() + status.slice(1);
+      const generatedAt = `${new Date().toLocaleDateString("en-PH")} ${new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}`;
 
-summary.appendChild(summaryGrid);
-
-pdfContainer.appendChild(summary);
-
-     
-      const canvas = await html2canvas(pdfContainer, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+  
+      const tableRows = filteredData.map(row => {
+        const total = row.completed + row.pending + row.approved + row.cancelled;
+        return [
+          row.date || "N/A",
+          total.toString(),
+          row.completed.toString(),
+          row.pending.toString(),
+          row.approved.toString(),
+          row.cancelled.toString(),
+        ];
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+      let currentPage = pages[0];
+      let y = 670;
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      
-      
-      
-      pdf.save(`Dental_Reports.pdf`);
+     
+      const templatePages = await pdfDoc.copyPages(pdfDoc, [0]);
+      const templatePage = templatePages[0];
 
-      document.body.removeChild(pdfContainer);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF. Please check the console for details.");
+   
+      const drawCenteredText = (text: string, yPos: number, size = 12, bold = false) => {
+        const font = bold ? helveticaBold : helvetica;
+        const textWidth = font.widthOfTextAtSize(text, size);
+        currentPage.drawText(text, {
+          x: (595.28 - textWidth) / 2,
+          y: yPos,
+          size,
+          font,
+          color: bold ? darkBlue : blackColor,
+        });
+      };
+
+      
+      drawCenteredText("DENTAL REPORTS", y, 18, true);
+      y -= 30;
+      drawCenteredText(`Period: ${periodText}`, y, 14);
+      y -= 25;
+      drawCenteredText(`Status Filter: ${statusText}`, y, 14);
+      y -= 25;
+      drawCenteredText(`Generated on: ${generatedAt}`, y, 11);
+      y -= 50;
+
+    
+      const colX = [60, 160, 240, 320, 400, 480];
+      const headers = ["Date", "Total", "Completed", "Pending", "Approved", "Cancelled"];
+
+      const drawTableHeader = () => {
+        currentPage.drawRectangle({ x: 50, y: y - 5, width: 495, height: 25, color: blueHeader });
+        headers.forEach((h, i) => {
+          currentPage.drawText(h, { x: colX[i], y: y + 6, size: 12, font: helveticaBold, color: rgb(1, 1, 1) });
+        });
+        y -= 30;
+      };
+
+      drawTableHeader();
+
+    
+      for (const row of tableRows) {
+        if (y < 100) {
+          currentPage = pdfDoc.addPage(templatePage); 
+          y = 650;
+          drawTableHeader();
+        }
+
+        row.forEach((cell, i) => {
+          currentPage.drawText(cell, {
+            x: colX[i],
+            y: y + 5,
+            size: 11,
+            font: helvetica,
+            color: i === 1 ? redTotal : blackColor,
+          });
+        });
+
+        
+        currentPage.drawLine({ start: { x: 50, y: y - 5 }, end: { x: 545, y: y - 5 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+
+        y -= 25;
+      }
+
+      y -= 30;
+
+     
+      const summaryHeight = 160;
+      if (y - summaryHeight < 50) { 
+        currentPage = pdfDoc.addPage(templatePage);
+        y = 650;
+      }
+
+      const summaryX = 100;
+      const summaryY = y - 20;
+      const summaryWidth = 400;
+      const blueBorder = rgb(0.05, 0.3, 0.65);
+
+      currentPage.drawRectangle({
+        x: summaryX,
+        y: summaryY - summaryHeight,
+        width: summaryWidth,
+        height: summaryHeight,
+        borderColor: blueBorder,
+        borderWidth: 2,
+        color: rgb(1, 1, 1),
+      });
+
+      
+      let sy = summaryY - 25;
+      const labelX = summaryX + 30;
+      const valueX = summaryX + summaryWidth - 50;
+
+      const summaryData = [
+        ["Total Appointments", filteredSummary.total],
+        ["Completed", filteredSummary.completed],
+        ["Pending", filteredSummary.pending],
+        ["Approved", filteredSummary.approved],
+        ["Cancelled", filteredSummary.cancelled],
+      ];
+
+      summaryData.forEach(([label, value]) => {
+        currentPage.drawText(label + ":", { x: labelX, y: sy, size: 14, font: helveticaBold, color: blackColor });
+        currentPage.drawText(Number(value).toString(), { x: valueX, y: sy, size: 18, font: helveticaBold, color: blackColor });
+        sy -= 28;
+      });
+
+      
+      const pdfBytes = await pdfDoc.save();
+      const safeArray = new Uint8Array(pdfBytes);
+      const blob = new Blob([safeArray], { type: "application/pdf" });
+      const filename = `Dental_Report_${year || "AllTime"}_${month || "All"}_${status}_${new Date().toISOString().slice(0,10)}.pdf`;
+      saveAs(blob, filename);
+
+      toast.success("Report injected perfectly into your template!", { id: "pdf-gen" });
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Template error. Generating clean PDF instead...", { id: "pdf-gen" });
     }
   };
+
+  toast("Select your official template (with DOH header & footer)", { icon: "Select File", duration: 6000 });
+  input.click();
+};
 
 
   
@@ -345,6 +729,47 @@ pdfContainer.appendChild(summary);
     };
     
     
+
+
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const recordsPerPage = 10; 
+    
+    
+    const indexOfLastRecord = currentPage * recordsPerPage;
+    const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+    const currentRecords = filteredData.slice(indexOfFirstRecord, indexOfLastRecord);
+    
+    const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+    
+    const getPageNumbers = () => {
+      const pages: (number | string)[] = [];
+      if (totalPages <= 5) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) pages.push(i);
+          pages.push("...");
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push("...");
+          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          pages.push("...");
+          pages.push(currentPage - 1);
+          pages.push(currentPage);
+          pages.push(currentPage + 1);
+          pages.push("...");
+          pages.push(totalPages);
+        }
+      }
+      return pages;
+    };
+    
+    
+
+
   return (
     <div className="dashboards">
     
@@ -434,50 +859,223 @@ pdfContainer.appendChild(summary);
 
       {/* Main content */}
       <main className="main-content">
+          <Toaster
+                          position="top-center"  
+                          reverseOrder={false}
+                          gutter={12}
+                          containerStyle={{
+                            top: "35%",                   
+                            left: "50%",                   
+                            transform: "translate(-50%, -50%)",  
+                            zIndex: 9999,
+                            pointerEvents: "none",         
+                          }}
+                          toastOptions={{
+                           
+                            style: {
+                              background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", 
+                              color: "#fff",
+                              fontSize: "18px",
+                              fontWeight: "600",
+                              padding: "18px 28px",
+                              borderRadius: "16px",
+                              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
+                              border: "2px solid rgba(255, 255, 255, 0.2)",
+                              pointerEvents: "auto",      
+                              maxWidth: "420px",
+                              textAlign: "center",
+                              backdropFilter: "blur(10px)",
+                            },
+                            duration: 5000,
+                            success: {
+                              icon: "Success",
+                              style: {
+                                background: "linear-gradient(135deg, #16a34a, #22c55e)",
+                                border: "2px solid #86efac",
+                              },
+                            },
+                            error: {
+                              icon: "Failed",
+                              style: {
+                                background: "linear-gradient(135deg, #dc2626, #ef4444)",
+                                border: "2px solid #fca5a5",
+                              },
+                            },
+                          }}
+                        />
         <div className="top-navbar-dental">
           <h5 className="navbar-title">Reports and Analytics</h5>
-          <div className="notification-wrapper">
-            <FaBell
-              className="notification-bell"
-              onClick={() => setShowNotifications(!showNotifications)}
-            />
-            {unreadCount > 0 && (
-              <span className="notification-count">{unreadCount}</span>
-            )}
+         <div className="notification-wrapper">
+  <FaBell
+    className="notification-bell"
+   onClick={() => {
+    unlockAudioContext();           // ← Kini ang mag-unlock sa audio!
+    setShowNotifications(prev => !prev);
+  }}
+    style={{ position: "relative" }}
+  />
+  {unreadCount > 0 && (
+    <span className="notification-count">{unreadCount > 99 ? "99+" : unreadCount}</span>
+  )}
 
-            {showNotifications && (
-              <div className="notification-dropdown">
-                <div className="notification-header">
-                  <span>Notifications</span>
-                  {unreadCount > 0 && (
-                    <button className="mark-read-btn" onClick={markAllAsRead}>
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
+  {showNotifications && (
+    <div className="notification-dropdown">
+      <div className="notification-header">
+        <span className="notification-title">Admin Notifications</span>
+        <div className="notification-actions">
+          {unreadCount > 0 && (
+           <button 
+  className="mark-read-btn" 
+  onClick={async () => {
+    const unreadDocs = adminNotifications.filter(n => !n.read);
+    if (unreadDocs.length === 0) return;
 
-                {notifications.length > 0 ? (
-                  notifications.map((notif, index) => (
-                    <div
-                      key={index}
-                      className={`notification-item ${
-                        notif.unread ? "unread" : ""
-                      }`}
-                    >
-                      <span>{notif.text}</span>
-                      {notif.unread && (
-                        <span className="notification-badge">New</span>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="notification-empty">No new notifications</div>
-                )}
-              </div>
-            )}
-          </div>
+    const batch = writeBatch(db);
+    unreadDocs.forEach(notif => {
+      const ref = doc(db, "admin_notifications", notif.id);
+      batch.update(ref, { read: true });
+    });
+
+    await batch.commit();
+
+   
+    setAdminNotifications(prev =>
+      prev.map(n => ({ ...n, read: true }))
+    );
+    setUnreadCount(0);
+
+    toast.success("All notifications marked as read");
+  }}
+>
+  Mark all as read
+</button>
+                   )}
+                   <button 
+  className="clear-all-btn"
+  onClick={() => openCustomModal("Clear all notifications?", "confirm", async () => {
+    const batch = writeBatch(db);
+    adminNotifications.forEach(n => {
+      batch.delete(doc(db, "admin_notifications", n.id));
+    });
+    await batch.commit();
+
+   
+    setAdminNotifications([]);
+    setUnreadCount(0);
+    closeCustomModal();
+    toast.success("All notifications cleared");
+  })}
+>
+  Clear all
+</button>
         </div>
+      </div>
 
+    <div className="notification-list">
+  {adminNotifications.length > 0 ? (
+    adminNotifications.map((notif) => (
+      <div
+        key={notif.id}
+        className={`notification-item ${!notif.read ? "unread" : ""}`}
+        style={{ cursor: "pointer" }}
+        onClick={async (e) => {
+          // Prevent mark as read if clicking delete button
+          if ((e.target as HTMLElement).closest(".notification-delete-btn")) return;
+
+          if (!notif.read) {
+            try {
+              await updateDoc(doc(db, "admin_notifications", notif.id), { read: true });
+              setAdminNotifications(prev =>
+                prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
+              );
+              setUnreadCount(prev => Math.max(0, prev - 1));
+            } catch (err) {
+              console.error("Failed to mark as read:", err);
+            }
+          }
+        }}
+      >
+        <div className="notification-main">
+       <div className="notification-message">
+  <p className="notification-text">
+    <strong>{notif.patientName}</strong>: {notif.message}
+  </p>
+
+  {/* MAIN DATE & TIME (larger & bold) */}
+  <div style={{ 
+    fontSize: "14px", 
+    fontWeight: "600", 
+    color: "#333",
+    marginTop: "6px"
+  }}>
+    {notif.date} at {notif.slotTime}
+  </div>
+
+  {/* TIME AGO (gray, smaller, ubos gyud) */}
+  <div style={{ 
+    fontSize: "12px", 
+    color: "#888", 
+    marginTop: "4px",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px"
+  }}>
+    <span style={{ 
+      color: "#10b981",
+      background: "rgba(16, 185, 129, 0.12)",
+      padding: "3px 9px",
+      borderRadius: "8px",
+      fontWeight: "600",
+      fontSize: "11px"
+    }}>
+      {formatTimeAgo(notif.timestamp)}
+    </span>
+    {notif.timestamp && formatTimeAgo(notif.timestamp) !== "Just now" && (
+      <span>• {new Date(notif.timestamp.toDate?.() || notif.timestamp).toLocaleTimeString([], { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      })}</span>
+    )}
+  </div>
+</div>
+
+          {/* X BUTTON - DELETE ONE NOTIFICATION ONLY */}
+          <button
+            onClick={async (e) => {
+              e.stopPropagation(); // CRITICAL
+              try {
+                await deleteDoc(doc(db, "admin_notifications", notif.id));
+                setAdminNotifications(prev => prev.filter(n => n.id !== notif.id));
+                if (!notif.read) {
+                  setUnreadCount(prev => Math.max(0, prev - 1));
+                }
+                toast.success("Notification deleted");
+              } catch (err) {
+                console.error("Delete failed:", err);
+                toast.error("Failed to delete");
+              }
+            }}
+            className="notification-delete-btn"
+            title="Delete this notification"
+          >
+            <X size={15} />
+          </button>
+
+          {!notif.read && <span className="notification-badge">NEW</span>}
+        </div>
+      </div>
+    ))
+  ) : (
+    <div className="notification-empty">
+      <p>No notifications</p>
+    </div>
+  )}
+</div>
+    </div>
+  )}
+</div>
+          
+        </div>
 
         
 
@@ -487,7 +1085,7 @@ pdfContainer.appendChild(summary);
           <div className="filters-containerss">
           
 
-            {/* Year Filter - Dynamic & Future-Proof (Newest First) */}
+           
 <div className="filterss">
   <label>Year:</label>
   <select
@@ -498,8 +1096,8 @@ pdfContainer.appendChild(summary);
     <option value="">All Years</option>
     {(() => {
       const currentYear = new Date().getFullYear();
-      const startYear = 2020; // or 2025 if gusto nimo sugdan later
-      const futureBuffer = 30; // 30 years into the future
+      const startYear = 2020; 
+      const futureBuffer = 30;
 
       const years = [];
       for (let y = currentYear + futureBuffer; y >= startYear; y--) {
@@ -514,7 +1112,7 @@ pdfContainer.appendChild(summary);
   </select>
 </div>
 
-            {/* Month Filter - Current + Last 2 Months First */}
+           
 <div className="filterss">
   <label>Month:</label>
   <select
@@ -528,11 +1126,11 @@ pdfContainer.appendChild(summary);
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
       ];
-      const currentMonthIdx = new Date().getMonth(); // 0 = Jan, 11 = Dec
+      const currentMonthIdx = new Date().getMonth(); 
 
       const recent: { name: string; value: string }[] = [];
 
-      // Add current month + last 2 months (3 total)
+    
       for (let i = 0; i < 3; i++) {
         const idx = (currentMonthIdx - i + 12) % 12;
         const monthNum = String(idx + 1).padStart(2, "0");
@@ -541,13 +1139,13 @@ pdfContainer.appendChild(summary);
 
       return (
         <>
-          {/* Recent 3 months sa taas */}
+        
           {recent.map((m) => (
             <option key={m.value} value={m.value}>
               {m.name}
             </option>
           ))}
-          {/* Remaining months */}
+         
           {monthNames.map((name, i) => {
             const val = String(i + 1).padStart(2, "0");
             if (recent.some((r) => r.value === val)) return null;
@@ -628,7 +1226,39 @@ pdfContainer.appendChild(summary);
 
 
 
-
+<div style={{ position: "relative", minHeight: "400px" }}>
+          {loading && (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      background: "rgba(255, 255, 255, 0.9)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 10,
+      borderRadius: "12px",
+      backdropFilter: "blur(4px)"
+    }}>
+      <div style={{
+        width: "60px",
+        height: "60px",
+        border: "6px solid #e0e0e0",
+        borderTop: "6px solid #2563eb",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+        marginBottom: "20px"
+      }}></div>
+      <p style={{
+        fontSize: "18px",
+        fontWeight: "600",
+        color: "#1e40af",
+        margin: 0
+      }}>
+        Loading appointments...
+      </p>
+    </div>
+  )}
          
          {/* Hidden print content */}
 <div id="print-content" style={{ display: 'none' }}>
@@ -659,8 +1289,7 @@ pdfContainer.appendChild(summary);
           <th>Completed</th>
           <th>Pending</th>
           <th>Approved</th>
-          <th>Rejected</th>
-          <th>Cancelled</th>
+       
         </tr>
       </thead>
       <tbody>
@@ -685,100 +1314,152 @@ pdfContainer.appendChild(summary);
 <br></br>
 <h3>Summary</h3>
     {/* Summary Section */}
-    <div className="summary-sections">
-      <div className="summary-cards">
-        <span>Total Appointments</span>
-        <strong>{statusCounts.total}</strong>
-      </div>
-      <div className="summary-cards">
-        <span>Completed</span>
-        <strong>{statusCounts.completed}</strong>
-      </div>
-      <div className="summary-cards">
-        <span>Pending</span>
-        <strong>{statusCounts.pending}</strong>
-      </div>
-      <div className="summary-cards">
-        <span>Approved</span>
-        <strong>{statusCounts.approved}</strong>
-      </div>
-    
-      <div className="summary-cards">
-        <span>Cancelled</span>
-        <strong>{statusCounts.cancelled}</strong>
-      </div>
-    </div>
+     <div className="summary-sections">
+  <div className="summary-cards">
+    <span>Total Appointments</span>
+    <strong>{filteredSummary.total}</strong>
+  </div>
+  <div className="summary-cards">
+    <span>Completed</span>
+    <strong>{filteredSummary.completed}</strong>
+  </div>
+  <div className="summary-cards">
+    <span>Pending</span>
+    <strong>{filteredSummary.pending}</strong>
+  </div>
+  <div className="summary-cards">
+    <span>Approved</span>
+    <strong>{filteredSummary.approved}</strong>
+  </div>
+  <div className="summary-cards">
+    <span>Cancelled</span>
+    <strong>{filteredSummary.cancelled}</strong>
+  </div>
+</div>
 </div>
 
   {/* End of Print Content */}
 
 
           {/* Appointment Table */}
-          <table className="appointments-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Total</th>
-                <th>Completed</th>
-                <th>Pending</th>
-                <th>Approved</th>
-                <th>Rejected</th>
-                <th>Cancelled</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredData.map((row, idx) => {
-                const total =
-                  row.completed +
-                  row.pending +
-                  row.approved +
-                
-                  row.cancelled;
-                return (
-                  <tr key={idx}>
-                    <td>{row.date}</td>
-                    <td>{total}</td>
-                    <td>{row.completed}</td>
-                    <td>{row.pending}</td>
-                    <td>{row.approved}</td>
-                   
-                    <td>{row.cancelled}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+           <table className="appointments-table">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Total</th>
+      <th>Completed</th>
+      <th>Pending</th>
+      <th>Approved</th>
+      <th>Cancelled</th>
+    </tr>
+  </thead>
+  <tbody>
+    {currentRecords.length > 0 ? (
+      currentRecords.map((row, idx) => {
+        const total = row.completed + row.pending + row.approved + row.cancelled;
+        return (
+          <tr key={idx}>
+            <td>{row.date}</td>
+            <td>{total}</td>
+            <td>{row.completed}</td>
+            <td>{row.pending}</td>
+            <td>{row.approved}</td>
+            <td>{row.cancelled}</td>
+          </tr>
+        );
+      })
+    ) : (
+      <tr>
+        <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "#888" }}>
+          No records found for the selected filters.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
+
+
+
+{filteredData.length > recordsPerPage && (
+  <div className="pagination-wrapper" style={{ marginTop: "30px" }}>
+    <div className="pagination-info">
+      Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredData.length)} of{" "}
+      {filteredData.length} records
+    </div>
+
+    <div className="pagination-controls">
+      <button
+        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+        disabled={currentPage === 1}
+        className="pagination-btn prev-btn"
+      >
+        Previous
+      </button>
+
+      {getPageNumbers().map((page, index) => (
+        <button
+          key={index}
+          onClick={() => typeof page === "number" && setCurrentPage(page)}
+          className={`pagination-btn page-num ${page === currentPage ? "active" : ""} ${
+            page === "..." ? "ellipsis" : ""
+          }`}
+          disabled={page === "..."}
+        >
+          {page}
+        </button>
+      ))}
+
+      <button
+        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+        disabled={currentPage === totalPages || totalPages === 0}
+        className="pagination-btn next-btn"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+)}
 
           {/* Summary Section */}
-          <div  className="summary-section">
-            <div className="summary-card">
-              <span>Total Appointments</span>
-              <strong>{statusCounts.total}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Completed</span>
-              <strong>{statusCounts.completed}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Pending</span>
-              <strong>{statusCounts.pending}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Approved</span>
-              <strong>{statusCounts.approved}</strong>
-            </div>
-          
-            <div className="summary-card">
-              <span>Cancelled</span>
-              <strong>{statusCounts.cancelled}</strong>
-            </div>
-          </div>
+            <div className="summary-section">
+  <div className="summary-card">
+    <span>Total Appointments</span>
+    <strong>{filteredSummary.total}</strong>
+  </div>
+  <div className="summary-card">
+    <span>Completed</span>
+    <strong>{filteredSummary.completed}</strong>
+  </div>
+  <div className="summary-card">
+    <span>Pending</span>
+    <strong>{filteredSummary.pending}</strong>
+  </div>
+  <div className="summary-card">
+    <span>Approved</span>
+    <strong>{filteredSummary.approved}</strong>
+  </div>
+  <div className="summary-card">
+    <span>Cancelled</span>
+    <strong>{filteredSummary.cancelled}</strong>
+  </div>
+</div>
 
-          <div className="actions-section">
-            <button onClick={handlePrint} className="button-print">🖨️ Print</button>
-            <button onClick={handleDownloadPDF} className="button-pdf">⬇️ Download PDF</button>
-          </div>
-        </div>
+
+            </div>
+
+
+
+            
+ <div className="actions-section">
+        <button onClick={handlePrint} className="button-print">
+          Print Report
+        </button>
+
+        <button onClick={handleDownloadPDFReport} className="button-pdf">
+          Download Report
+        </button>
+      </div>
+</div>
 
          {showCustomModal && (
                 <>
