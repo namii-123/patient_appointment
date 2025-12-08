@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBell,
@@ -15,6 +15,7 @@ import {
   FaClinicMedical,
   FaUserMd,
   FaEnvelope,
+  FaUserPlus,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "../../../assets/SuperAdmin_Dashboard.css";
@@ -28,10 +29,33 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { db } from "../firebase";
-import { collection, query, onSnapshot, where } from "firebase/firestore";
+import { collection, query, onSnapshot, where, writeBatch, doc, updateDoc, deleteDoc, orderBy } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
 import { X } from "lucide-react";
+import { Toaster } from 'react-hot-toast';
+
+interface Notification {
+  id?: string;
+  text: string;
+  unread: boolean;
+  timestamp: Date | null; 
+}
+
+
+interface AdminNotification {
+  id: string;
+  type: "new_appointment" | "appointment_cancelled" | "info" | "contact_message";
+  message: string;
+  patientName: string;
+  date: string;
+  slotTime: string;
+  timestamp: any;
+  read: boolean;
+  purpose?: string;
+}
+
+
 
 
 
@@ -76,7 +100,6 @@ const departmentQueries: Record<string, DepartmentQuery> = {
 
 const SuperAdmin_Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [showNotifications, setShowNotifications] = useState(false);
   const [adminCounts, setAdminCounts] = useState({
     Clinical: 0,
     Dental: 0,
@@ -93,12 +116,177 @@ const SuperAdmin_Dashboard: React.FC = () => {
     DDE: 0,
   });
   const [totalRegisteredUsers, setTotalRegisteredUsers] = useState(0);
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "New patient registered in Dental", unread: true },
-    { id: 2, text: "3 Appointment requests pending approval", unread: true },
-    { id: 3, text: "Radiology report uploaded by Dr. Smith", unread: false },
-    { id: 4, text: "Clinical department updated patient records", unread: false },
-  ]);
+
+
+
+  const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [showNotifications, setShowNotifications] = useState(false);
+    
+    
+    
+    const NOTIFICATION_SOUND_URL = "https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2584.mp3"; 
+    
+    
+    const [audioContextUnlocked, setAudioContextUnlocked] = useState(false);
+    
+    
+    const unlockAudioContext = () => {
+      if (audioContextUnlocked) return;
+    
+    
+      const audio = new Audio();
+      audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="; 
+      audio.volume = 0;
+      audio.play().then(() => {
+        console.log("Audio context unlocked!");
+        setAudioContextUnlocked(true);
+      }).catch(() => {});
+    };
+    
+    const playNotificationSound = useCallback(() => {
+      if (!audioContextUnlocked) {
+        console.warn("Audio not yet unlocked. Click the bell first!");
+        return;
+      }
+    
+      const audio = new Audio(NOTIFICATION_SOUND_URL);
+      audio.volume = 0.7;
+      audio.play().catch(err => {
+        console.warn("Failed to play sound:", err);
+      });
+    }, [audioContextUnlocked]);
+    
+    
+    
+    
+   useEffect(() => {
+  
+  const notifQuery = query(
+    collection(db, "admin_notifications"),
+    orderBy("timestamp", "desc") 
+  );
+
+  const unsubscribe = onSnapshot(notifQuery, (snapshot) => {
+    const notificationsToProcess: AdminNotification[] = [];
+
+    snapshot.docChanges().forEach((change) => {
+      const data = change.doc.data();
+
+      if (change.type === "added" || change.type === "modified") {
+        const notif: AdminNotification = {
+          id: change.doc.id,
+          type: data.type || "info",
+          message: data.message || "",
+          patientName: data.patientName || "Unknown Patient",
+          date: data.date || "",
+          slotTime: data.slotTime || "",
+          timestamp: data.timestamp,
+          read: data.read === true,
+          purpose: data.purpose || "general",
+        };
+        notificationsToProcess.push(notif);
+
+      
+        if (change.type === "added" && !data.read) {
+          playNotificationSound();
+        }
+      }
+
+      if (change.type === "removed") {
+        setAdminNotifications(prev => prev.filter(n => n.id !== change.doc.id));
+      }
+    });
+
+    if (notificationsToProcess.length > 0) {
+      setAdminNotifications(prev => {
+        const map = new Map<string, AdminNotification>();
+        prev.forEach(n => map.set(n.id, n));
+        notificationsToProcess.forEach(n => map.set(n.id, n));
+        return Array.from(map.values()).sort((a, b) =>
+          (b.timestamp?.toDate?.()?.getTime() || 0) - (a.timestamp?.toDate?.()?.getTime() || 0)
+        );
+      });
+
+      setUnreadCount(snapshot.docs.filter(doc => !doc.data().read).length);
+    }
+  }, (error) => {
+    console.error("Notification listener error:", error);
+  });
+
+  return () => unsubscribe();
+}, [playNotificationSound]);
+      
+    
+    
+    
+      const [, setNotifications] = useState<Notification[]>([
+      { text: "3 new appointment requests", unread: true, timestamp: new Date() },
+      { text: "Reminder: Meeting at 2PM", unread: true, timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) }, 
+      { text: "System update completed", unread: false, timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) }, 
+    ]);
+    
+      
+    
+    
+     const formatTimeAgo = (timestamp: any): string => {
+      if (!timestamp) return "Just now";
+    
+      let date: Date;
+      if (timestamp.toDate) {
+        date = timestamp.toDate(); // Firestore Timestamp
+      } else if (timestamp.seconds) {
+        date = new Date(timestamp.seconds * 1000);
+      } else {
+        date = new Date(timestamp);
+      }
+    
+      const now = new Date();
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+      if (diffInSeconds < 60) return "Just now";
+      if (diffInSeconds < 120) return "1 minute ago";
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+      if (diffInSeconds < 7200) return "1 hour ago";
+      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+      if (diffInSeconds < 172800) return "Yesterday";
+      if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+      
+      // Older than a week? Show date
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      });
+    };
+    
+    
+    useEffect(() => {
+      const unlockOnAnyClick = () => {
+        unlockAudioContext();
+        document.removeEventListener("click", unlockOnAnyClick);
+        document.removeEventListener("touchstart", unlockOnAnyClick);
+      };
+    
+      document.addEventListener("click", unlockOnAnyClick);
+      document.addEventListener("touchstart", unlockOnAnyClick);
+    
+      return () => {
+        document.removeEventListener("click", unlockOnAnyClick);
+        document.removeEventListener("touchstart", unlockOnAnyClick);
+      };
+    }, []);
+    
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setNotifications(prev => [...prev]); 
+      }, 60000);
+      return () => clearInterval(interval);
+    }, []);
+    
+    
+    
+  
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -126,10 +314,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
     return null;
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-    setShowNotifications(false);
-  };
+ 
 
   // Fetch total registered users
   useEffect(() => {
@@ -149,7 +334,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Fetch admin counts
+ 
   useEffect(() => {
     const unsubscribers: (() => void)[] = [];
 
@@ -192,7 +377,7 @@ const SuperAdmin_Dashboard: React.FC = () => {
   }, []);
 
  
- // Fetch patient counts (Rejected = wala sa uban, pero naa sa DDE)
+
 useEffect(() => {
   const unsubscribers: (() => void)[] = [];
 
@@ -358,44 +543,337 @@ useEffect(() => {
 
       {/* Main Content */}
       <main className="main-content-superadmin">
-        {/* Top Navbar */}
+         <Toaster
+                         position="top-center"  
+                         reverseOrder={false}
+                         gutter={12}
+                         containerStyle={{
+                           top: "35%",                   
+                           left: "50%",                   
+                           transform: "translate(-50%, -50%)",  
+                           zIndex: 9999,
+                           pointerEvents: "none",         
+                         }}
+                         toastOptions={{
+                          
+                           style: {
+                             background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", 
+                             color: "#fff",
+                             fontSize: "18px",
+                             fontWeight: "600",
+                             padding: "18px 28px",
+                             borderRadius: "16px",
+                             boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
+                             border: "2px solid rgba(255, 255, 255, 0.2)",
+                             pointerEvents: "auto",      
+                             maxWidth: "420px",
+                             textAlign: "center",
+                             backdropFilter: "blur(10px)",
+                           },
+                           duration: 5000,
+                           success: {
+                             icon: "Success",
+                             style: {
+                               background: "linear-gradient(135deg, #16a34a, #22c55e)",
+                               border: "2px solid #86efac",
+                             },
+                           },
+                           error: {
+                             icon: "Failed",
+                             style: {
+                               background: "linear-gradient(135deg, #dc2626, #ef4444)",
+                               border: "2px solid #fca5a5",
+                             },
+                           },
+                         }}
+                       />
+
         <div className="top-navbar-superadmins">
           <h5 className="navbar-title">Dashboard</h5>
           <div className="notification-wrapper">
             <FaBell
               className="notification-bell"
-              onClick={() => setShowNotifications(!showNotifications)}
+             onClick={() => {
+              unlockAudioContext();          
+              setShowNotifications(prev => !prev);
+            }}
+              style={{ position: "relative" }}
             />
-            {notifications.filter((n) => n.unread).length > 0 && (
-              <span className="notification-count">
-                {notifications.filter((n) => n.unread).length}
-              </span>
+            {unreadCount > 0 && (
+              <span className="notification-count">{unreadCount > 99 ? "99+" : unreadCount}</span>
             )}
+          
             {showNotifications && (
               <div className="notification-dropdown">
                 <div className="notification-header">
-                  <span>Notifications</span>
-                  <button className="mark-read-btn" onClick={markAllAsRead}>
-                    Mark all as read
-                  </button>
+                  <span className="notification-title">Admin Notifications</span>
+                  <div className="notification-actions">
+                    
+                    {unreadCount > 0 && (
+                       <button 
+            className="mark-read-btn" 
+            onClick={async () => {
+              const unreadDocs = adminNotifications.filter(n => !n.read);
+              if (unreadDocs.length === 0) return;
+          
+              const batch = writeBatch(db);
+              unreadDocs.forEach(notif => {
+                const ref = doc(db, "admin_notifications", notif.id);
+                batch.update(ref, { read: true });
+              });
+          
+              await batch.commit();
+          
+             
+              setAdminNotifications(prev =>
+                prev.map(n => ({ ...n, read: true }))
+              );
+              setUnreadCount(0);
+          
+              toast.success("All notifications marked as read");
+            }}
+          >
+            Mark all as read
+          </button>
+                             )}
+                             <button 
+            className="clear-all-btn"
+            onClick={() => openCustomModal("Clear all notifications?", "confirm", async () => {
+              const batch = writeBatch(db);
+              adminNotifications.forEach(n => {
+                batch.delete(doc(db, "admin_notifications", n.id));
+              });
+              await batch.commit();
+          
+             
+              setAdminNotifications([]);
+              setUnreadCount(0);
+              closeCustomModal();
+              toast.success("All notifications cleared");
+            })}
+          >
+            Clear all
+          </button>
+                  </div>
                 </div>
-                {notifications.length > 0 ? (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={`notification-item ${n.unread ? "unread" : ""}`}
+          
+              <div className="notification-list">
+            {adminNotifications.length > 0 ? (
+              adminNotifications.map((notif) => (
+                <div
+                  key={notif.id}
+                  className={`notification-item ${!notif.read ? "unread" : ""}`}
+                  style={{ cursor: "pointer" }}
+             onClick={async (e) => {
+  if ((e.target as HTMLElement).closest(".notification-delete-btn")) return;
+
+
+  if (!notif.read) {
+    await updateDoc(doc(db, "admin_notifications", notif.id), { read: true });
+    setAdminNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  }
+
+
+  if (notif.purpose === "admin_registration") {
+    navigate("/superadmin_userrequests");
+    setShowNotifications(false);
+    return;
+  }
+
+
+  if (notif.type === "new_appointment" || notif.type === "appointment_cancelled") {
+    const purpose = notif.purpose?.trim();
+    const departmentRoutes: Record<string, string> = {
+      "Clinical Laboratory": "/superadmin_clinical",
+      "Dental": "/superadmin_dental",
+      "Radiographic": "/superadmin_radiology",
+      "Medical": "/superadmin_medical",
+      "DDE": "/superadmin_dde",
+    };
+
+    if (purpose && departmentRoutes[purpose]) {
+      navigate(departmentRoutes[purpose]);
+    } else {
+      toast.info("Appointment from unknown department");
+    }
+    setShowNotifications(false);
+    return;
+  }
+
+  
+  if (notif.type === "contact_message") {
+    navigate("/superadmin_messages");
+  } else {
+   
+    navigate("/superadmin_userrequests"); 
+  }
+
+  setShowNotifications(false);
+}}
+                >
+                  <div className="notification-main">
+                 <div className="notification-message">
+           
+          
+
+
+          
+<div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+
+  {notif.purpose === "admin_registration" && (
+    <FaUserPlus style={{ color: "#8b5cf6", fontSize: "40px" }} />
+  )}
+  
+      {notif.type === "contact_message" && <FaEnvelope style={{ color: "#f59e0b", fontSize: "40px" }} />}
+      {notif.type === "new_appointment" && <FaCalendarAlt style={{ color: "#3b82f6", fontSize: "40px" }} />}
+      {notif.type === "appointment_cancelled" && <FaUserTimes style={{ color: "#ef4444", fontSize: "70px" }} />}
+      {(notif.type === "info" && notif.purpose !== "admin_registration") && (
+    <FaBell style={{ color: "#6366f1", fontSize: "40px" }} />
+  )}
+       <p className="notification-text">
+              <strong>{notif.patientName}</strong>: {notif.message}
+            </p>
+    </div>
+          
+            <div style={{ 
+              fontSize: "14px", 
+              fontWeight: "600", 
+              color: "#333",
+              marginTop: "6px"
+            }}>
+              {notif.date} at {notif.slotTime}
+            </div>
+          
+
+
+
+
+
+ 
+{notif.purpose === "admin_registration" && (
+  <div style={{ marginTop: "8px" }}>
+    <span style={{
+      padding: "4px 10px",
+      borderRadius: "12px",
+      fontSize: "11px",
+      color: "white",
+      backgroundColor: "#e73d3dff",
+      fontWeight: "600"
+    }}>
+      Pending Approval
+    </span>
+  </div>
+)}
+
+
+{notif.purpose && 
+  notif.purpose !== "general" &&
+  notif.purpose !== "admin_registration" && (
+    <div style={{ 
+    marginTop: "8px", 
+    display: "flex", 
+    alignItems: "center", 
+    gap: "8px",
+    fontSize: "13px",
+    fontWeight: "600"
+  }}>
+    <span style={{
+      padding: "4px 10px",
+      borderRadius: "12px",
+      fontSize: "11px",
+      color: "white",
+      backgroundColor: 
+        notif.purpose === "Clinical Laboratory" ? "#10b981" :  
+        notif.purpose === "Dental" ? "#3b82f6" :            
+        notif.purpose === "Radiographic" ? "#f59e0b" :      
+        notif.purpose === "Medical" ? "#8b5cf6" :          
+        notif.purpose === "DDE" ? "#ec4899" : 
+       
+        "#6b7280"
+    }}>
+      {notif.purpose === "Clinical Laboratory" ? "Clinical" :
+       notif.purpose === "Radiographic" ? "Radiology" :
+       notif.purpose}
+    </span>
+    {notif.type === "new_appointment" && (
+      <span style={{ color: "#10b981", fontSize: "11px" }}>New Appointment</span>
+    )}
+    {notif.type === "appointment_cancelled" && (
+      <span style={{ color: "#ef4444", fontSize: "11px" }}>Cancelled</span>
+    )}
+   
+  </div>
+)}
+
+
+
+          
+          
+            <div style={{ 
+              fontSize: "12px", 
+              color: "#888", 
+              marginTop: "4px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}>
+              <span style={{ 
+                color: "#10b981",
+                background: "rgba(16, 185, 129, 0.12)",
+                padding: "3px 9px",
+                borderRadius: "8px",
+                fontWeight: "600",
+                fontSize: "11px"
+              }}>
+                {formatTimeAgo(notif.timestamp)}
+              </span>
+              {notif.timestamp && formatTimeAgo(notif.timestamp) !== "Just now" && (
+                <span>• {new Date(notif.timestamp.toDate?.() || notif.timestamp).toLocaleTimeString([], { 
+                  hour: "2-digit", 
+                  minute: "2-digit" 
+                })}</span>
+              )}
+            </div>
+          </div>
+          
+                    {/* X BUTTON - DELETE ONE NOTIFICATION ONLY */}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation(); // CRITICAL
+                        try {
+                          await deleteDoc(doc(db, "admin_notifications", notif.id));
+                          setAdminNotifications(prev => prev.filter(n => n.id !== notif.id));
+                          if (!notif.read) {
+                            setUnreadCount(prev => Math.max(0, prev - 1));
+                          }
+                          toast.success("Notification deleted");
+                        } catch (err) {
+                          console.error("Delete failed:", err);
+                          toast.error("Failed to delete");
+                        }
+                      }}
+                      className="notification-delete-btn"
+                      title="Delete this notification"
                     >
-                      <span>{n.text}</span>
-                      {n.unread && <span className="notification-badge">New</span>}
-                    </div>
-                  ))
-                ) : (
-                  <div className="notification-empty">No notifications</div>
-                )}
+                      <X size={15} />
+                    </button>
+          
+                    {!notif.read && <span className="notification-badge">NEW</span>}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="notification-empty">
+                <p>No notifications</p>
               </div>
             )}
           </div>
-        </div>
+              </div>
+            )}
+          </div>
+                    
+                  </div>
 
         {/* Summary Cards */}
         <div className="summary-cards-content-wrapper">
@@ -545,7 +1023,7 @@ useEffect(() => {
                     outerRadius={100}
                     label={({ percent }) => `${((percent as number) * 100).toFixed(0)}%`}
                   >
-                    {adminDeptData.map((entry, index) => (
+                    {adminDeptData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

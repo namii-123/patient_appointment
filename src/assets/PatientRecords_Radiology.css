@@ -325,7 +325,20 @@
   margin-right: 8px; 
   color: #1d3557;
 }
+.filterrs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 
+.filterrs label {
+ font-weight: 600;
+  margin-left: -1px;
+color: #1d3557;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
 /* Dropdown (Status, Year, Month, Day) */
 .status-dropdown {
   padding: 0 10px;  

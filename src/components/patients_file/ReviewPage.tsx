@@ -808,7 +808,7 @@ const handleDownloadPDF = async () => {
             reservationId: appointment.reservationId,
           });
 
-          // THIS IS THE KEY: SEND NOTIFICATION TO CORRECT ADMIN (including Clinical!)
+         
           const fullName = `${safeFormData.lastName}, ${safeFormData.firstName}${safeFormData.middleInitial ? " " + safeFormData.middleInitial + "." : ""}`.trim();
 
           await addDoc(collection(db, "admin_notifications"), {
@@ -818,9 +818,10 @@ const handleDownloadPDF = async () => {
             patientId: safeFormData.patientId,
             date: appointment.date,
             slotTime: appointment.slotTime,
-            purpose: appointment.department, // ← KINI ANG GA-DECIDE KINSAHANG ADMIN MAKAKITA
+            purpose: appointment.department,
             timestamp: serverTimestamp(),
             read: false,
+            
           });
 
           console.log(`Notification sent for ${appointment.department}: ${fullName}`);
@@ -862,10 +863,10 @@ useEffect(() => {
       fromDb[category].push(name);
     });
 
-    // Start with defaults (now Record<string, ...> so safe)
+    
     const merged: Record<string, string[]> = { ...DEFAULT_SERVICES };
 
-    // Add dynamic services (new categories + new items)
+  
     Object.entries(fromDb).forEach(([category, services]) => {
       if (!merged[category]) {
         merged[category] = [];
@@ -877,7 +878,7 @@ useEffect(() => {
       });
     });
 
-    // Sort categories
+    
     const sorted = Object.keys(merged)
       .sort((a, b) => a.localeCompare(b))
       .reduce((acc, key) => {
@@ -926,7 +927,7 @@ const [clinicalServicesMerged, setClinicalServicesMerged] = useState<Record<stri
       fromDb[category].push(name);
     });
 
-    // Merge with defaults
+   
     const merged: Record<string, string[]> = { ...DEFAULT_CLINICAL_SERVICES };
 
     Object.entries(fromDb).forEach(([category, services]) => {

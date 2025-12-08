@@ -465,7 +465,7 @@ html, body {
   top: 0; left: 0;
   width: 100%;
   height: 5px;
-  background: #0ea5e9;
+  background: #22c55e;
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.4s ease;
@@ -484,7 +484,7 @@ html, body {
 .summary-cardsss.active {
   transform: translateY(-10px) scale(1.03);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
-  border-color: #0ea5e9;
+  border-color: #22c55e;
 }
 
 /* COLORS PER CARD */
@@ -500,11 +500,11 @@ html, body {
 }
 .summary-cardsss.pending::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
 
-.summary-cardsss.approved {
+.summary-cardsss.active{
   border-color: #22c55e;
   border-left: 5px solid  #22c55e;
 }
-.summary-cardsss.approved::before { background: linear-gradient(90deg, #10b981, #059669); }
+.summary-cardsss.active::before { background: linear-gradient(90deg, #10b981, #059669); }
 
 .summary-cardsss.completed {
   border-color: #3b82f6;
@@ -556,7 +556,7 @@ html, body {
   color: #d97706;
 }
 
-.summary-cardsss.approved h3 { 
+.summary-cardsss.active h3 { 
   color: #059669;
 }
 
@@ -599,7 +599,7 @@ html, body {
   margin-bottom: 20px;
   color: #1e293b;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
+ 
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.5px;
 }
@@ -664,18 +664,23 @@ html, body {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   color: #92400e;
   border: 1px solid #fbbf24;
+  display: flex;
+ justify-content: center;
+ margin-top: 10%;
 }
 
-.status-badge.approved {
+.status-badge.active {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
   color: #065f46;
   border: 1px solid #10b981;
+ 
 }
 
-.status-badge.rejected {
+.status-badge.not-active {
   background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
   color: #991b1b;
   border: 1px solid #ef4444;
+  
 }
 
 .status-badge.completed {

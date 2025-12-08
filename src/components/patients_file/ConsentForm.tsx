@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import type { MouseEvent } from "react";
 import "../../assets/ConsentForm.css";
 import { getAuth } from "firebase/auth";
-import { doc, getDoc, collection, addDoc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, collection, addDoc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import ShortUniqueId from "short-unique-id";
 import jsPDF from "jspdf";
@@ -161,7 +161,7 @@ const closeModal = () => {
   setOnModalConfirm(() => {});
 };
  
-
+{/*
 const replaceInputsWithText = (container: HTMLElement) => {
   const inputs = container.querySelectorAll('input, textarea, select');
   inputs.forEach((input) => {
@@ -185,6 +185,7 @@ const replaceInputsWithText = (container: HTMLElement) => {
     }
   });
 };
+*/}
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -321,7 +322,7 @@ const replaceInputsWithText = (container: HTMLElement) => {
   const handleNext = async (e: MouseEvent<HTMLButtonElement>) => {
   e.preventDefault();
 
-  // 1. Check downloads
+  
   if (!downloads.consentForm || !downloads.assessmentForm) {
     const missingForms = [];
     if (!downloads.consentForm) missingForms.push("Consent Form");
@@ -333,7 +334,7 @@ const replaceInputsWithText = (container: HTMLElement) => {
     return;
   }
 
-  // 2. Confirm save
+  
   openModal(
     "Do you want to proceed and save this patient information?",
     "confirm",
@@ -355,7 +356,7 @@ const replaceInputsWithText = (container: HTMLElement) => {
         const uid = new ShortUniqueId({ length: 6 });
         const patientCode = formData.patientCode || initialFormData?.patientCode || `PAT-${uid.rnd()}`;
 
-        // Fetch UserId
+    
         const userSnap = await getDoc(doc(db, "Users", user.uid));
         let UserId = user.uid;
         if (userSnap.exists()) {
@@ -365,7 +366,7 @@ const replaceInputsWithText = (container: HTMLElement) => {
         const updatedFormData = { ...formData, controlNo: effectiveControlNo, patientCode };
         setFormData(updatedFormData);
 
-        // Save patient
+       
         if (effectivePatientId) {
           await updateDoc(doc(db, "Patients", effectivePatientId), {
             ...updatedFormData,
@@ -422,7 +423,21 @@ const replaceInputsWithText = (container: HTMLElement) => {
           voluntaryAdmissionFiles: initialFormData?.voluntaryAdmissionFiles || null,
         });
 
-        // Success modal + navigate
+       
+
+        
+const fullName = `${formData.lastName}, ${formData.firstName} ${formData.middleInitial || ""}`.trim();
+
+await addDoc(collection(db, "admin_notifications"), {
+  type: "new_appointment",
+  message: "New DDE appointment request",
+  patientName: fullName || "Unknown Patient",
+  date: formData.requestDate,          
+  slotTime: "",                        
+  purpose: "DDE",                      
+  timestamp: serverTimestamp(),
+  read: false,
+});
         openModal(
           `Patient info saved!\nPatient Code: ${patientCode}\nTransaction Code: ${transCode}`,
           "success"

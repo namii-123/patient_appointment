@@ -6,7 +6,7 @@ import Signup from "./Signup";
 import Services from "./Services";
 import AboutUs from "./AboutUs";
 import ContactUs from "./ContactUs";
-import { FaHome, FaStethoscope, FaInfoCircle, FaPhone, FaUserCircle, FaUserPlus } from "react-icons/fa";
+import { FaHome, FaStethoscope, FaInfoCircle, FaPhone,  } from "react-icons/fa";
 
 const LandingPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<

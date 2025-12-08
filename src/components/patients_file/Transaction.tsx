@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "./firebase";
-import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc,  runTransaction, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import "../../assets/Transaction.css";
 import { X } from "lucide-react";
@@ -65,6 +65,7 @@ interface TransactionItem {
   createdAt?: string; // Added createdAt field
 }
 
+{/*
 interface NavigateData {
   patientId?: string;
   controlNo: string;
@@ -91,8 +92,10 @@ interface NavigateData {
   receiptData?: any;
   appointmentId?: string;
 }
+*/}
 
-const Transaction: React.FC<TransactionProps> = ({ onNavigate }) => {
+
+const Transaction: React.FC<TransactionProps> = ({  }) => {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [filterDept, setFilterDept] = useState<string>("All");
   const [filterStatus, setFilterStatus] = useState<string>("All");

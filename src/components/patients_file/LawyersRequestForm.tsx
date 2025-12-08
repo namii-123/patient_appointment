@@ -167,7 +167,7 @@ const closeModal = () => {
     }
     console.log(`File ${fileName} removed.`);
   };
-
+{/*
   const handleCancel = () => {
     setUploadedFiles([]);
     setError(null);
@@ -176,7 +176,7 @@ const closeModal = () => {
     }
     console.log("All files canceled.");
   };
-
+*/}
   const handleNext = async () => {
   try {
     if (uploadedFiles.some((fileData) => !fileData.base64)) {

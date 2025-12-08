@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState,  useRef } from "react";
 import "../../assets/CourtOrderForm.css";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
@@ -27,8 +27,7 @@ interface VoluntaryAdmissionFormProps {
 
 const VoluntaryAdmissionForm: React.FC<VoluntaryAdmissionFormProps> = ({
   onNavigate,
-  patientId,
-  controlNo,
+ 
   formData,
 }) => {
   const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);

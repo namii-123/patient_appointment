@@ -25,7 +25,7 @@ interface ContactUsProps {
 }
 
 const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) => {
-  const { isLoggedIn } = useContext(AuthContext);
+  const { } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
@@ -170,7 +170,7 @@ const ContactUs: React.FC<ContactUsProps> = ({ onSignUpClick, onLoginClick }) =>
   };
 
 const confirmSendMessage = async () => {
-  try {
+   try {
     await addDoc(collection(db, "Messages"), {
       UserId: shortUserId,
       uid: user?.uid || null,
@@ -182,10 +182,27 @@ const confirmSendMessage = async () => {
       replied: false,
     });
 
-    // 1. CLEAR MESSAGE INSTANTLY (textarea mawala dayon)
-    setFormData(prev => ({ ...prev, message: "" }));
+    
+    await addDoc(collection(db, "admin_notifications"), {
+      type: "contact_message",
+      message: "New message from Contact Us",
+      patientName: `${formData.firstName} ${formData.lastName}`.trim() || "Guest User",
+      date: new Date().toLocaleDateString("en-US", { 
+        year: "numeric", 
+        month: "short", 
+        day: "numeric" 
+      }),
+      slotTime: new Date().toLocaleTimeString([], { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      }),
+      purpose: "Contact Inquiry",
+      timestamp: serverTimestamp(),
+      read: false,
+    });
 
-    // 2. Kung guest, i-clear tanan (optional)
+    // Clear form
+    setFormData(prev => ({ ...prev, message: "" }));
     if (!user) {
       setFormData({
         lastName: "",
@@ -195,16 +212,12 @@ const confirmSendMessage = async () => {
       });
     }
 
-
     openModal("Thank you!\nYour message has been sent successfully.", "success");
-
-    
 
   } catch (error: any) {
     console.error("Error sending message:", error);
     openModal(`Failed to send message.\n${error.message}`, "error");
   }
-  
 };
 
   if (loading) return <div>Loading...</div>;

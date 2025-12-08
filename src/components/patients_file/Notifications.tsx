@@ -17,7 +17,7 @@ const Notifications: React.FC<NotificationsProps> = ({
   notifications = [],
   onMarkAsRead = () => {},
   onDelete = () => {},
-  onNavigateBack = () => {},
+ // onNavigateBack = () => {},
 }) => {
   const [localNotifs, setLocalNotifs] = useState<Notification[]>(
     notifications.length > 0

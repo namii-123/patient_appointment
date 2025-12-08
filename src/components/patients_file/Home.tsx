@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaUser, FaFileAlt, FaSignOutAlt, FaHome, FaPhone, FaCalendarAlt } from "react-icons/fa";
 import { signOut } from "firebase/auth";
 import { auth, db } from "./firebase"; 
-import { toast } from "react-toastify";
+//import { toast } from "react-toastify";
 import { Link, useNavigate } from "react-router-dom";
 import { X } from "lucide-react"; // Add this line
 import {
-  FaUserCircle,
+
   FaBell,
   FaTooth,
   FaXRay,

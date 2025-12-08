@@ -5,7 +5,7 @@ import "../../assets/EditProfile.css";
 import { auth, db, googleProvider } from "./firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { updateProfile, updateEmail, reauthenticateWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { updateProfile, updateEmail, reauthenticateWithPopup,  } from "firebase/auth";
 import { toast } from "react-toastify";
 
 interface Province { name: string; code: string; }

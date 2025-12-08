@@ -8,7 +8,7 @@ import {
   onSnapshot,
   collection,
   runTransaction,
-  deleteDoc,
+
 } from "firebase/firestore";
 import ShortUniqueId from "short-unique-id";
 

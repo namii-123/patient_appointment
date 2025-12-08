@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "../../assets/CourtOrderForm.css";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { getAuth } from "firebase/auth";
+
 
 interface EmployeeRecommendationFormProps {
   onNavigate?: (
@@ -22,7 +22,7 @@ interface FileData {
 const EmployeeRecommendationForm: React.FC<EmployeeRecommendationFormProps> = ({
   onNavigate,
   patientId,
-  controlNo,
+
   formData,
 }) => {
   const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
@@ -168,6 +168,7 @@ const closeModal = () => {
     console.log(`File ${fileName} removed.`);
   };
 
+  {/*
   const handleCancel = () => {
     setUploadedFiles([]);
     setError(null);
@@ -176,6 +177,8 @@ const closeModal = () => {
     }
     console.log("All files canceled.");
   };
+  */}
+  
 
 const handleNext = async () => {
   // Kung walay file, directly proceed (OPTIONAL!)

@@ -31,7 +31,7 @@ const Contacts: React.FC = () => {
     messages: "",
   });
 
-  const [dialog, setDialog] = useState<{
+  const [, setDialog] = useState<{
     isOpen: boolean;
     message: string;
     type: "confirm" | "success" | "error" | null;
@@ -141,7 +141,30 @@ const confirmSend = async () => {
       ...formData,
       createdAt: new Date().toLocaleString(),
       timestamp: serverTimestamp(),
+      read: false,
     });
+
+    // ←←← I-ADD LANG NI ↓↓↓
+    await addDoc(collection(db, "admin_notifications"), {
+      type: "contact_message",
+      message: "New message from Contact Us",
+      patientName: `${formData.firstName} ${formData.lastName}`.trim() || "Guest User",
+      date: new Date().toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      }),
+      slotTime: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      }),
+      purpose: "Contact Inquiry",
+      timestamp: serverTimestamp(),
+      read: false,
+      
+    });
+    // ↑↑↑ HANGTOD DINHI RA
+
     openModal("Thank you!\nYour message has been sent successfully.", "success");
     setFormData((prev) => ({ ...prev, messages: "" }));
   } catch (error) {

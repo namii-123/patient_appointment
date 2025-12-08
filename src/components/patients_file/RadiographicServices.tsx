@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { doc, getDoc, addDoc, collection, updateDoc, setDoc, getDocs, query, where, onSnapshot } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "./firebase";
-import { X } from "lucide-react";
 import { writeBatch } from "firebase/firestore";
 import "../../assets/RadiographicServices.css";
 import { DEFAULT_SERVICES } from "../../config/defaultServices";

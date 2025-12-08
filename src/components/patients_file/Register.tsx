@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { getFirestore, doc, setDoc, collection, query, where, getDocs, serverTimestamp,
+  addDoc } from "firebase/firestore";
 import "../../assets/Register.css";
 import logo from "/logo.png";
 import { Eye, EyeOff } from "lucide-react";
@@ -104,6 +105,28 @@ const Register: React.FC = () => {
         createdAt: new Date().toISOString(),
       });
 
+
+
+      await addDoc(collection(db, "admin_notifications"), {
+    type: "info",
+    message: `${firstname} ${lastname} has registered as an admin and is awaiting approval.`,
+    patientName: `${firstname} ${lastname}`, // gamit sa display
+    date: new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
+    slotTime: new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    timestamp: serverTimestamp(),
+    read: false,
+    purpose: "general", // optional, kay dili appointment
+  });
+
+
+
       setShowModal(true);
     } catch (err: any) {
       alert(err.message || "Registration failed. Please try again.");
@@ -111,6 +134,8 @@ const Register: React.FC = () => {
       setLoading(false);
     }
   };
+
+
 
   const closeModal = () => {
     setShowModal(false);

@@ -10,11 +10,10 @@ import {
   doc,
   query,
   where,
-  getDocs,
   onSnapshot,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { X } from "lucide-react";
+
 
 interface ClinicalLabServicesProps {
   onNavigate?: (

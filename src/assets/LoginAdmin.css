@@ -123,14 +123,22 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
-.forgot-link,
+.forgot-links{
+  display:flex;
+  justify-content: center;
+  margin-top: -5%;
+  margin-bottom: 10%;
+ 
+}
+.forgot-links,
 .signup-link {
   color: #ffffff;
-  text-decoration: none;
+  text-decoration: "underline";
   font-weight: 500;
+  cursor: "pointer";
 }
 
-.forgot-link:hover,
+.forgot-links:hover,
 .signup-link:hover {
   text-decoration: underline;
   color: #cce6ff;

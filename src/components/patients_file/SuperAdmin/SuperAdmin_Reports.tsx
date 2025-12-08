@@ -1,18 +1,49 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaEnvelope } from "react-icons/fa";
+import { FaBell, FaUser, FaTachometerAlt, FaCalendarAlt, FaUsers, FaChartBar, FaSignOutAlt, FaEnvelope, FaUserPlus, FaUserTimes } from "react-icons/fa";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { db } from "../firebase";
-import { collection, query, onSnapshot, where, doc, getDoc } from "firebase/firestore";
-import { toast } from "react-toastify";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { collection, query, onSnapshot, where, doc, getDoc, orderBy, writeBatch, updateDoc, deleteDoc } from "firebase/firestore";
+import { Printer } from "lucide-react";
+
 import "../../../assets/SuperAdmin_Reports.css";
 import logo from "/logo.png";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase"; 
 import { X } from "lucide-react";
+import { Toaster } from 'react-hot-toast';
+import { toast } from "react-toastify";
+
+import PrintJS from "print-js";
+import { PDFDocument, rgb } from "pdf-lib";
+import { saveAs } from "file-saver";
+
+
+
+interface Notification {
+  id?: string;
+  text: string;
+  unread: boolean;
+  timestamp: Date | null; 
+}
+
+
+interface AdminNotification {
+  id: string;
+  type: "new_appointment" | "appointment_cancelled" | "info" | "contact_message";
+  message: string;
+  patientName: string;
+  date: string;
+  slotTime: string;
+  timestamp: any;
+  read: boolean;
+  purpose?: string;
+}
+
+
+
+
 
 interface ChartData {
   date: string;
@@ -24,6 +55,9 @@ interface ChartData {
   completed: number;
   cancelled: number;
 }
+
+
+
 
 interface Appointment {
   id: string;
@@ -42,10 +76,7 @@ interface Appointment {
   createdAt?: string;
 }
 
-interface Notification {
-  text: string;
-  unread: boolean;
-}
+
 
 const SuperAdmin_Reports: React.FC = () => {
   const navigate = useNavigate();
@@ -53,15 +84,177 @@ const SuperAdmin_Reports: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [yearFilter, setYearFilter] = useState<string>("All");
   const [monthFilter, setMonthFilter] = useState<string>("All");
+
  
-  const [showNotifications, setShowNotifications] = useState<boolean>(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { text: "3 new registration requests", unread: true },
-    { text: "Reminder: Meeting at 2PM", unread: true },
-    { text: "System update completed", unread: false },
-  ]);
+  const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
+           const [unreadCount, setUnreadCount] = useState(0);
+           const [showNotifications, setShowNotifications] = useState(false);
+           
+           
+           
+           const NOTIFICATION_SOUND_URL = "https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2584.mp3"; 
+           
+           
+           const [audioContextUnlocked, setAudioContextUnlocked] = useState(false);
+           
+           
+           const unlockAudioContext = () => {
+             if (audioContextUnlocked) return;
+           
+           
+             const audio = new Audio();
+             audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="; 
+             audio.volume = 0;
+             audio.play().then(() => {
+               console.log("Audio context unlocked!");
+               setAudioContextUnlocked(true);
+             }).catch(() => {});
+           };
+           
+           const playNotificationSound = useCallback(() => {
+             if (!audioContextUnlocked) {
+               console.warn("Audio not yet unlocked. Click the bell first!");
+               return;
+             }
+           
+             const audio = new Audio(NOTIFICATION_SOUND_URL);
+             audio.volume = 0.7;
+             audio.play().catch(err => {
+               console.warn("Failed to play sound:", err);
+             });
+           }, [audioContextUnlocked]);
+           
+           
+           
+           
+          useEffect(() => {
+         
+         const notifQuery = query(
+           collection(db, "admin_notifications"),
+           orderBy("timestamp", "desc") 
+         );
+       
+         const unsubscribe = onSnapshot(notifQuery, (snapshot) => {
+           const notificationsToProcess: AdminNotification[] = [];
+       
+           snapshot.docChanges().forEach((change) => {
+             const data = change.doc.data();
+       
+             if (change.type === "added" || change.type === "modified") {
+               const notif: AdminNotification = {
+                 id: change.doc.id,
+                 type: data.type || "info",
+                 message: data.message || "",
+                 patientName: data.patientName || "Unknown Patient",
+                 date: data.date || "",
+                 slotTime: data.slotTime || "",
+                 timestamp: data.timestamp,
+                 read: data.read === true,
+                 purpose: data.purpose || "general",
+               };
+               notificationsToProcess.push(notif);
+       
+             
+               if (change.type === "added" && !data.read) {
+                 playNotificationSound();
+               }
+             }
+       
+             if (change.type === "removed") {
+               setAdminNotifications(prev => prev.filter(n => n.id !== change.doc.id));
+             }
+           });
+       
+           if (notificationsToProcess.length > 0) {
+             setAdminNotifications(prev => {
+               const map = new Map<string, AdminNotification>();
+               prev.forEach(n => map.set(n.id, n));
+               notificationsToProcess.forEach(n => map.set(n.id, n));
+               return Array.from(map.values()).sort((a, b) =>
+                 (b.timestamp?.toDate?.()?.getTime() || 0) - (a.timestamp?.toDate?.()?.getTime() || 0)
+               );
+             });
+       
+             setUnreadCount(snapshot.docs.filter(doc => !doc.data().read).length);
+           }
+         }, (error) => {
+           console.error("Notification listener error:", error);
+         });
+       
+         return () => unsubscribe();
+       }, [playNotificationSound]);
+             
+           
+           
+           
+             const [, setNotifications] = useState<Notification[]>([
+             { text: "3 new appointment requests", unread: true, timestamp: new Date() },
+             { text: "Reminder: Meeting at 2PM", unread: true, timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) }, 
+             { text: "System update completed", unread: false, timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) }, 
+           ]);
+           
+             
+           
+           
+            const formatTimeAgo = (timestamp: any): string => {
+             if (!timestamp) return "Just now";
+           
+             let date: Date;
+             if (timestamp.toDate) {
+               date = timestamp.toDate(); // Firestore Timestamp
+             } else if (timestamp.seconds) {
+               date = new Date(timestamp.seconds * 1000);
+             } else {
+               date = new Date(timestamp);
+             }
+           
+             const now = new Date();
+             const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+           
+             if (diffInSeconds < 60) return "Just now";
+             if (diffInSeconds < 120) return "1 minute ago";
+             if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+             if (diffInSeconds < 7200) return "1 hour ago";
+             if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+             if (diffInSeconds < 172800) return "Yesterday";
+             if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+             
+             // Older than a week? Show date
+             return date.toLocaleDateString("en-US", {
+               month: "short",
+               day: "numeric",
+               year: "numeric"
+             });
+           };
+           
+           
+           useEffect(() => {
+             const unlockOnAnyClick = () => {
+               unlockAudioContext();
+               document.removeEventListener("click", unlockOnAnyClick);
+               document.removeEventListener("touchstart", unlockOnAnyClick);
+             };
+           
+             document.addEventListener("click", unlockOnAnyClick);
+             document.addEventListener("touchstart", unlockOnAnyClick);
+           
+             return () => {
+               document.removeEventListener("click", unlockOnAnyClick);
+               document.removeEventListener("touchstart", unlockOnAnyClick);
+             };
+           }, []);
+           
+           useEffect(() => {
+             const interval = setInterval(() => {
+               setNotifications(prev => [...prev]); 
+             }, 60000);
+             return () => clearInterval(interval);
+           }, []);
+
+
+
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +262,10 @@ const SuperAdmin_Reports: React.FC = () => {
     navigate(path);
   };
 
-  // Department mapping for consistent naming
+ 
+
+
+  
   const departmentMapping: Record<string, string> = {
     dental: "Dental",
     clinical: "Clinical Laboratory",
@@ -78,7 +274,7 @@ const SuperAdmin_Reports: React.FC = () => {
     medical_dre: "Medical",
   };
 
-  // Normalize status to capitalized form to match Transaction component
+  
   const normalizeStatus = (status: string): Appointment["status"] => {
     const lowerStatus = status?.toLowerCase();
     const statusMap: Record<string, Appointment["status"]> = {
@@ -91,19 +287,19 @@ const SuperAdmin_Reports: React.FC = () => {
     return statusMap[lowerStatus] || "Pending";
   };
 
-  // Validate and format date
+
   const formatDate = (dateField: any): string => {
     if (!dateField) return "";
     if (dateField.toDate) {
-      // Firestore Timestamp
+     
       return dateField.toDate().toISOString().split("T")[0];
     }
     if (typeof dateField === "string") {
-      // Handle ISO string (e.g., 2025-10-14T01:40:27.632Z)
+      
       if (/^\d{4}-\d{2}-\d{2}T/.test(dateField)) {
         return dateField.split("T")[0];
       }
-      // Handle YYYY-MM-DD string
+     
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateField)) {
         return dateField;
       }
@@ -115,26 +311,26 @@ const SuperAdmin_Reports: React.FC = () => {
   const now = new Date();
   setYearFilter(now.getFullYear().toString());
   setMonthFilter(now.toLocaleString("default", { month: "long" }));
-}, []); // runs only once
+}, []); 
 
 
-  // Fetch real-time data from Firebase
+ 
   useEffect(() => {
     setLoading(true);
     let constraints = [];
 
-    // Department filtering
+   
     if (department !== "all") {
       constraints.push(where("purpose", "==", departmentMapping[department]));
     }
 
-    // Status filtering (match capitalized status)
+   
     if (statusFilter !== "All") {
       constraints.push(where("status", "==", statusFilter));
     }
 
 
-    // Ensure current year & month are selected when the component mounts
+    
 
 
     const transQuery = query(collection(db, "Transactions"), ...constraints);
@@ -147,7 +343,7 @@ const SuperAdmin_Reports: React.FC = () => {
       for (const t of transSnap.docs) {
         const tData = t.data();
 
-        // Fetch patient data
+    
         let patientData: any = {
           patientCode: "",
           lastName: "Unknown",
@@ -171,33 +367,32 @@ const SuperAdmin_Reports: React.FC = () => {
           invalidRecords.push(`Missing patientId in transaction: ${t.id}`);
         }
 
-        // Normalize status
+      
         const normalizedStatus = normalizeStatus(tData.status);
 
-        // Use createdAt for DDE Rejected transactions, otherwise use date
+       
         const isDdeRejected = tData.purpose === "DDE" && normalizedStatus === "Rejected";
         const appointmentDate = isDdeRejected ? formatDate(tData.createdAt) : formatDate(tData.date);
 
-        // Validate date
+       
         if (!appointmentDate) {
           console.warn(`Invalid or missing date in transaction: ${t.id}, date: ${tData.date}, createdAt: ${tData.createdAt}`);
           invalidRecords.push(`Invalid date in transaction: ${t.id}, date: ${tData.date}, createdAt: ${tData.createdAt}`);
-          continue; // Skip invalid dates
+          continue; 
         }
 
         const dept = department === "all" ? tData.purpose : departmentMapping[department];
 
-        // Apply date filtering client-side
-        // Correct way: Convert date string to actual Date object
+     
 const dateObj = new Date(appointmentDate);
 const yearStr = dateObj.getFullYear().toString();
-const monthName = dateObj.toLocaleString("default", { month: "long" }); // → "November"
+const monthName = dateObj.toLocaleString("default", { month: "long" }); 
 
-// Filter by year and month name
+
 if (yearFilter !== "All" && yearStr !== yearFilter) continue;
 if (monthFilter !== "All" && monthName !== monthFilter) continue;
 
-        // Aggregate data for chart
+       
        if (!dataByDate[appointmentDate]) {
   dataByDate[appointmentDate] = {
     date: appointmentDate,
@@ -211,18 +406,18 @@ if (monthFilter !== "All" && monthName !== monthFilter) continue;
   };
 }
 
-// CORRECT LOGIC: Apil sa total TANAN gawas ang Rejected sa NON-DDE departments
+
 if (!(normalizedStatus === "Rejected" && tData.purpose !== "DDE")) {
   dataByDate[appointmentDate].totalAppointments += 1;
 }
 
-// Status breakdown (separate ra ni, para makita gihapon ang rejected bisag dili i-count sa total)
+
 if (normalizedStatus === "Pending") {
   dataByDate[appointmentDate].pending += 1;
 } else if (normalizedStatus === "Approved") {
   dataByDate[appointmentDate].approved += 1;
 } else if (normalizedStatus === "Rejected") {
-  dataByDate[appointmentDate].rejected += 1; // pakita gihapon sa column
+  dataByDate[appointmentDate].rejected += 1; 
 } else if (normalizedStatus === "Completed") {
   dataByDate[appointmentDate].completed += 1;
 } else if (normalizedStatus === "Cancelled") {
@@ -233,7 +428,7 @@ if (normalizedStatus === "Pending") {
           invalidRecords.push(`Unexpected status "${tData.status}" in transaction: ${t.id}`);
         }
 
-        // Store appointment details
+      
         loadedAppointments.push({
           id: t.id,
           patientId: tData.patientId || "",
@@ -274,168 +469,245 @@ if (normalizedStatus === "Pending") {
     return () => unsubscribe();
   }, [department, statusFilter, yearFilter, monthFilter]);
 
-  const unreadCount: number = notifications.filter((n) => n.unread).length;
+  
 
-  const markAllAsRead = (): void => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
+const showRejectedInTotal = department === "all" || department === "dde";
+  
+  const displayTotals = chartData.reduce(
+  (acc, curr) => {
+   
+    const total = showRejectedInTotal
+      ? curr.pending + curr.approved + curr.rejected + curr.completed + curr.cancelled
+      : curr.pending + curr.approved + curr.completed + curr.cancelled;
 
-  // Summary calculation
-  const totals = chartData.reduce(
-    (acc, curr) => {
-      acc.totalAppointments += curr.totalAppointments;
-      acc.pending += curr.pending;
-      acc.approved += curr.approved;
-      acc.rejected += curr.rejected;
-      acc.completed += curr.completed;
-      acc.cancelled += curr.cancelled;
-      return acc;
-    },
-    { totalAppointments: 0, pending: 0, approved: 0, rejected: 0,  completed: 0, cancelled: 0 }
-  );
+    acc.totalAppointments += total;
+    acc.pending += curr.pending;
+    acc.approved += curr.approved;
+    acc.rejected += curr.rejected;
+    acc.completed += curr.completed;
+    acc.cancelled += curr.cancelled;
+    return acc;
+  },
+  { totalAppointments: 0, pending: 0, approved: 0, rejected: 0, completed: 0, cancelled: 0 }
+);
 
-  const handlePrint = () => {
-    window.print();
-  };
 
-  const handleDownloadPDF = async () => {
-    const input = contentRef.current;
-    if (!input) return;
 
-    try {
-      const pdfContainer = document.createElement("div");
-      pdfContainer.style.width = "210mm";
-      pdfContainer.style.minHeight = "297mm";
-      pdfContainer.style.padding = "15mm";
-      pdfContainer.style.background = "#fff";
-      pdfContainer.style.position = "absolute";
-      pdfContainer.style.left = "-9999px";
-      pdfContainer.style.fontFamily = "Arial, sans-serif";
-      document.body.appendChild(pdfContainer);
 
-      const header = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 15px;">
-          <div style="flex: 1;">
-            <img src="/logo.png" alt="Logo" style="height: 60px;" onerror="this.style.display='none'">
-          </div>
-          <div style="flex: 2; text-align: center;">
-            <p style="margin: 0; font-size: 14px; font-weight: bold;">REPUBLIC OF THE PHILIPPINES</p>
-            <p style="margin: 0; font-size: 14px; font-weight: bold;">DEPARTMENT OF HEALTH</p>
-            <p style="margin: 0; font-size: 14px; font-weight: bold;">TREATMENT AND REHABILITATION CENTER ARGAO</p>
-            <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">SUPER ADMIN REPORT</p>
-            <p style="margin: 0; font-size: 12px;">DATE: ${yearFilter || "ALL"}-${monthFilter || "ALL"}| DEPARTMENT: ${department === "all" ? "ALL" : departmentMapping[department]} | STATUS: ${statusFilter}</p>
-          </div>
-          <div style="flex: 1; text-align: right;">
-            <img src="/pilipinas.png" alt="Pilipinas Logo" style="height: 60px;" onerror="this.style.display='none'">
-          </div>
-        </div>
-      `;
-      pdfContainer.innerHTML = header;
+  const generateOfficialReport = async (file: File, isPrint: boolean = false) => {
+ 
+  const id = toast.loading(
+  isPrint ? "Preparing report for printing..." : "Generating official report..."
+);
+toast.dismiss(id);
 
-      const table = document.createElement("table");
-      table.style.width = "100%";
-      table.style.borderCollapse = "collapse";
-      table.style.marginTop = "20px";
-      table.style.fontSize = "12px";
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    const pages = pdfDoc.getPages();
+    if (pages.length === 0) throw new Error("Invalid or empty template");
 
-      let tableHTML = `
-        <thead>
-          <tr style="background-color: #f2f2f2;">
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Date</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Department</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Total</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Pending</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Approved</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Rejected</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Completed</th>
-            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Cancelled</th>
-          </tr>
-        </thead>
-        <tbody>
-      `;
+    const helvetica = await pdfDoc.embedFont("Helvetica");
+    const helveticaBold = await pdfDoc.embedFont("Helvetica-Bold");
 
-      chartData.forEach((row) => {
-        tableHTML += `
-          <tr>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.date}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.department}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.totalAppointments}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.pending}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.approved}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.rejected}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.completed}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${row.cancelled}</td>
-          </tr>
-        `;
+    const blue = rgb(0.05, 0.3, 0.65);
+    const darkRed = rgb(0.8, 0, 0);
+    const black = rgb(0, 0, 0);
+
+    // Determine period text
+    const yearText = yearFilter === "All" ? "All Years" : yearFilter;
+    const monthText = monthFilter === "All" ? "" : monthFilter;
+    const periodText = monthFilter === "All" ? yearText : `${monthText} ${yearText}`;
+    const deptText = department === "all" ? "All Departments" : departmentMapping[department];
+    const statusText = statusFilter === "All" ? "All Statuses" : statusFilter;
+
+    const generatedAt = new Date().toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
+
+    let currentPage = pages[0];
+    let y = 680;
+
+    // Copy first page as template
+    const [templatePage] = await pdfDoc.copyPages(pdfDoc, [0]);
+
+    const drawCentered = (text: string, yPos: number, size = 12, bold = false) => {
+      const font = bold ? helveticaBold : helvetica;
+      const width = font.widthOfTextAtSize(text, size);
+      currentPage.drawText(text, {
+        x: (595.28 - width) / 2,
+        y: yPos,
+        size,
+        font,
+        color: bold ? blue : black,
+      });
+    };
+
+    // Header
+    drawCentered("SUPER ADMIN REPORT", y, 18, true);
+    y -= 35;
+    drawCentered(`Period: ${periodText}`, y, 14);
+    y -= 28;
+    drawCentered(`Department: ${deptText}`, y, 14);
+    y -= 28;
+    drawCentered(`Status Filter: ${statusText}`, y, 14);
+    y -= 28;
+    drawCentered(`Generated: ${generatedAt}`, y, 11);
+    y -= 60;
+
+    // Table Headers (7 columns)
+    const colX = [50, 130, 210, 280, 350, 420, 490];
+    const headers = ["Date",  "Total", "Pending", "Approved", "Rejected", "Completed", "Cancelled"];
+
+    const drawHeader = () => {
+      currentPage.drawRectangle({ x: 40, y: y - 5, width: 515, height: 28, color: blue });
+      headers.forEach((h, i) => {
+        currentPage.drawText(h, {
+          x: colX[i],
+          y: y + 6,
+          size: 11,
+          font: helveticaBold,
+          color: rgb(1, 1, 1),
+        });
+      });
+      y -= 35;
+    };
+
+    drawHeader();
+
+    // Table Rows
+    chartData.forEach((row) => {
+      if (y < 100) {
+        currentPage = pdfDoc.addPage(templatePage);
+        y = 680;
+        drawHeader();
+      }
+
+      const total = showRejectedInTotal
+        ? row.pending + row.approved + row.rejected + row.completed + row.cancelled
+        : row.pending + row.approved + row.completed + row.cancelled;
+
+      const cells = [
+        row.date,
+       
+        total.toString(),
+        row.pending.toString(),
+        row.approved.toString(),
+        row.rejected.toString(),
+        row.completed.toString(),
+        row.cancelled.toString(),
+      ];
+
+      cells.forEach((cell, i) => {
+        currentPage.drawText(cell, {
+          x: colX[i],
+          y: y + 5,
+          size: 10.5,
+          font: helvetica,
+          color: i === 2 ? darkRed : black,
+        });
       });
 
-      tableHTML += `</tbody>`;
-      table.innerHTML = tableHTML;
-      pdfContainer.appendChild(table);
-
-      const summary = document.createElement("div");
-      summary.style.marginTop = "20px";
-      summary.style.fontSize = "12px";
-
-      const summaryTitle = document.createElement("h3");
-      summaryTitle.innerText = "Summary";
-      summaryTitle.style.textAlign = "left";
-      summaryTitle.style.marginBottom = "10px";
-      summaryTitle.style.fontSize = "16px";
-      summaryTitle.style.fontWeight = "bold";
-      summary.appendChild(summaryTitle);
-
-      const summaryGrid = document.createElement("div");
-      summaryGrid.style.display = "grid";
-      summaryGrid.style.gridTemplateColumns = "repeat(3, 1fr)";
-      summaryGrid.style.gap = "10px";
-
-      summaryGrid.innerHTML = `
-        <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-          <div>Total Appointments</div>
-          <div style="font-weight: bold; font-size: 16px;">${totals.totalAppointments}</div>
-        </div>
-        <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-          <div>Pending</div>
-          <div style="font-weight: bold; font-size: 16px;">${totals.pending}</div>
-        </div>
-        <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-          <div>Approved</div>
-          <div style="font-weight: bold; font-size: 16px;">${totals.approved}</div>
-        </div>
-        
-        <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-          <div>Completed</div>
-          <div style="font-weight: bold; font-size: 16px;">${totals.completed}</div>
-        </div>
-        <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-          <div>Cancelled</div>
-          <div style="font-weight: bold; font-size: 16px;">${totals.cancelled}</div>
-        </div>
-      `;
-      summary.appendChild(summaryGrid);
-      pdfContainer.appendChild(summary);
-
-      const canvas = await html2canvas(pdfContainer, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+      currentPage.drawLine({
+        start: { x: 40, y: y - 5 },
+        end: { x: 555, y: y - 5 },
+        thickness: 0.5,
+        color: rgb(0.75, 0.75, 0.75),
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      y -= 26;
+    });
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`SuperAdmin_Reports.pdf`);
-
-      document.body.removeChild(pdfContainer);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF. Please check the console for details.");
+    // Summary Box
+    if (y < 250) {
+      currentPage = pdfDoc.addPage(templatePage);
+      y = 680;
     }
+
+    const summaryY = y - 20;
+    const boxWidth = 400;
+    const boxX = (595.28 - boxWidth) / 2;
+
+    currentPage.drawRectangle({
+      x: boxX,
+      y: summaryY - 200,
+      width: boxWidth,
+      height: 190,
+      borderColor: blue,
+      borderWidth: 2,
+    });
+
+    let sy = summaryY - 30;
+    const labelX = boxX + 30;
+    const valueX = boxX + boxWidth - 80;
+
+    const summaryItems = [
+      ["Total Appointments", displayTotals.totalAppointments],
+      ["Pending", displayTotals.pending],
+      ["Approved", displayTotals.approved],
+      ["Completed", displayTotals.completed],
+      ["Cancelled", displayTotals.cancelled],
+    ];
+
+    // Only show Rejected if applicable
+    if (showRejectedInTotal) {
+      summaryItems.splice(3, 0, ["Rejected", displayTotals.rejected]);
+    }
+
+    summaryItems.forEach(([label, value]) => {
+      currentPage.drawText(label + ":", { x: labelX, y: sy, size: 14, font: helveticaBold, color: black });
+      currentPage.drawText(value.toString(), { x: valueX, y: sy, size: 18, font: helveticaBold, color: black });
+      sy -= 32;
+    });
+
+    // Finalize
+  const pdfBytes = await pdfDoc.save();
+    const safeBytes = new Uint8Array(pdfBytes);
+const blob = new Blob([safeBytes.buffer], { type: "application/pdf" });
+
+    if (isPrint) {
+      const url = URL.createObjectURL(blob);
+      PrintJS({ printable: url, type: "pdf", showModal: true });
+      toast.success("Report ready for printing!");
+    } else {
+      const filename = `SuperAdmin_Report_${periodText.replace(/ /g, "_")}_${deptText.replace(/ /g, "_")}_${new Date().toISOString().slice(0,10)}.pdf`;
+      saveAs(blob, filename);
+      toast.success("Official report downloaded!");
+
+    }
+  } catch (err) {
+    console.error("PDF Generation Failed:", err);
+    toast.error("Failed to generate report. Make sure you selected a valid DOH PDF template.");
+  }
+};
+
+// New Handlers (parehas ra sa DDE)
+const handlePrint = () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".pdf";
+  input.onchange = (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) generateOfficialReport(file, true);
   };
+ toast("Select your official DOH template for printing", {
+  icon: <Printer />
+});
+
+  input.click();
+};
+
+const handleDownloadPDF = () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".pdf";
+  input.onchange = (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) generateOfficialReport(file, false);
+  };
+toast("Select your official DOH template PDF", {
+  icon: <Printer />
+});
+  input.click();
+};
 
 
   
@@ -555,47 +827,337 @@ if (normalizedStatus === "Pending") {
 
       {/* Main content */}
       <main className="main-content">
+            <Toaster
+                                                         position="top-center"  
+                                                         reverseOrder={false}
+                                                         gutter={12}
+                                                         containerStyle={{
+                                                           top: "35%",                   
+                                                           left: "50%",                   
+                                                           transform: "translate(-50%, -50%)",  
+                                                           zIndex: 9999,
+                                                           pointerEvents: "none",         
+                                                         }}
+                                                         toastOptions={{
+                                                          
+                                                           style: {
+                                                             background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", 
+                                                             color: "#fff",
+                                                             fontSize: "18px",
+                                                             fontWeight: "600",
+                                                             padding: "18px 28px",
+                                                             borderRadius: "16px",
+                                                             boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
+                                                             border: "2px solid rgba(255, 255, 255, 0.2)",
+                                                             pointerEvents: "auto",      
+                                                             maxWidth: "420px",
+                                                             textAlign: "center",
+                                                             backdropFilter: "blur(10px)",
+                                                           },
+                                                           duration: 5000,
+                                                           success: {
+                                                             icon: "Success",
+                                                             style: {
+                                                               background: "linear-gradient(135deg, #16a34a, #22c55e)",
+                                                               border: "2px solid #86efac",
+                                                             },
+                                                           },
+                                                           error: {
+                                                             icon: "Failed",
+                                                             style: {
+                                                               background: "linear-gradient(135deg, #dc2626, #ef4444)",
+                                                               border: "2px solid #fca5a5",
+                                                             },
+                                                           },
+                                                         }}
+                                                       /> 
         <div className="top-navbar-dental">
           <h5 className="navbar-title">Reports and Analytics</h5>
           <div className="notification-wrapper">
-            <FaBell
-              className="notification-bell"
-              onClick={() => setShowNotifications(!showNotifications)}
-            />
-            {unreadCount > 0 && (
-              <span className="notification-count">{unreadCount}</span>
-            )}
-
-            {showNotifications && (
-              <div className="notification-dropdown">
-                <div className="notification-header">
-                  <span>Notifications</span>
-                  {unreadCount > 0 && (
-                    <button className="mark-read-btn" onClick={markAllAsRead}>
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
-
-                {notifications.length > 0 ? (
-                  notifications.map((notif, index) => (
-                    <div
-                      key={index}
-                      className={`notification-item ${notif.unread ? "unread" : ""}`}
-                    >
-                      <span>{notif.text}</span>
-                      {notif.unread && (
-                        <span className="notification-badge">New</span>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="notification-empty">No new notifications</div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+                                                  <FaBell
+                                                    className="notification-bell"
+                                                   onClick={() => {
+                                                    unlockAudioContext();          
+                                                    setShowNotifications(prev => !prev);
+                                                  }}
+                                                    style={{ position: "relative" }}
+                                                  />
+                                                  {unreadCount > 0 && (
+                                                    <span className="notification-count">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                                                  )}
+                                                
+                                                  {showNotifications && (
+                                                    <div className="notification-dropdown">
+                                                      <div className="notification-header">
+                                                        <span className="notification-title">Admin Notifications</span>
+                                                        <div className="notification-actions">
+                                                          
+                                                          {unreadCount > 0 && (
+                                                             <button 
+                                                  className="mark-read-btn" 
+                                                  onClick={async () => {
+                                                    const unreadDocs = adminNotifications.filter(n => !n.read);
+                                                    if (unreadDocs.length === 0) return;
+                                                
+                                                    const batch = writeBatch(db);
+                                                    unreadDocs.forEach(notif => {
+                                                      const ref = doc(db, "admin_notifications", notif.id);
+                                                      batch.update(ref, { read: true });
+                                                    });
+                                                
+                                                    await batch.commit();
+                                                
+                                                   
+                                                    setAdminNotifications(prev =>
+                                                      prev.map(n => ({ ...n, read: true }))
+                                                    );
+                                                    setUnreadCount(0);
+                                                
+                                                    toast.success("All notifications marked as read");
+                                                  }}
+                                                >
+                                                  Mark all as read
+                                                </button>
+                                                                   )}
+                                                                   <button 
+                                                  className="clear-all-btn"
+                                                  onClick={() => openCustomModal("Clear all notifications?", "confirm", async () => {
+                                                    const batch = writeBatch(db);
+                                                    adminNotifications.forEach(n => {
+                                                      batch.delete(doc(db, "admin_notifications", n.id));
+                                                    });
+                                                    await batch.commit();
+                                                
+                                                   
+                                                    setAdminNotifications([]);
+                                                    setUnreadCount(0);
+                                                    closeCustomModal();
+                                                    toast.success("All notifications cleared");
+                                                  })}
+                                                >
+                                                  Clear all
+                                                </button>
+                                                        </div>
+                                                      </div>
+                                                
+                                                    <div className="notification-list">
+                                                  {adminNotifications.length > 0 ? (
+                                                    adminNotifications.map((notif) => (
+                                                      <div
+                                                        key={notif.id}
+                                                        className={`notification-item ${!notif.read ? "unread" : ""}`}
+                                                        style={{ cursor: "pointer" }}
+                                                   onClick={async (e) => {
+                                        if ((e.target as HTMLElement).closest(".notification-delete-btn")) return;
+                                      
+                                      
+                                        if (!notif.read) {
+                                          await updateDoc(doc(db, "admin_notifications", notif.id), { read: true });
+                                          setAdminNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                          setUnreadCount(prev => Math.max(0, prev - 1));
+                                        }
+                                      
+                                      
+                                        if (notif.purpose === "admin_registration") {
+                                          navigate("/superadmin_userrequests");
+                                          setShowNotifications(false);
+                                          return;
+                                        }
+                                      
+                                      
+                                        if (notif.type === "new_appointment" || notif.type === "appointment_cancelled") {
+                                          const purpose = notif.purpose?.trim();
+                                          const departmentRoutes: Record<string, string> = {
+                                            "Clinical Laboratory": "/superadmin_clinical",
+                                            "Dental": "/superadmin_dental",
+                                            "Radiographic": "/superadmin_radiology",
+                                            "Medical": "/superadmin_medical",
+                                            "DDE": "/superadmin_dde",
+                                          };
+                                      
+                                          if (purpose && departmentRoutes[purpose]) {
+                                            navigate(departmentRoutes[purpose]);
+                                          } else {
+                                            toast.info("Appointment from unknown department");
+                                          }
+                                          setShowNotifications(false);
+                                          return;
+                                        }
+                                      
+                                        
+                                        if (notif.type === "contact_message") {
+                                          navigate("/superadmin_messages");
+                                        } else {
+                                         
+                                          navigate("/superadmin_userrequests"); 
+                                        }
+                                      
+                                        setShowNotifications(false);
+                                      }}
+                                                      >
+                                                        <div className="notification-main">
+                                                       <div className="notification-message">
+                                                 
+                                                
+                                      
+                                      
+                                                
+                                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                                      
+                                        {notif.purpose === "admin_registration" && (
+                                          <FaUserPlus style={{ color: "#8b5cf6", fontSize: "40px" }} />
+                                        )}
+                                        
+                                            {notif.type === "contact_message" && <FaEnvelope style={{ color: "#f59e0b", fontSize: "40px" }} />}
+                                            {notif.type === "new_appointment" && <FaCalendarAlt style={{ color: "#3b82f6", fontSize: "40px" }} />}
+                                            {notif.type === "appointment_cancelled" && <FaUserTimes style={{ color: "#ef4444", fontSize: "70px" }} />}
+                                            {(notif.type === "info" && notif.purpose !== "admin_registration") && (
+                                          <FaBell style={{ color: "#6366f1", fontSize: "40px" }} />
+                                        )}
+                                             <p className="notification-text">
+                                                    <strong>{notif.patientName}</strong>: {notif.message}
+                                                  </p>
+                                          </div>
+                                                
+                                                  <div style={{ 
+                                                    fontSize: "14px", 
+                                                    fontWeight: "600", 
+                                                    color: "#333",
+                                                    marginTop: "6px"
+                                                  }}>
+                                                    {notif.date} at {notif.slotTime}
+                                                  </div>
+                                                
+                                      
+                                      
+                                      
+                                      
+                                      
+                                       
+                                      {notif.purpose === "admin_registration" && (
+                                        <div style={{ marginTop: "8px" }}>
+                                          <span style={{
+                                            padding: "4px 10px",
+                                            borderRadius: "12px",
+                                            fontSize: "11px",
+                                            color: "white",
+                                            backgroundColor: "#e73d3dff",
+                                            fontWeight: "600"
+                                          }}>
+                                            Pending Approval
+                                          </span>
+                                        </div>
+                                      )}
+                                      
+                                      
+                                      {notif.purpose && 
+                                        notif.purpose !== "general" &&
+                                        notif.purpose !== "admin_registration" && (
+                                          <div style={{ 
+                                          marginTop: "8px", 
+                                          display: "flex", 
+                                          alignItems: "center", 
+                                          gap: "8px",
+                                          fontSize: "13px",
+                                          fontWeight: "600"
+                                        }}>
+                                          <span style={{
+                                            padding: "4px 10px",
+                                            borderRadius: "12px",
+                                            fontSize: "11px",
+                                            color: "white",
+                                            backgroundColor: 
+                                              notif.purpose === "Clinical Laboratory" ? "#10b981" :  
+                                              notif.purpose === "Dental" ? "#3b82f6" :            
+                                              notif.purpose === "Radiographic" ? "#f59e0b" :      
+                                              notif.purpose === "Medical" ? "#8b5cf6" :          
+                                              notif.purpose === "DDE" ? "#ec4899" : 
+                                             
+                                              "#6b7280"
+                                          }}>
+                                            {notif.purpose === "Clinical Laboratory" ? "Clinical" :
+                                             notif.purpose === "Radiographic" ? "Radiology" :
+                                             notif.purpose}
+                                          </span>
+                                          {notif.type === "new_appointment" && (
+                                            <span style={{ color: "#10b981", fontSize: "11px" }}>New Appointment</span>
+                                          )}
+                                          {notif.type === "appointment_cancelled" && (
+                                            <span style={{ color: "#ef4444", fontSize: "11px" }}>Cancelled</span>
+                                          )}
+                                         
+                                        </div>
+                                      )}
+                                      
+                                      
+                                      
+                                                
+                                                
+                                                  <div style={{ 
+                                                    fontSize: "12px", 
+                                                    color: "#888", 
+                                                    marginTop: "4px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "6px"
+                                                  }}>
+                                                    <span style={{ 
+                                                      color: "#10b981",
+                                                      background: "rgba(16, 185, 129, 0.12)",
+                                                      padding: "3px 9px",
+                                                      borderRadius: "8px",
+                                                      fontWeight: "600",
+                                                      fontSize: "11px"
+                                                    }}>
+                                                      {formatTimeAgo(notif.timestamp)}
+                                                    </span>
+                                                    {notif.timestamp && formatTimeAgo(notif.timestamp) !== "Just now" && (
+                                                      <span>• {new Date(notif.timestamp.toDate?.() || notif.timestamp).toLocaleTimeString([], { 
+                                                        hour: "2-digit", 
+                                                        minute: "2-digit" 
+                                                      })}</span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                
+                                                          {/* X BUTTON - DELETE ONE NOTIFICATION ONLY */}
+                                                          <button
+                                                            onClick={async (e) => {
+                                                              e.stopPropagation(); // CRITICAL
+                                                              try {
+                                                                await deleteDoc(doc(db, "admin_notifications", notif.id));
+                                                                setAdminNotifications(prev => prev.filter(n => n.id !== notif.id));
+                                                                if (!notif.read) {
+                                                                  setUnreadCount(prev => Math.max(0, prev - 1));
+                                                                }
+                                                                toast.success("Notification deleted");
+                                                              } catch (err) {
+                                                                console.error("Delete failed:", err);
+                                                                toast.error("Failed to delete");
+                                                              }
+                                                            }}
+                                                            className="notification-delete-btn"
+                                                            title="Delete this notification"
+                                                          >
+                                                            <X size={15} />
+                                                          </button>
+                                                
+                                                          {!notif.read && <span className="notification-badge">NEW</span>}
+                                                        </div>
+                                                      </div>
+                                                    ))
+                                                  ) : (
+                                                    <div className="notification-empty">
+                                                      <p>No notifications</p>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                          
+                                                        </div>
+                                      
 
         {/* Filters */}
         <div className="content-wrapper-reports" ref={contentRef}>
@@ -800,35 +1362,72 @@ if (normalizedStatus === "Pending") {
             <div className="summary-sections">
               <div className="summary-cards">
                 <span>Total Appointments</span>
-                <strong>{totals.totalAppointments}</strong>
+                <strong>{displayTotals.totalAppointments}</strong>
               </div>
               <div className="summary-cards">
                 <span>Pending</span>
-                <strong>{totals.pending}</strong>
+                <strong>{displayTotals.pending}</strong>
               </div>
               <div className="summary-cards">
                 <span>Approved</span>
-                <strong>{totals.approved}</strong>
+                <strong>{displayTotals.approved}</strong>
               </div>
             <th>Rejected</th>
-<td>{totals.rejected}</td>
+<td>{displayTotals.rejected}</td>
 
 {/* Sa summary */}
 <div className="summary-card">
   <span>Rejected</span>
-  <strong>{totals.rejected}</strong>
+  <strong>{displayTotals.rejected}</strong>
 </div>
               <div className="summary-cards">
                 <span>Completed</span>
-                <strong>{totals.completed}</strong>
+                <strong>{displayTotals.completed}</strong>
               </div>
               <div className="summary-cards">
                 <span>Cancelled</span>
-                <strong>{totals.cancelled}</strong>
+                <strong>{displayTotals.cancelled}</strong>
               </div>
             </div>
           </div>
           {/* End of Print Content */}
+
+
+
+
+ <div style={{ position: "relative", minHeight: "400px" }}>
+          {loading && (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      background: "rgba(255, 255, 255, 0.9)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 10,
+      borderRadius: "12px",
+      backdropFilter: "blur(4px)"
+    }}>
+      <div style={{
+        width: "60px",
+        height: "60px",
+        border: "6px solid #e0e0e0",
+        borderTop: "6px solid #2563eb",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+        marginBottom: "20px"
+      }}></div>
+      <p style={{
+        fontSize: "18px",
+        fontWeight: "600",
+        color: "#1e40af",
+        margin: 0
+      }}>
+        Loading appointments...
+      </p>
+    </div>
+  )}
 
           {/* Appointment Table */}
           <table className="appointments-table">
@@ -867,39 +1466,45 @@ if (normalizedStatus === "Pending") {
               )}
             </tbody>
           </table>
-
+</div>
           {/* Summary Section */}
-          <div className="summary-section">
-            <div className="summary-card">
-              <span>Total Appointments</span>
-              <strong>{totals.totalAppointments}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Pending</span>
-              <strong>{totals.pending}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Approved</span>
-              <strong>{totals.approved}</strong>
-            </div>
-           <div className="summary-card">
-              <span>Rejected</span>
-              <strong>{totals.rejected}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Completed</span>
-              <strong>{totals.completed}</strong>
-            </div>
-            <div className="summary-card">
-              <span>Cancelled</span>
-              <strong>{totals.cancelled}</strong>
-            </div>
-          </div>
-
-          <div className="actions-section">
-            <button onClick={handlePrint} className="button-print">🖨️ Print</button>
-            <button onClick={handleDownloadPDF} className="button-pdf">⬇️ Download PDF</button>
-          </div>
+         <div className="summary-section">
+  <div className="summary-card">
+    <span>Total Appointments</span>
+    <strong>{displayTotals.totalAppointments}</strong>
+  </div>
+  <div className="summary-card">
+    <span>Pending</span>
+    <strong>{displayTotals.pending}</strong>
+  </div>
+  <div className="summary-card">
+    <span>Approved</span>
+    <strong>{displayTotals.approved}</strong>
+  </div>
+  {/* Only show Rejected if DDE is in view */}
+  {showRejectedInTotal && (
+    <div className="summary-card">
+      <span>Rejected</span>
+      <strong>{displayTotals.rejected}</strong>
+    </div>
+  )}
+  <div className="summary-card">
+    <span>Completed</span>
+    <strong>{displayTotals.completed}</strong>
+  </div>
+  <div className="summary-card">
+    <span>Cancelled</span>
+    <strong>{displayTotals.cancelled}</strong>
+  </div>
+</div>
+         <div className="actions-section">
+  <button onClick={handlePrint} className="button-print">
+    Print  Report
+  </button>
+  <button onClick={handleDownloadPDF} className="button-pdf">
+    Download Report
+  </button>
+</div>
         </div>
 
 

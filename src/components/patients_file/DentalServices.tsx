@@ -3,7 +3,6 @@ import { doc, getDoc, addDoc, collection, updateDoc, setDoc, getDocs, query, whe
 import { getAuth } from "firebase/auth";
 import { db } from "./firebase";
 import "../../assets/RadiographicServices.css"; // Reused
-import { X } from "lucide-react";
 import { DEFAULT_DENTAL_SERVICES } from "../../config/defaultDentalServices";
 
 interface DentalServicesProps {

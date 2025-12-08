@@ -130,7 +130,13 @@ const App: React.FC = () => {
           
 
 
-             {/*dental*/}
+           
+
+
+            {/* Protected routes admin */}
+            <Route element={<RequireAuths />}>
+           
+        {/*dental*/}
             <Route path="/dashboard_dental" element={<Dashboard_Dental />} />
             <Route path="/appointments_dental" element={<Appointments_Dental />} />
             <Route path="/patientrecords_dental" element={<PatientRecords_Dental />} />
@@ -192,12 +198,6 @@ const App: React.FC = () => {
             <Route path="/superadmin_registeredusers" element={<SuperAdmin_RegisteredUsers/>} />
             <Route path="/superadmin_rejectedadmins" element={<SuperAdmin_RejectedAdmins/>} />
             <Route path="/superadmin_messages" element={<SuperAdmin_Messages/>} />
-
-
-            {/* Protected routes admin */}
-            <Route element={<RequireAuths />}>
-           
-
           </Route>
 
 

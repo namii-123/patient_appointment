@@ -239,16 +239,16 @@ const LoginAdmin: React.FC = () => {
 
         <div className="login-links">
           <p
-            className="forgot-link"
+            className="forgot-links"
             onClick={handleForgotPassword}
-            style={{ cursor: "pointer", color: "#007bff", textDecoration: "underline" }}
+          
           >
             Forgot Password?
           </p>
           <p>
             Don’t have an account?{" "}
             <a href="/register" className="signup-link">
-              Register
+              Sign Up
             </a>
           </p>
         </div>

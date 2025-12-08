@@ -162,13 +162,13 @@ const FormDDE: React.FC<ServicesProps> = ({ onNavigate }) => {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [barangays, setBarangays] = useState<Barangay[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // ADD THIS BEFORE return() - MODAL SYSTEM
 const [showModal, setShowModal] = useState(false);
-const [modalType, setModalType] = useState<"confirm" | "error" | "success">("confirm");
-const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
+const [, setModalType] = useState<"confirm" | "error" | "success">("confirm");
+const [, setOnConfirm] = useState<() => void>(() => {});
 
 const [modalMessage, setModalMessage] = useState<ReactNode>(null);
 
