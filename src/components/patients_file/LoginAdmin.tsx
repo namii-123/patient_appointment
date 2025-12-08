@@ -71,11 +71,11 @@ const LoginAdmin: React.FC = () => {
       // 3. Fetch user data
       let userDoc = await getDoc(doc(db, "UserAdmin", uid));
       let userData: any = null;
-      let collectionName = "UserAdmin";
+    
 
       if (!userDoc.exists()) {
         userDoc = await getDoc(doc(db, "ManageAdmins", uid));
-        collectionName = "ManageAdmins";
+       
       }
 
       if (!userDoc.exists()) {
