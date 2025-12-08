@@ -622,7 +622,7 @@ const filteredAndSortedRecords = sortedPatientRecords.filter((rec) => {
 
   let matchesDate = true;
   if (rec.status !== "Rejected" && rec.appointmentDate) {
-    const [year, month, day] = rec.appointmentDate.split("-");
+    const [year, month, ] = rec.appointmentDate.split("-");
     const matchesYear = yearFilter === "All" || year === yearFilter;
     const matchesMonth = monthFilter === "All" || month === monthFilter;
     matchesDate = matchesYear && matchesMonth;
