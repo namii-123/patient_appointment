@@ -1,8 +1,8 @@
 [build]
-  publish = "dist"
-  command = "npm run build"
+  command = "npm run build"  # or yarn build if using yarn
+  publish = "dist"           # Vite builds to 'dist' folder
 
-[[redirects]]
+[[redirects]]               # Para sa React Router (SPA)
   from = "/*"
   to = "/index.html"
   status = 200
