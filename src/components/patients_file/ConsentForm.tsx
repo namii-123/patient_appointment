@@ -685,40 +685,117 @@ await addDoc(collection(db, "admin_notifications"), {
 
         <div className="button-container-consent">
           <button
-            type="button"
-            className="download-button-consent"
-            onClick={async () => {
-              try {
-                const input = document.querySelector(".all-services-containers") as HTMLElement | null;
-                if (!input) {
-                  alert("Consent form not found!");
-                  return;
-                }
-                const buttonContainer = document.querySelector(".button-container-consent") as HTMLElement | null;
-                if (buttonContainer) buttonContainer.style.display = "none";
-                await new Promise((resolve) => setTimeout(resolve, 300));
-                window.scrollTo(0, 0);
-                const canvas = await html2canvas(input, {
-                  scale: 2,
-                  useCORS: true,
-                  scrollY: -window.scrollY,
-                });
-                if (buttonContainer) buttonContainer.style.display = "";
-                const imgData = canvas.toDataURL("image/png");
-                const pdf = new jsPDF("p", "mm", [215.9, 330.2]);
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                pdf.addImage(imgData, "PNG", 0, 0, pageWidth, pageHeight);
-                pdf.save("ConsentForm.pdf");
-                setDownloads((prev) => ({ ...prev, consentForm: true }));
-              } catch (error) {
-                console.error("Error generating Consent Form PDF:", error);
-                alert("❌ Failed to generate Consent Form PDF. Please try again.");
-              }
-            }}
-          >
-            ⬇ Download Consent Form PDF
-          </button>
+  type="button"
+  className="download-button-consent"
+  onClick={async () => {
+    try {
+      const input = document.querySelector(".all-services-containers") as HTMLElement | null;
+      if (!input) {
+        alert("Consent form not found!");
+        return;
+      }
+
+      const buttonContainer = document.querySelector(".button-container-consent") as HTMLElement | null;
+      if (buttonContainer) buttonContainer.style.display = "none";
+
+      // === SAVE ORIGINAL STATES ===
+      const originalViewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+      const originalViewportContent = originalViewport?.content;
+
+      const originalBodyStyles = {
+        width: document.body.style.width,
+        minWidth: document.body.style.minWidth,
+      };
+
+      const originalInputStyles = {
+        cssText: input.style.cssText,
+        className: input.className,
+      };
+
+      // === APPLY DESKTOP FORCING ===
+      // Force viewport
+      let tempViewport = originalViewport;
+      if (!tempViewport) {
+        tempViewport = document.createElement("meta");
+        tempViewport.name = "viewport";
+        document.head.appendChild(tempViewport);
+      }
+      tempViewport.content = "width=1024";
+
+      // Force body and input width
+      document.body.style.width = "1024px";
+      document.body.style.minWidth = "1024px";
+      input.style.width = "1024px";
+      input.style.maxWidth = "1024px";
+      input.style.minWidth = "1024px";
+
+      // Add force class if needed
+      input.classList.add("force-desktop");
+
+      // Wait for layout reflow
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      window.scrollTo(0, 0);
+
+      // Capture with html2canvas
+      const canvas = await html2canvas(input, {
+        scale: 2,
+        useCORS: true,
+        scrollY: -window.scrollY,
+        windowWidth: 1024,
+        width: 1024,
+      });
+
+      // === RESTORE EVERYTHING PERFECTLY ===
+      // Restore viewport
+      if (originalViewport && tempViewport) {
+        originalViewport.content = originalViewportContent || "width=device-width, initial-scale=1";
+      } else if (tempViewport && tempViewport.parentNode) {
+        tempViewport.parentNode.removeChild(tempViewport);
+      }
+
+      // Restore body
+      document.body.style.width = originalBodyStyles.width;
+      document.body.style.minWidth = originalBodyStyles.minWidth;
+
+      // Restore input element
+      input.style.cssText = originalInputStyles.cssText;
+      input.className = originalInputStyles.className; // This fully restores classes including removing 'force-desktop'
+
+      // Show button again
+      if (buttonContainer) buttonContainer.style.display = "";
+
+      // Generate and save PDF
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", [215.9, 330.2]);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, "PNG", 0, 0, pageWidth, pageHeight);
+      pdf.save("ConsentForm.pdf");
+
+      setDownloads((prev) => ({ ...prev, consentForm: true }));
+    } catch (error) {
+      console.error("Error generating Consent Form PDF:", error);
+      alert("❌ Failed to generate Consent Form PDF. Please try again.");
+
+      // Even on error, try to restore styles
+      try {
+        document.body.style.width = "";
+        document.body.style.minWidth = "";
+        const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+        if (viewport) viewport.content = "width=device-width, initial-scale=1";
+        const input = document.querySelector(".all-services-containers") as HTMLElement | null;
+        if (input) {
+          input.style.cssText = "";
+          input.classList.remove("force-desktop");
+        }
+      } catch (restoreError) {
+        console.error("Failed to restore styles after error", restoreError);
+      }
+    }
+  }}
+>
+  ⬇ Download Consent Form PDF
+</button>
         </div>
       </div>
       <div className="form-services-container">
@@ -852,99 +929,97 @@ await addDoc(collection(db, "admin_notifications"), {
               borderRadius: "6px",
               cursor: "pointer",
             }}
-    onClick={async () => {
+   onClick={async () => {
   try {
     const input = document.querySelector(".form-services-container") as HTMLElement | null;
-    if (!input) return alert("Form not found!");
+    if (!input) {
+      alert("Assessment form not found!");
+      return;
+    }
 
     const buttonContainer = document.querySelector(".button-container-consent2") as HTMLElement | null;
     if (buttonContainer) buttonContainer.style.display = "none";
 
     const clone = input.cloneNode(true) as HTMLElement;
 
-    // === 1. INPUTS → TEXT ===
-    const replaceInputs = (c: HTMLElement) => {
-      c.querySelectorAll('input:not([type="checkbox"]), textarea, select').forEach((el) => {
-        const value = (el as HTMLInputElement).value.trim();
-        if (value) {
-          const span = document.createElement('span');
-          span.textContent = value;
-          const s = window.getComputedStyle(el);
-          span.style.cssText = s.cssText;
-          span.style.backgroundColor = 'transparent';
-          span.style.border = 'none';
-          span.style.display = 'inline-block';
-          el.parentNode?.replaceChild(span, el);
-        } else {
-          (el as HTMLElement).style.visibility = 'hidden';
-        }
-      });
-    };
+    // === REPLACE INPUTS WITH TEXT ===
+    clone.querySelectorAll('input:not([type="checkbox"]), textarea').forEach((el) => {
+      const value = (el as HTMLInputElement).value.trim();
+      if (value) {
+        const span = document.createElement('span');
+        span.textContent = value;
+        const s = window.getComputedStyle(el);
+        span.style.cssText = s.cssText;
+        span.style.backgroundColor = 'transparent';
+        span.style.border = 'none';
+        el.parentNode?.replaceChild(span, el);
+      } else {
+        (el as HTMLElement).style.visibility = 'hidden';
+      }
+    });
 
-    // === 2. CHECKBOXES → REAL SYMBOLS (checked/unchecked) ===
-    const replaceCheckboxesWithSymbols = (c: HTMLElement) => {
-      c.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-        const isChecked = (cb as HTMLInputElement).checked;
+    // === REPLACE CHECKBOXES WITH CHECK MARKS ===
+    clone.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+      const checked = (cb as HTMLInputElement).checked;
+      const symbol = document.createElement('span');
+      symbol.textContent = checked ? '✓' : '☐';
+      symbol.style.fontSize = '18px';
+      symbol.style.fontWeight = 'bold';
+      symbol.style.marginRight = '8px';
+      symbol.style.color = checked ? '#2a7d46' : '#000';
 
-        const symbol = document.createElement('span');
-        symbol.textContent = isChecked ? 'checked' : 'unchecked';
-        symbol.style.cssText = `
-          display: inline-block;
-          width: 14px; height: 14px;
-          border: 1.5px solid #000;
-          border-radius: 2px;
-          margin-right: 8px;
-          font-size: 12px;
-          line-height: 13px;
-          text-align: center;
-          background: ${isChecked ? '#2a7d46' : '#fff'};
-          color: ${isChecked ? 'white' : 'transparent'};
-        `;
+      const li = cb.closest('li');
+      if (li) {
+        const text = li.textContent || '';
+        const wrapper = document.createElement('span');
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.appendChild(symbol);
+        const textNode = document.createElement('span');
+        textNode.textContent = text.replace(/^[✓☐]\s*/, '');
+        wrapper.appendChild(textNode);
+        li.innerHTML = '';
+        li.appendChild(wrapper);
+      }
+    });
 
-        let labelText = '';
-        const label = document.querySelector(`label[for="${cb.id}"]`) ||
-                      cb.closest('label') ||
-                      cb.nextElementSibling;
-
-        if (label && label instanceof HTMLElement) {
-          labelText = label.textContent?.trim() || '';
-          label.style.visibility = 'hidden';
-        }
-
-        const line = document.createElement('div');
-        line.style.display = 'flex';
-        line.style.alignItems = 'center';
-        line.style.fontSize = '14px';
-        line.style.marginBottom = '3px';
-        line.appendChild(symbol);
-        if (labelText) {
-          const text = document.createElement('span');
-          text.textContent = labelText;
-          line.appendChild(text);
-        }
-
-        cb.parentNode?.replaceChild(line, cb);
-        if (label && label.parentNode) label.remove();
-      });
-    };
-
-    // === APPLY FIXES ===
-    replaceInputs(clone);
-    replaceCheckboxesWithSymbols(clone);
-
-    // === RENDER OFF-SCREEN ===
-    clone.style.cssText = `
-      position: absolute; left: -9999px; top: 0;
-      width: ${input.offsetWidth}px; background: white; padding: 20px;
+    // === CLEAN STYLES ===
+    const style = document.createElement('style');
+    style.innerHTML = `
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      .form-services-container {
+        width: 210mm;
+        padding: 10mm;
+        background: white;
+        font-family: Arial, sans-serif;
+      }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 5px; }
+      .requirements-checklist ul {
+        padding-left: 20px;
+      }
+      .signatories-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-top: 20px;
+      }
+      @media print {
+        .signatories-grid { grid-template-columns: repeat(2, 1fr); }
+      }
     `;
+    clone.appendChild(style);
+
+    clone.style.width = '210mm';
+clone.style.minHeight = '297mm';
+clone.style.padding = '10mm';
+clone.style.background = 'white';
     document.body.appendChild(clone);
 
-    await new Promise(r => setTimeout(r, 600));
-    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 800));
 
-    // === CAPTURE ===
     const canvas = await html2canvas(clone, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       backgroundColor: '#ffffff',
       windowWidth: clone.scrollWidth + 100,
@@ -954,48 +1029,29 @@ await addDoc(collection(db, "admin_notifications"), {
     document.body.removeChild(clone);
     if (buttonContainer) buttonContainer.style.display = "";
 
-    // === HEADER ===
-    let headerImg = "", headerH = 0;
-    const headerEl = document.querySelector(".form-headerss") as HTMLElement | null;
-    if (headerEl) {
-      const hClone = headerEl.cloneNode(true) as HTMLElement;
-      hClone.style.position = 'absolute'; hClone.style.left = '-9999px';
-      document.body.appendChild(hClone);
-      const hCanvas = await html2canvas(hClone, { scale: 2 });
-      headerImg = hCanvas.toDataURL("image/png");
-      headerH = (hCanvas.height * 210) / hCanvas.width;
-      document.body.removeChild(hClone);
-    }
-
-    // === PDF ===
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
-    const w = pdf.internal.pageSize.getWidth();
-    const h = pdf.internal.pageSize.getHeight();
-    const m = 10;
-    const imgW = w - m * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
+    const imgWidth = 210;
+    const pageHeight = 297;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
 
-    let left = imgH;
-    let pos = 15;
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
 
-    pdf.addImage(imgData, "PNG", m, pos, imgW, imgH);
-    left -= h - 30;
-
-    while (left > 0) {
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
       pdf.addPage();
-      pos = 15 - (h - 30 - left);
-      if (headerImg) pdf.addImage(headerImg, "PNG", m, 15, imgW, headerH);
-      pdf.addImage(imgData, "PNG", m, pos + headerH, imgW, imgH);
-      left -= h - 30 - headerH;
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
     }
 
-    pdf.save("AssessmentRequestForm.pdf");
+    pdf.save("Assessment_Request_Form.pdf");
     setDownloads(p => ({ ...p, assessmentForm: true }));
-
   } catch (err) {
-    console.error(err);
-    alert("PDF generation failed.");
+    console.error("Assessment PDF Error:", err);
+    alert("Failed to generate Assessment Form PDF.");
     const btn = document.querySelector(".button-container-consent2") as HTMLElement | null;
     if (btn) btn.style.display = "";
   }

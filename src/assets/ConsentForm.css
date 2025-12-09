@@ -3,6 +3,13 @@
   padding-bottom: 90px;
 }
 
+
+.force-desktop {
+  width: 1024px !important;
+  min-width: 1024px !important;
+  max-width: none !important;
+}
+
 .all-services-containers {
   max-width: 900px;
   margin: 30px auto;
