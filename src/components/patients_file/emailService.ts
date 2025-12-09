@@ -27,8 +27,8 @@ export const sendEmail = async (
 
   try {
     const result = await emailjs.send(
-      "service_fvyid4o",
-      "template_zmw7igu",
+      "service_sz4mb2f",
+      "template_zkoo0en",
       {
         email: toEmail,
         patient_name: patientName,
@@ -36,7 +36,7 @@ export const sendEmail = async (
         appointment_date: appointmentDate,
         appointment_slot: appointmentSlot,
       },
-      "gyNTIneY8SBg563r5"
+      "VG0mEn7P2ZmSB4FnZ"
     );
     console.log("✅ Email sent successfully:", result.text);
     return result;
