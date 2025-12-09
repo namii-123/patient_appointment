@@ -57,27 +57,29 @@ const ClinicalLabServices: React.FC<ClinicalLabServicesProps> = ({
       where("isDeleted", "==", false)
     );
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const map: Record<string, string[]> = {};
+   const unsub = onSnapshot(q, (snapshot) => {
+  const map: Record<string, string[]> = {};
 
-      snapshot.forEach((doc) => {
-        const data = doc.data() as ServiceDoc;
-        const cat = data.category || "Uncategorized";
-        if (!map[cat]) map[cat] = [];
-        map[cat].push(data.name);
-      });
+  snapshot.forEach((doc) => {
+    const data = doc.data() as ServiceDoc;
+    const cat = data.category || "Uncategorized";
+    if (!map[cat]) map[cat] = [];
+    map[cat].push(data.name);
+  });
 
-      // Sort categories & services alphabetically
-      const sorted: Record<string, string[]> = {};
-      Object.keys(map)
-        .sort()
-        .forEach((key) => {
-          sorted[key] = map[key].sort();
-        });
-
-      setServicesByCategory(sorted);
-      setLoading(false);
+  // Sort categories by number of services (descending)
+  const sorted: Record<string, string[]> = {};
+  Object.keys(map)
+    .sort((a, b) => map[b].length - map[a].length) 
+    .forEach((key) => {
+      sorted[key] = map[key].sort(); 
     });
+
+  setServicesByCategory(sorted);
+  setLoading(false);
+});
+
+   
 
     return () => unsub();
   }, []);

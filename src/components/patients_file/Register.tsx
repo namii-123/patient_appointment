@@ -206,17 +206,17 @@ const Register: React.FC = () => {
               type={showPassword ? "text" : "password"}
               id="password"
               name="password"
-              className="register-input"
+              className="login-input"
               placeholder="Enter your password"
               required
             />
             <button
               type="button"
-              className="eye-toggle"
+              className="eye-toggles"
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
             >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
             </button>
           </div>
 

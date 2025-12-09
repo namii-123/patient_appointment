@@ -186,7 +186,7 @@ const SignUp: React.FC<SignUpProps> = ({ onLoginClick, onClose }) => {
                   required
                 />
                 <span className="toggle-password" onClick={() => setShowPassword(!showPassword)}>
-                  <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                  <FontAwesomeIcon icon={showPassword ? faEye : faEyeSlash} />
                 </span>
               </div>
             </div>

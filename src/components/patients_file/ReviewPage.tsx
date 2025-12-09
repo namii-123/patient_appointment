@@ -1266,7 +1266,7 @@ const renderDepartmentServices = (
         
 
 
-{/* PATIENT INFORMATION – EXACT SAME SA PICTURE, HUGOT, NO EXTRA SPACE */}
+{/* PATIENT INFORMATION – RESPONSIVE VERSION */}
 <div style={{ marginBottom: "16px", fontSize: "10pt" }}>
   <h3 style={{
     fontSize: "13pt",
@@ -1279,19 +1279,19 @@ const renderDepartmentServices = (
     Patient Information
   </h3>
 
-{/* EXACT NA GYUD: Date, Time, Control No — usa ra ka linya + underline sa ubos */}
+{/* ROW 1: Date, Time, Control No - RESPONSIVE */}
 <div style={{ marginBottom: "14px", fontSize: "10.5pt" }}>
   <div style={{ 
     display: "flex", 
     justifyContent: "space-between", 
     alignItems: "baseline",
-    flexWrap: "nowrap",
-    gap: "20px"
+    flexWrap: "wrap",
+    gap: "12px"
   }}>
-    {/* Date of Request - Left */}
-    <div style={{ flex: "1", minWidth: "180px" }}>
-      <strong>Date of Request:</strong>{' '}
-      <span style={{ fontWeight: "bold" }}>
+    {/* Date of Request */}
+    <div style={{ flex: "1 1 160px", minWidth: "140px" }}>
+      <strong style={{ fontSize: "9.5pt" }}>Date of Request:</strong>{' '}
+      <span style={{ fontWeight: "bold", display: "inline-block", marginTop: "2px" }}>
         {safeFormData.requestDate 
           ? new Date(safeFormData.requestDate).toLocaleDateString('en-PH') 
           : "____/____/____"
@@ -1299,56 +1299,58 @@ const renderDepartmentServices = (
       </span>
     </div>
 
-    {/* Time of Request - Center */}
-    <div style={{ flex: "1", textAlign: "center", minWidth: "140px" }}>
-      <strong>Time of Request:</strong>{' '}
-      <span style={{ fontWeight: "bold" }}>
+    {/* Time of Request */}
+    <div style={{ flex: "1 1 130px", textAlign: window.innerWidth < 640 ? "left" : "center", minWidth: "120px" }}>
+      <strong style={{ fontSize: "9.5pt" }}>Time of Request:</strong>{' '}
+      <span style={{ fontWeight: "bold", display: "inline-block", marginTop: "2px" }}>
         {safeFormData.requestTime ? safeFormData.requestTime : "__:__ __"}
       </span>
     </div>
 
-    {/* Control No - Right (red & bold) */}
-    <div style={{ flex: "1", textAlign: "right", minWidth: "180px" }}>
-      <strong>Control No:</strong>{' '}
+    {/* Control No */}
+    <div style={{ flex: "1 1 160px", textAlign: window.innerWidth < 640 ? "left" : "right", minWidth: "140px" }}>
+      <strong style={{ fontSize: "9.5pt" }}>Control No:</strong>{' '}
       <span style={{ 
         color: "#c62828", 
         fontWeight: "bold", 
-        fontSize: "11.5pt",
-        letterSpacing: "0.8px"
+        fontSize: "11pt",
+        letterSpacing: "0.8px",
+        display: "inline-block",
+        marginTop: "2px"
       }}>
         {safeFormData.controlNo || "__________"}
       </span>
     </div>
   </div>
 
-  {/* Full underline sa ilawom */}
+  {/* Full underline */}
   <div style={{ 
     borderBottom: "1px solid #000", 
-    marginTop: "4px"
+    marginTop: "8px"
   }}></div>
 </div>
 
-  {/* ROW 2: Name, Age, Birthdate */}
-  <div style={{ display: "flex", alignItems: "end", gap: "12px", fontSize: "10pt", lineHeight: "1.2" }}>
-  {/* NAME - Gipamubo ug gi-compact */}
-  <div style={{ flex: 1, minWidth: "0" }}>
+  {/* ROW 2: Name, Age, Birthdate - RESPONSIVE */}
+  <div style={{ display: "flex", alignItems: "end", gap: "12px", fontSize: "10pt", lineHeight: "1.2", flexWrap: "wrap" }}>
+  {/* NAME */}
+  <div style={{ flex: "1 1 300px", minWidth: "0", width: "100%" }}>
     <strong style={{ fontSize: "9pt" }}>Name:</strong>
-    <div style={{ display: "flex", gap: "8px", marginTop: "3px" }}>
-      <div style={{ flex: "1.2" }}>
-        <div style={{ fontWeight: "bold", fontSize: "11pt" }}>
+    <div style={{ display: "flex", gap: "8px", marginTop: "3px", flexWrap: window.innerWidth < 480 ? "wrap" : "nowrap" }}>
+      <div style={{ flex: "1 1 140px", minWidth: "120px" }}>
+        <div style={{ fontWeight: "bold", fontSize: "11pt", wordBreak: "break-word" }}>
           {safeFormData.lastName?.toUpperCase() || "__________________"}
         </div>
         <div style={{ borderBottom: "1px solid #000", marginTop: "1px" }}></div>
         <small style={{ fontSize: "7pt", color: "#666" }}>Last Name</small>
       </div>
-      <div style={{ flex: "1" }}>
-        <div style={{ fontWeight: "bold", fontSize: "11pt" }}>
+      <div style={{ flex: "1 1 120px", minWidth: "100px" }}>
+        <div style={{ fontWeight: "bold", fontSize: "11pt", wordBreak: "break-word" }}>
           {safeFormData.firstName?.toUpperCase() || "________________"}
         </div>
         <div style={{ borderBottom: "1px solid #000", marginTop: "1px" }}></div>
         <small style={{ fontSize: "7pt", color: "#666" }}>First Name</small>
       </div>
-      <div style={{ width: "28px" }}>
+      <div style={{ flex: "0 0 auto", minWidth: "28px" }}>
         <div style={{ fontWeight: "bold", fontSize: "11pt" }}>
           {safeFormData.middleInitial?.toUpperCase() || "__"}
         </div>
@@ -1358,45 +1360,46 @@ const renderDepartmentServices = (
     </div>
   </div>
 
-  {/* AGE - Nipis ra kay gamay ra siya */}
-  <div style={{ textAlign: "center", minWidth: "45px" }}>
-    <strong style={{ fontSize: "9pt" }}>Age:</strong>
-    <div style={{ 
-      borderBottom: "1px solid #000", 
-      width: "36px", 
-      margin: "2px auto 0" 
-    }}>
-      <strong style={{ fontSize: "11pt" }}>{safeFormData.age || "__"}</strong>
+  {/* AGE & BIRTHDATE - Group together on mobile */}
+  <div style={{ display: "flex", gap: "16px", flex: "0 0 auto" }}>
+    {/* AGE */}
+    <div style={{ textAlign: "center", minWidth: "45px" }}>
+      <strong style={{ fontSize: "9pt" }}>Age:</strong>
+      <div style={{ 
+        borderBottom: "1px solid #000", 
+        width: "36px", 
+        margin: "2px auto 0" 
+      }}>
+        <strong style={{ fontSize: "11pt" }}>{safeFormData.age || "__"}</strong>
+      </div>
     </div>
-  </div>
 
-  {/* BIRTHDATE - Gipamubo ang underline */}
-  <div style={{ textAlign: "center", minWidth: "100px" }}>
-    <strong style={{ fontSize: "9pt" }}>Birthdate:</strong>
-    <div style={{ 
-      borderBottom: "1px solid #000", 
-      width: "92px", 
-      margin: "2px auto 0" 
-    }}>
-      <span style={{ fontSize: "10pt", letterSpacing: "1px" }}>
-        {safeFormData.birthdate 
-          ? new Date(safeFormData.birthdate).toLocaleDateString('en-PH')
-          : "__ / __ / ____"}
-      </span>
+    {/* BIRTHDATE */}
+    <div style={{ textAlign: "center", minWidth: "100px" }}>
+      <strong style={{ fontSize: "9pt" }}>Birthdate:</strong>
+      <div style={{ 
+        borderBottom: "1px solid #000", 
+        width: "92px", 
+        margin: "2px auto 0" 
+      }}>
+        <span style={{ fontSize: window.innerWidth < 380 ? "9pt" : "10pt", letterSpacing: "1px" }}>
+          {safeFormData.birthdate 
+            ? new Date(safeFormData.birthdate).toLocaleDateString('en-PH')
+            : "__ / __ / ____"}
+        </span>
+      </div>
     </div>
   </div>
 </div>
 
-
-
-  {/* ROW 3: Gender – NINDOT NA TAN-AWON, AUTOMATIC CHECKED */}
-<div style={{ marginBottom: "12px" }}>
+  {/* ROW 3: Gender - RESPONSIVE */}
+<div style={{ marginBottom: "12px", marginTop: "12px" }}>
   <strong>Gender:</strong>
   <div style={{ 
     display: "flex", 
-    gap: "28px", 
+    gap: window.innerWidth < 640 ? "16px" : "28px", 
     marginTop: "8px", 
-    fontSize: "10pt",
+    fontSize: window.innerWidth < 380 ? "9pt" : "10pt",
     flexWrap: "wrap",
     alignItems: "center"
   }}>
@@ -1407,7 +1410,8 @@ const renderDepartmentServices = (
         border: "2px solid #000",
         display: "inline-block",
         background: safeFormData.gender === "Female" ? "#003087" : "white",
-        position: "relative"
+        position: "relative",
+        flexShrink: 0
       }}>
         {safeFormData.gender === "Female" && (
           <span style={{
@@ -1422,7 +1426,7 @@ const renderDepartmentServices = (
           }}></span>
         )}
       </span>
-      Feminine
+      <span style={{ whiteSpace: "nowrap" }}>Feminine</span>
     </label>
 
     <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "Masculine" ? "bold" : "normal", color: safeFormData.gender === "Masculine" ? "#003087" : "#000" }}>
@@ -1432,7 +1436,8 @@ const renderDepartmentServices = (
         border: "2px solid #000",
         display: "inline-block",
         background: safeFormData.gender === "Male" ? "#003087" : "white",
-        position: "relative"
+        position: "relative",
+        flexShrink: 0
       }}>
         {safeFormData.gender === "Male" && (
           <span style={{
@@ -1447,17 +1452,18 @@ const renderDepartmentServices = (
           }}></span>
         )}
       </span>
-      Masculine
+      <span style={{ whiteSpace: "nowrap" }}>Masculine</span>
     </label>
 
-    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "LGBTQ+" ? "bold" : "normal", color: safeFormData.gender === "LGBTQ+" ? "#003087" : "#000" }}>
+    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "LGBTQ+" ? "bold" : "normal", color: safeFormData.gender === "LGBTQ+" ? "#003087" : "#000", flex: "1 1 auto", minWidth: window.innerWidth < 380 ? "100%" : "auto" }}>
       <span style={{
         width: "14px",
         height: "14px",
         border: "2px solid #000",
         display: "inline-block",
         background: safeFormData.gender === "LGBTQ+" ? "#003087" : "white",
-        position: "relative"
+        position: "relative",
+        flexShrink: 0
       }}>
         {safeFormData.gender === "LGBTQ+" && (
           <span style={{
@@ -1472,7 +1478,7 @@ const renderDepartmentServices = (
           }}></span>
         )}
       </span>
-      LGBTQ+
+      <span style={{ whiteSpace: "nowrap" }}>LGBTQ+</span>
       {safeFormData.gender === "LGBTQ+" && safeFormData.genderSpecify && (
         <span style={{ marginLeft: "6px", color: "#c62828", fontWeight: "bold", fontSize: "9.5pt" }}>
           ({safeFormData.genderSpecify})
@@ -1480,14 +1486,15 @@ const renderDepartmentServices = (
       )}
     </label>
 
-    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "Prefer not to answer" ? "bold" : "normal", color: safeFormData.gender === "Prefer not to answer" ? "#003087" : "#000" }}>
+    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: safeFormData.gender === "Prefer not to answer" ? "bold" : "normal", color: safeFormData.gender === "Prefer not to answer" ? "#003087" : "#000", flex: "1 1 auto", minWidth: window.innerWidth < 380 ? "100%" : "auto" }}>
       <span style={{
         width: "14px",
         height: "14px",
         border: "2px solid #000",
         display: "inline-block",
         background: safeFormData.gender === "Prefer not to answer" ? "#003087" : "white",
-        position: "relative"
+        position: "relative",
+        flexShrink: 0
       }}>
         {safeFormData.gender === "Prefer not to answer" && (
           <span style={{
@@ -1502,54 +1509,53 @@ const renderDepartmentServices = (
           }}></span>
         )}
       </span>
-      Prefer not to answer
+      <span style={{ whiteSpace: "nowrap" }}>Prefer not to answer</span>
     </label>
   </div>
 </div>
 
-  {/* ROW 4: Address */}
+  {/* ROW 4: Address - RESPONSIVE */}
   <div style={{ marginBottom: "8px" }}>
     <strong>Address:</strong>
-    <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
-      <div style={{ flex: 1 }}>
-        <span style={{ fontWeight: "bold" }}>{safeFormData.houseNo || ""} {safeFormData.street || "______________________________"}</span>
+    <div style={{ display: "flex", gap: "12px", marginTop: "4px", flexWrap: "wrap" }}>
+      <div style={{ flex: "1 1 200px", minWidth: "150px" }}>
+        <span style={{ fontWeight: "bold", wordBreak: "break-word" }}>{safeFormData.houseNo || ""} {safeFormData.street || "______________________________"}</span>
         <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
         <small style={{ color: "#666", fontSize: "8pt" }}>House No. & Street</small>
       </div>
-      <div style={{ flex: 1 }}>
-        <span style={{ fontWeight: "bold" }}>{safeFormData.barangay || "______________________________"}</span>
+      <div style={{ flex: "1 1 200px", minWidth: "150px" }}>
+        <span style={{ fontWeight: "bold", wordBreak: "break-word" }}>{safeFormData.barangay || "______________________________"}</span>
         <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
         <small style={{ color: "#666", fontSize: "8pt" }}>Barangay</small>
       </div>
     </div>
-    <div style={{ display: "flex", gap: "12px", marginTop: "6px" }}>
-      <div style={{ flex: 1 }}>
-        <span style={{ fontWeight: "bold" }}>{safeFormData.municipality || "______________________________"}</span>
+    <div style={{ display: "flex", gap: "12px", marginTop: "6px", flexWrap: "wrap" }}>
+      <div style={{ flex: "1 1 200px", minWidth: "150px" }}>
+        <span style={{ fontWeight: "bold", wordBreak: "break-word" }}>{safeFormData.municipality || "______________________________"}</span>
         <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
         <small style={{ color: "#666", fontSize: "8pt" }}>Municipality/City</small>
       </div>
-      <div style={{ flex: 1 }}>
-        <span style={{ fontWeight: "bold" }}>{safeFormData.province || "______________________________"}</span>
+      <div style={{ flex: "1 1 200px", minWidth: "150px" }}>
+        <span style={{ fontWeight: "bold", wordBreak: "break-word" }}>{safeFormData.province || "______________________________"}</span>
         <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }}></div>
         <small style={{ color: "#666", fontSize: "8pt" }}>Province</small>
       </div>
     </div>
   </div>
 
-  {/* ROW 5: Contact Number */}
-  <div style={{ display: "flex", gap: "20px", alignItems: "end" }}>
-    <div>
+  {/* ROW 5: Contact Number & Email - RESPONSIVE */}
+  <div style={{ display: "flex", gap: "20px", alignItems: "end", flexWrap: "wrap" }}>
+    <div style={{ flex: "1 1 250px", minWidth: "200px" }}>
       <strong>Contact Number:</strong>
-      <div style={{ borderBottom: "1px solid #000", marginTop: "4px", width: "200px", display: "inline-block" }}>
+      <div style={{ borderBottom: "1px solid #000", marginTop: "4px", maxWidth: "200px", display: "inline-block" }}>
         {" "}<strong style={{ color: "#1565c0" }}>{safeFormData.contact || "__________________"}</strong>
       </div>
     </div>
-    <div style={{ marginLeft: "auto" }}>
-      <strong>Email:</strong> <span style={{ color: "#c62828" }}>{safeFormData.email || "______________________________"}</span>
+    <div style={{ flex: "1 1 40px", minWidth: "200px", textAlign: window.innerWidth < 640 ? "left" : "right" }}>
+      <strong>Email:</strong> <span style={{ color: "#c62828", wordBreak: "break-all" }}>{safeFormData.email || "______________________________"}</span>
     </div>
   </div>
 </div>
-
 
 <div className="services-wrapper">
   {/* Responsive Grid: 2 columns → 1 column on mobile */}

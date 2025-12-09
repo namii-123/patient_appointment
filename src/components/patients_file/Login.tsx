@@ -218,7 +218,7 @@ if (adminSnap.exists() || manageSnap.exists()) {
                   className="toggle-password"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                  <FontAwesomeIcon icon={showPassword ? faEye : faEyeSlash} />
                 </span>
               </div>
             </div>

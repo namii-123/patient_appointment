@@ -25,129 +25,159 @@
   letter-spacing: 1px;
 }
 
+/* ==================== MAIN CONTENT ==================== */
 .services-content {
   flex: 1;
   overflow-y: auto;
   padding-right: 8px;
-  padding-bottom: 80px; /* ← SPACE PARA SA FOOTER */
+  padding-bottom: 100px; /* space for footer */
 }
-/* COMPACT SERVICES GRID */
+
+/* ==================== SERVICES GRID ==================== */
 .services-list {
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
   margin-bottom: 12px;
+  padding-right: 6px;
 }
 
 .services-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr; 
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
   margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .services-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 640px) {
   .services-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+    gap: 14px;
   }
 }
 
+/* ==================== CATEGORY CARD ==================== */
 .category {
-  background: white;
+  background: #fff;
   border: 2px solid #e0e0e0;
   border-radius: 12px;
   padding: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: 0.2s ease;
+}
+
+.category:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .category h3 {
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2vw, 1rem);
   font-weight: 700;
   color: #005b9f;
-  margin: 0 0 8px 0;
+  margin-bottom: 8px;
   padding-bottom: 6px;
   border-bottom: 2px solid #ffd700;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
+/* ==================== CHECKBOX + LABELS ==================== */
 .services-list label {
   display: flex;
   align-items: center;
-  font-size: 0.88rem;
+  gap: 8px;
+  font-size: clamp(0.82rem, 2vw, 0.9rem);
   color: #333;
-  margin: 6px 0;
+  padding: 6px 4px;
   cursor: pointer;
-  padding: 4px 0;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.services-list label:hover {
+  background: #f0f7ff;
 }
 
 .services-list input[type="checkbox"] {
-  margin-right: 8px;
   transform: scale(1.15);
   accent-color: #005b9f;
+  flex-shrink: 0;
 }
 
-/* OTHERS INPUT */
+/* ==================== OTHERS TEXT INPUT ==================== */
 .services-list input[type="text"] {
   width: 100%;
   padding: 8px 10px;
-  border: 1.5px solid #005b9f;
   border-radius: 8px;
+  border: 1.5px solid #005b9f;
   font-size: 0.9rem;
   margin-top: 6px;
+  transition: 0.3s;
 }
 
-/* PREGNANCY SECTION - COMPACT */
+.services-list input[type="text"]:focus {
+  border-color: #003087;
+  box-shadow: 0 0 0 3px rgba(0, 91, 159, 0.15);
+  outline: none;
+}
+
+/* ==================== PREGNANCY SECTION ==================== */
 .pregnancy-section {
   background: #e3f2fd;
   border: 2px solid #2196f3;
   border-radius: 12px;
-  padding: 14px;
+  padding: clamp(12px, 3vw, 16px);
   margin: 14px 0;
-  font-size: 0.9rem;
+  font-size: clamp(0.82rem, 1.8vw, 0.9rem);
 }
 
 .pregnancy-section h3 {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: clamp(0.9rem, 2vw, 1rem);
   color: #003087;
-  margin: 0 0 10px 0;
   text-align: center;
+  margin-bottom: 12px;
+  font-weight: 700;
 }
 
+/* GRID INSIDE PREGNANCY */
 .pregnancy-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
-  margin-top: 10px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 480px) {
   .pregnancy-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 }
 
 .pregnancy-section label {
   display: flex;
   align-items: center;
-  font-size: 0.88rem;
-  color: #333;
-  padding: 6px 0;
+  gap: 8px;
+  padding: 6px 2px;
 }
 
 .pregnancy-section input[type="radio"],
 .pregnancy-section input[type="checkbox"] {
-  margin-right: 8px;
   transform: scale(1.1);
   accent-color: #d32f2f;
 }
 
 .sub-option {
-  margin-left: 24px;
-  font-size: 0.82rem;
+  margin-left: 22px;
+  font-size: 0.8rem;
   color: #555;
 }
+
 
 /* NAVIGATION */
 .labservices-navigation {
@@ -443,9 +473,7 @@
     font-size: 1rem;
   }
 
-  .services-list label {
-    font-size: 0.9rem;
-  }
+  
 
   .labservices-navigation {
     justify-content: center;
@@ -490,9 +518,7 @@
    padding-bottom: 50px;
   }
 
-  .services-list label {
-    font-size: 0.85rem;
-  }
+
 
   .complaint-history {
     font-size: 0.85rem;

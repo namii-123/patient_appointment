@@ -416,7 +416,7 @@ if (!isValidEmail) {
         console.log(`Sending email for appointment ${id} to: ${appointment.email}`);
         const message =
           newStatus === "Approved"
-            ? `We are pleased to inform you that your appointment scheduled for ${appointment.date} at ${appointment.slotTime} has been approved. Please arrive on time and bring any necessary documents.\n\nThank you for choosing our services.\n\nBest regards,\nRadiology Team`
+            ? `We are pleased to inform you that your appointment scheduled for ${appointment.date} at ${appointment.slotTime} has been approved. Please arrive on time bring the downloaded outpatient request form.\n\nThank you for choosing our services.\n\nBest regards,\nRadiology Team`
             : `We regret to inform you that your appointment scheduled for ${appointment.date} at ${appointment.slotTime} has been rejected.\nReason: ${rejectReason || "Not specified"}.\n\nPlease contact us if you have any questions or wish to reschedule.\n\nSincerely,\nRadiology Team`;
   
         await sendEmail(
